@@ -33,7 +33,7 @@ class DashboardController extends Controller
             ->get();
 
         $monthlyExpenses = JournalEntryLine::select(
-                DB::raw('MONTH(journal_entries.posting_date) as month'),
+                DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date) as month'),
                 DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
             )
             ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
@@ -41,7 +41,7 @@ class DashboardController extends Controller
             ->where('chart_of_accounts.account_type', 'expense')
             ->where('journal_entries.status', 'posted')
             ->whereYear('journal_entries.posting_date', now()->year)
-            ->groupBy(DB::raw('MONTH(journal_entries.posting_date)'))
+            ->groupBy(DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date)'))
             ->orderBy('month')
             ->get();
 
