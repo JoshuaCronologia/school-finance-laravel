@@ -22,9 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS in production
+        // Force HTTPS in production (Vercel proxy sends requests as HTTP internally)
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
+            $this->app['request']->server->set('HTTPS', 'on');
         }
 
         // Password defaults
