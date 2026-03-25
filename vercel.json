@@ -11,6 +11,13 @@
     },
     "routes": [
         {
+            "src": "/build/assets/(.*\\.(css|js|png|jpg|gif|svg|ico|woff|woff2|ttf|eot))",
+            "dest": "/public/build/assets/$1",
+            "headers": {
+                "Cache-Control": "public, max-age=31536000, immutable"
+            }
+        },
+        {
             "src": "/build/(.*)",
             "dest": "/public/build/$1"
         },
@@ -32,7 +39,6 @@
         "APP_DEBUG": "true",
         "APP_KEY": "@app_key",
         "APP_URL": "https://school-finance-laravel.vercel.app",
-        "ASSET_URL": "https://school-finance-laravel.vercel.app",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
         "APP_PACKAGES_CACHE": "/tmp/packages.php",

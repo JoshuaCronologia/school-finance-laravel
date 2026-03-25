@@ -26,6 +26,13 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
             $this->app['request']->server->set('HTTPS', 'on');
+
+            // Dynamically set APP_URL from Vercel's auto-provided VERCEL_URL
+            if ($vercelUrl = env('VERCEL_URL')) {
+                $url = 'https://' . $vercelUrl;
+                config(['app.url' => $url]);
+                config(['app.asset_url' => $url]);
+            }
         }
 
         // Password defaults
