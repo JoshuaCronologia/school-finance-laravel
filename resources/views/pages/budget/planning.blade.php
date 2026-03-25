@@ -4,15 +4,15 @@
 @section('content')
 <x-page-header title="Budget Planning" subtitle="Create and manage budget plans">
     <x-slot:actions>
-        <a href="{{ route('budget.planning.copy-previous') ?? '#' }}" class="btn-secondary">
+        <button onclick="document.dispatchEvent(new CustomEvent('open-modal', { detail: 'copy-previous-budget' }))" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
             Copy from Previous Year
-        </a>
-        <a href="{{ route('budget.planning.import') ?? '#' }}" class="btn-secondary">
+        </button>
+        <a href="#" class="btn-secondary opacity-50 cursor-not-allowed" title="Coming soon">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
             Import
         </a>
-        <a href="{{ route('budget.planning.export') ?? '#' }}" class="btn-secondary">
+        <a href="{{ route('budget.planning.export') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
             Export
         </a>
@@ -172,6 +172,40 @@
 </x-modal>
 
 {{-- Edit Budget Modals --}}
+{{-- Copy from Previous Year Modal --}}
+<x-modal name="copy-previous-budget" title="Copy Budgets from Previous Year" maxWidth="lg">
+    <form action="{{ route('budget.planning.copy-previous') }}" method="POST">
+        @csrf
+        <div class="grid grid-cols-1 gap-4">
+            <div>
+                <label class="form-label">Source School Year <span class="text-danger-500">*</span></label>
+                <select name="source_year" class="form-input" required>
+                    @for($y = now()->year - 2; $y <= now()->year + 1; $y++)
+                        <option value="{{ $y }}-{{ $y + 1 }}" {{ ($y == now()->year - 1) ? 'selected' : '' }}>{{ $y }}-{{ $y + 1 }}</option>
+                    @endfor
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Target School Year <span class="text-danger-500">*</span></label>
+                <select name="target_year" class="form-input" required>
+                    @for($y = now()->year - 1; $y <= now()->year + 2; $y++)
+                        <option value="{{ $y }}-{{ $y + 1 }}" {{ ($y == now()->year) ? 'selected' : '' }}>{{ $y }}-{{ $y + 1 }}</option>
+                    @endfor
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Budget Adjustment (%)</label>
+                <input type="number" name="adjust_percentage" class="form-input" step="0.1" min="-100" max="100" value="0" placeholder="e.g., 5 for 5% increase">
+                <p class="text-xs text-secondary-400 mt-1">Positive = increase, negative = decrease. Leave 0 for exact copy.</p>
+            </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <button type="button" onclick="document.dispatchEvent(new CustomEvent('close-modal', { detail: 'copy-previous-budget' }))" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Copy Budgets</button>
+        </div>
+    </form>
+</x-modal>
+
 @foreach($budgets as $budget)
 <x-modal name="edit-budget-{{ $budget->id }}" title="Edit Budget" maxWidth="3xl">
     <form action="{{ route('budget.planning.update', $budget) }}" method="POST">

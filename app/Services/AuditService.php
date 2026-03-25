@@ -18,6 +18,28 @@ class AuditService
      * @param array|null  $oldValues Previous values (for updates)
      * @param string|null $remarks   Additional remarks
      */
+    /**
+     * Map common action shorthand to the DB enum values.
+     * DB enum: created, updated, deleted, approved, rejected, posted, reversed, voided, closed, reopened
+     */
+    private const ACTION_MAP = [
+        'create'          => 'created',
+        'update'          => 'updated',
+        'delete'          => 'deleted',
+        'approve'         => 'approved',
+        'reject'          => 'rejected',
+        'post'            => 'posted',
+        'reverse'         => 'reversed',
+        'void'            => 'voided',
+        'close'           => 'closed',
+        'reopen'          => 'reopened',
+        // Actions that don't have a direct match — map to closest equivalent
+        'submit'          => 'updated',
+        'submit_approval' => 'updated',
+        'return'          => 'rejected',
+        'payment'         => 'posted',
+    ];
+
     public function log(
         string $action,
         string $module,
@@ -26,6 +48,9 @@ class AuditService
         ?string $remarks = null
     ): AuditLog {
         $user = Auth::user();
+
+        // Normalize action to match DB enum
+        $dbAction = self::ACTION_MAP[$action] ?? $action;
 
         $newValues = null;
         if ($oldValues !== null) {
@@ -43,7 +68,7 @@ class AuditService
         return AuditLog::create([
             'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'System',
-            'action' => $action,
+            'action' => $dbAction,
             'module' => $module,
             'record_type' => get_class($record),
             'record_id' => $record->getKey(),

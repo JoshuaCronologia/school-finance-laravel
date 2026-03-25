@@ -13,9 +13,7 @@
 @endif
 
 {{-- Ready for Payment --}}
-@php
-    $readyCount = count($readyForPayment ?? []);
-@endphp
+@php $readyCount = count($readyForPayment ?? []); @endphp
 <div class="card mb-6">
     <div class="card-header">
         <div class="flex items-center gap-2">
@@ -72,7 +70,7 @@
 {{-- Process Payment Modals --}}
 @foreach($readyForPayment ?? [] as $request)
 <x-modal name="process-payment-{{ $request->id }}" title="Process Payment" maxWidth="3xl">
-    <form action="{{ route('ap.payments.store') }}" method="POST" x-data="{
+    <form action="{{ route('ap.payments.store', $request) }}" method="POST" x-data="{
         grossAmount: {{ $request->amount }},
         whtRate: 0.02,
         get whtAmount() { return parseFloat((this.grossAmount * this.whtRate).toFixed(2)); },
@@ -107,13 +105,8 @@
                 <input type="date" name="payment_date" class="form-input" value="{{ date('Y-m-d') }}" required>
             </div>
             <div>
-                <label class="form-label">Bank Account <span class="text-danger-500">*</span></label>
-                <select name="bank_account_id" class="form-input" required>
-                    <option value="">Select Bank Account</option>
-                    @foreach($bankAccounts ?? [] as $bank)
-                        <option value="{{ $bank->id }}">{{ $bank->bank_name }} - {{ $bank->account_number }}</option>
-                    @endforeach
-                </select>
+                <label class="form-label">Bank Account</label>
+                <input type="text" name="bank_account" class="form-input" placeholder="e.g., BDO - 1234-5678">
             </div>
             <div>
                 <label class="form-label">Payment Method <span class="text-danger-500">*</span></label>

@@ -136,22 +136,22 @@
 
     /* ---------- Sidebar ---------- */
     .sidebar {
-        @apply fixed inset-y-0 left-0 z-30 w-64 bg-secondary-900 text-white
+        @apply fixed inset-y-0 left-0 z-30 w-64 bg-white text-gray-900
                flex flex-col overflow-y-auto;
     }
 
     .sidebar-link {
         @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg
-               text-secondary-300 transition-colors duration-150
-               hover:bg-secondary-800 hover:text-white;
+               text-gray-600 transition-colors duration-150
+               hover:bg-gray-100 hover:text-gray-900;
     }
 
     .sidebar-link--active {
-        @apply bg-primary-600/20 text-primary-400;
+        @apply bg-primary-50 text-primary-600;
     }
 
     .sidebar-section-title {
-        @apply px-4 py-2 text-xs font-semibold uppercase tracking-wider text-secondary-500;
+        @apply px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400;
     }
 
     /* ---------- Data Table ---------- */
@@ -302,5 +302,67 @@
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+}
+
+/* ----------------------------------------------------------------
+   Print Styles - Only print the statement, hide everything else
+   ---------------------------------------------------------------- */
+@media print {
+    /* Hide sidebar, topbar, footer, filters, buttons */
+    aside,
+    header.sticky,
+    footer,
+    .no-print,
+    .btn-primary,
+    .btn-secondary,
+    .btn-icon,
+    form,
+    .sidebar,
+    .modal-overlay,
+    [x-data="{ sidebarOpen: false }"] > div:first-child /* mobile overlay */ {
+        display: none !important;
+    }
+
+    /* Reset the main content layout - remove sidebar offset */
+    .lg\:ml-64 {
+        margin-left: 0 !important;
+    }
+
+    body {
+        background: white !important;
+        font-size: 11px !important;
+    }
+
+    main#app {
+        padding: 0 !important;
+    }
+
+    /* Cards should have no shadow in print */
+    .card {
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* Ensure printable content fills the page */
+    .print-only {
+        display: block !important;
+    }
+
+    /* Page setup */
+    @page {
+        margin: 1.5cm;
+        size: letter portrait;
+    }
+
+    /* Keep tables from breaking across pages */
+    table, tr, td, th {
+        page-break-inside: avoid;
+    }
+
+    /* Ensure font colors print properly */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 }

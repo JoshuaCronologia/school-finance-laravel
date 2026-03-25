@@ -55,7 +55,7 @@ class BillController extends Controller
 
         $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
 
-        return view('pages.ap.bills', compact('bills', 'totalOutstanding', 'totalOverdue', 'vendors'));
+        return view('pages.ap.bills.index', compact('bills', 'totalOutstanding', 'totalOverdue', 'vendors'));
     }
 
     public function create()
@@ -69,7 +69,7 @@ class BillController extends Controller
         $paymentTerms = PaymentTerm::where('is_active', true)->get();
         $taxCodes = TaxCode::where('is_active', true)->get();
 
-        return view('pages.ap.bill-create', compact(
+        return view('pages.ap.bills.create', compact(
             'vendors', 'accounts', 'departments', 'campuses',
             'costCenters', 'categories', 'paymentTerms', 'taxCodes'
         ));
@@ -129,7 +129,7 @@ class BillController extends Controller
                     'gross_amount' => $grossAmount,
                     'vat_amount' => $vatAmount,
                     'withholding_tax' => $whtAmount,
-                    'net_amount' => $grossAmount + $vatAmount - $whtAmount,
+                    'net_payable' => $grossAmount + $vatAmount - $whtAmount,
                     'balance' => $grossAmount + $vatAmount - $whtAmount,
                     'status' => 'draft',
                     'created_by' => auth()->id(),
@@ -168,7 +168,7 @@ class BillController extends Controller
             'journalEntry.lines.account',
         ]);
 
-        return view('pages.ap.bill-show', compact('bill'));
+        return view('pages.ap.bills.show', compact('bill'));
     }
 
     public function edit(ApBill $bill)
@@ -188,7 +188,7 @@ class BillController extends Controller
         $paymentTerms = PaymentTerm::where('is_active', true)->get();
         $taxCodes = TaxCode::where('is_active', true)->get();
 
-        return view('pages.ap.bill-edit', compact(
+        return view('pages.ap.bills.create', compact(
             'bill', 'vendors', 'accounts', 'departments', 'campuses',
             'costCenters', 'categories', 'paymentTerms', 'taxCodes'
         ));
@@ -232,7 +232,7 @@ class BillController extends Controller
                     'campus_id' => $validated['campus_id'] ?? null,
                     'category_id' => $validated['category_id'] ?? null,
                     'gross_amount' => $grossAmount,
-                    'net_amount' => $grossAmount,
+                    'net_payable' => $grossAmount,
                     'balance' => $grossAmount,
                 ]);
 

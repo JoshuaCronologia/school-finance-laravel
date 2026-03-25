@@ -16,6 +16,7 @@ use App\Services\BudgetService;
 use App\Services\NumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class DisbursementController extends Controller
 {
@@ -48,15 +49,35 @@ class DisbursementController extends Controller
 
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        $totalPending = DisbursementRequest::where('status', 'pending')->sum('amount');
+        $totalPending = DisbursementRequest::where('status', 'pending_approval')->sum('amount');
         $totalApproved = DisbursementRequest::where('status', 'approved')->sum('amount');
 
-        return view('pages.ap.disbursements', compact(
+        return view('pages.ap.disbursements.index', compact(
             'disbursements', 'departments', 'totalPending', 'totalApproved'
         ));
     }
 
     public function create()
+    {
+        return view('pages.ap.disbursements.create', $this->formData());
+    }
+
+    public function edit(DisbursementRequest $disbursement)
+    {
+        if ($disbursement->status !== 'draft') {
+            return redirect()->route('ap.disbursements.show', $disbursement)
+                ->with('error', 'Only draft requests can be edited.');
+        }
+
+        $disbursement->load('items');
+
+        return view('pages.ap.disbursements.create', array_merge(
+            $this->formData(),
+            ['disbursement' => $disbursement]
+        ));
+    }
+
+    private function formData(): array
     {
         $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
@@ -72,9 +93,7 @@ class DisbursementController extends Controller
                 return $b;
             });
 
-        return view('pages.ap.disbursement-create', compact(
-            'vendors', 'departments', 'categories', 'costCenters', 'accounts', 'budgets'
-        ));
+        return compact('vendors', 'departments', 'categories', 'costCenters', 'accounts', 'budgets');
     }
 
     public function store(Request $request)
@@ -89,7 +108,7 @@ class DisbursementController extends Controller
             'category_id' => 'nullable|exists:expense_categories,id',
             'cost_center_id' => 'nullable|exists:cost_centers,id',
             'project' => 'nullable|string|max:100',
-            'payment_method' => 'required|in:cash,check,bank_transfer,online',
+            'payment_method' => 'nullable|in:cash,check,bank_transfer,online',
             'description' => 'required|string',
             'budget_id' => 'nullable|exists:budgets,id',
             'items' => 'required|array|min:1',
@@ -98,6 +117,8 @@ class DisbursementController extends Controller
             'items.*.unit_cost' => 'required|numeric|min:0',
             'items.*.amount' => 'required|numeric|min:0',
             'items.*.account_code' => 'nullable|string|max:20',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
         ]);
 
         $totalAmount = collect($validated['items'])->sum('amount');
@@ -142,6 +163,20 @@ class DisbursementController extends Controller
                     ]);
                 }
 
+                // Store attachments
+                if (isset($validated['attachments'])) {
+                    $attachmentPaths = [];
+                    foreach ($validated['attachments'] as $file) {
+                        $path = $file->store("disbursements/{$disbursement->id}", 'public');
+                        $attachmentPaths[] = [
+                            'filename' => $file->getClientOriginalName(),
+                            'path' => $path,
+                            'size' => $file->getSize(),
+                        ];
+                    }
+                    $disbursement->update(['attachments' => json_encode($attachmentPaths)]);
+                }
+
                 app(AuditService::class)->log('create', 'disbursement', $disbursement, null, 'Disbursement request created');
 
                 return $disbursement;
@@ -175,7 +210,44 @@ class DisbursementController extends Controller
             }
         }
 
-        return view('pages.ap.disbursement-show', compact('disbursement', 'budgetInfo'));
+        return view('pages.ap.disbursements.show', compact('disbursement', 'budgetInfo'));
+    }
+
+    public function export()
+    {
+        $disbursements = DisbursementRequest::with('department', 'category')
+            ->latest('request_date')
+            ->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="disbursements-' . now()->format('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($disbursements) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'Request Number', 'Date', 'Payee', 'Department',
+                'Category', 'Amount', 'Payment Method', 'Status',
+            ]);
+
+            foreach ($disbursements as $d) {
+                fputcsv($file, [
+                    $d->request_number,
+                    $d->request_date,
+                    $d->payee_name,
+                    $d->department ? $d->department->name : '',
+                    $d->category ? $d->category->name : '',
+                    $d->amount,
+                    $d->payment_method,
+                    $d->status,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function submit(DisbursementRequest $disbursement)
@@ -189,7 +261,7 @@ class DisbursementController extends Controller
             app(BudgetService::class)->commitBudget($disbursement->budget_id, (float) $disbursement->amount);
         }
 
-        $disbursement->update(['status' => 'pending']);
+        $disbursement->update(['status' => 'pending_approval']);
 
         app(AuditService::class)->log('submit', 'disbursement', $disbursement, null, 'Submitted for approval');
 

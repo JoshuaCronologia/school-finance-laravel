@@ -20,6 +20,22 @@ window.axios = axios;
    ---------------------------------------------------------------- */
 const app = createApp({});
 
+// Alpine.js manages its own <template x-for> / <template x-if> elements.
+// Tell Vue's runtime compiler to treat them as custom elements so it
+// does not flag them as invalid HTML nesting (e.g. <template> in <tbody>).
+app.config.compilerOptions.isCustomElement = (tag) => {
+    return false;
+};
+app.config.warnHandler = (msg, instance, trace) => {
+    // Suppress Vue warnings about Alpine-managed <template> and x-data properties
+    if (msg.includes('<template> cannot be child of') ||
+        msg.includes('was accessed during render but is not defined')) {
+        return;
+    }
+    console.warn(`[Vue warn]: ${msg}${trace}`);
+};
+
+
 /* ----------------------------------------------------------------
    Auto-register Vue components from ./components directory
    Requires: import.meta.glob (Vite)
@@ -71,4 +87,12 @@ app.config.globalProperties.$formatDate = (dateStr, options = {}) => {
 /* ----------------------------------------------------------------
    Mount
    ---------------------------------------------------------------- */
-app.mount('#app');
+// Vue was previously mounted on the entire #app container, which also holds
+// Alpine-driven pages. Mounting Vue there caused Vue to re-render the DOM and
+// Alpine to lose its scope (_x_dataStack became null), triggering many Alpine
+// expression errors. To avoid stepping on Alpine, only mount Vue when an
+// explicit root is present.
+const mountTarget = document.querySelector('[data-vue-root], #vue-app');
+if (mountTarget) {
+    app.mount(mountTarget);
+}

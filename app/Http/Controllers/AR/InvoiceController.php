@@ -59,7 +59,7 @@ class InvoiceController extends Controller
         $revenueAccounts = ChartOfAccount::active()->where('account_type', 'revenue')->orderBy('account_code')->get();
         $taxCodes = TaxCode::where('is_active', true)->get();
 
-        return view('pages.ar.invoices', compact(
+        return view('pages.ar.invoices.index', compact(
             'invoices', 'totalInvoiced', 'totalCollected', 'totalOutstanding', 'totalOverdue', 'invoiceCount',
             'customers', 'campuses', 'departments', 'revenueAccounts', 'taxCodes'
         ));
@@ -73,7 +73,7 @@ class InvoiceController extends Controller
         $revenueAccounts = ChartOfAccount::active()->where('account_type', 'revenue')->orderBy('account_code')->get();
         $taxCodes = TaxCode::where('is_active', true)->get();
 
-        return view('pages.ar.invoice-create', compact(
+        return view('pages.ar.invoices.create', compact(
             'customers', 'campuses', 'departments', 'revenueAccounts', 'taxCodes'
         ));
     }
@@ -171,7 +171,7 @@ class InvoiceController extends Controller
             'journalEntry.lines.account',
         ]);
 
-        return view('pages.ar.invoice-show', compact('invoice'));
+        return view('pages.ar.invoices.show', compact('invoice'));
     }
 
     public function update(Request $request, ArInvoice $invoice)

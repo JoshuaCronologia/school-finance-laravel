@@ -7,7 +7,7 @@
 {{-- Filters --}}
 <div class="card mb-6">
     <div class="card-body">
-        <form action="{{ route('system.audit-trail') }}" method="GET" class="flex flex-wrap items-end gap-4">
+        <form action="{{ route('audit-trail') }}" method="GET" class="flex flex-wrap items-end gap-4">
             <div class="flex-1 min-w-[200px]">
                 <label class="form-label">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}" class="form-input" placeholder="Search by user, record, description...">
@@ -40,7 +40,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <button type="submit" class="btn-primary">Filter</button>
-                <a href="{{ route('system.audit-trail') }}" class="btn-secondary">Clear</a>
+                <a href="{{ route('audit-trail') }}" class="btn-secondary">Clear</a>
             </div>
         </form>
     </div>

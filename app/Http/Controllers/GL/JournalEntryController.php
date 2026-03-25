@@ -16,6 +16,7 @@ use App\Models\RecurringJournalTemplate;
 use App\Services\AuditService;
 use App\Services\NumberingService;
 use App\Services\PostingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -46,12 +47,15 @@ class JournalEntryController extends Controller
             });
         }
 
-        $entries = $query->latest('entry_date')->paginate(20);
+        $journalEntries = $query->latest('entry_date')->paginate(20);
 
         $unpostedCount = JournalEntry::where('status', 'draft')->count();
+        $pendingApprovalCount = JournalEntry::where('status', 'pending_approval')->count();
         $totalEntries = JournalEntry::count();
 
-        return view('pages.gl.journal-entries.index', compact('entries', 'unpostedCount', 'totalEntries'));
+        $accounts = ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
+
+        return view('pages.gl.journal-entries.index', compact('journalEntries', 'unpostedCount', 'pendingApprovalCount', 'totalEntries', 'accounts'));
     }
 
     public function create()
@@ -71,7 +75,7 @@ class JournalEntryController extends Controller
     {
         $validated = $request->validate([
             'entry_date' => 'required|date',
-            'journal_type' => 'required|in:GJ,AJ,CRJ,CDJ,SJ,PJ',
+            'journal_type' => 'required|in:general,adjusting,closing,reversing,revenue,expense,payroll',
             'description' => 'required|string',
             'reference_number' => 'nullable|string|max:100',
             'campus_id' => 'nullable|exists:campuses,id',
@@ -94,7 +98,7 @@ class JournalEntryController extends Controller
 
         if (round($totalDebit, 2) !== round($totalCredit, 2)) {
             return back()->withInput()->with('error',
-                "Journal entry must be balanced. Debits ({$totalDebit}) and credits ({$totalCredit}) do not match.");
+                "Journal entry must be balanced. Debits (₱" . number_format($totalDebit, 2) . ") and credits (₱" . number_format($totalCredit, 2) . ") do not match.");
         }
 
         // Validate each line has either debit or credit (not both zero)
@@ -105,7 +109,7 @@ class JournalEntryController extends Controller
         }
 
         try {
-            $entry = DB::transaction(function () use ($validated) {
+            $entry = DB::transaction(function () use ($validated, $request) {
                 $entry = JournalEntry::create([
                     'entry_number' => NumberingService::generate('JE'),
                     'entry_date' => $validated['entry_date'],
@@ -137,11 +141,17 @@ class JournalEntryController extends Controller
 
                 app(AuditService::class)->log('create', 'journal_entry', $entry, null, 'Journal entry created');
 
+                // If user clicked "Submit for Approval", change status
+                if ($request->input('action') === 'submit_approval') {
+                    $entry->update(['status' => 'pending_approval']);
+                    app(AuditService::class)->log('submit_approval', 'journal_entry', $entry, null, 'Submitted for approval');
+                }
+
                 return $entry;
             });
 
             return redirect()->route('gl.journal-entries.show', $entry)
-                ->with('success', "Journal entry {$entry->entry_number} created.");
+                ->with('success', "Journal entry {$entry->entry_number} created successfully.");
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Failed to create journal entry: ' . $e->getMessage());
         }
@@ -158,12 +168,67 @@ class JournalEntryController extends Controller
     }
 
     /**
-     * Post a journal entry.
+     * Submit a draft JE for approval.
+     */
+    public function submitForApproval(JournalEntry $journalEntry)
+    {
+        if ($journalEntry->status !== 'draft') {
+            return back()->with('error', 'Only draft entries can be submitted for approval.');
+        }
+
+        $journalEntry->update(['status' => 'pending_approval']);
+
+        app(AuditService::class)->log('submit_approval', 'journal_entry', $journalEntry, null, 'Submitted for approval');
+
+        return back()->with('success', "Journal entry {$journalEntry->entry_number} submitted for approval.");
+    }
+
+    /**
+     * Approve a JE (moves to approved status, ready for posting).
+     */
+    public function approve(JournalEntry $journalEntry)
+    {
+        if ($journalEntry->status !== 'pending_approval') {
+            return back()->with('error', 'Only entries pending approval can be approved.');
+        }
+
+        $journalEntry->update([
+            'status' => 'approved',
+            'approved_by' => auth()->id(),
+        ]);
+
+        app(AuditService::class)->log('approve', 'journal_entry', $journalEntry, null, 'Journal entry approved');
+
+        return back()->with('success', "Journal entry {$journalEntry->entry_number} approved.");
+    }
+
+    /**
+     * Reject a JE (moves back to draft).
+     */
+    public function reject(Request $request, JournalEntry $journalEntry)
+    {
+        if ($journalEntry->status !== 'pending_approval') {
+            return back()->with('error', 'Only entries pending approval can be rejected.');
+        }
+
+        $journalEntry->update([
+            'status' => 'draft',
+            'approved_by' => null,
+        ]);
+
+        $reason = $request->input('reason', 'Rejected');
+        app(AuditService::class)->log('reject', 'journal_entry', $journalEntry, null, "Journal entry rejected: {$reason}");
+
+        return back()->with('success', "Journal entry {$journalEntry->entry_number} rejected and returned to draft.");
+    }
+
+    /**
+     * Post an approved journal entry.
      */
     public function post(JournalEntry $journalEntry)
     {
-        if ($journalEntry->status !== 'draft') {
-            return back()->with('error', 'Only draft entries can be posted.');
+        if (!in_array($journalEntry->status, ['approved', 'draft'])) {
+            return back()->with('error', 'Only approved or draft entries can be posted.');
         }
 
         // Check period is not closed
@@ -175,6 +240,14 @@ class JournalEntryController extends Controller
             return back()->with('error', 'Cannot post to a closed accounting period.');
         }
 
+        // Verify entry is balanced
+        $totalDebit = $journalEntry->lines()->sum('debit');
+        $totalCredit = $journalEntry->lines()->sum('credit');
+
+        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
+            return back()->with('error', 'Cannot post an unbalanced journal entry.');
+        }
+
         $journalEntry->update([
             'status' => 'posted',
             'posting_date' => now(),
@@ -183,7 +256,7 @@ class JournalEntryController extends Controller
 
         app(AuditService::class)->log('post', 'journal_entry', $journalEntry, null, 'Journal entry posted');
 
-        return back()->with('success', "Journal entry {$journalEntry->entry_number} posted.");
+        return back()->with('success', "Journal entry {$journalEntry->entry_number} posted successfully.");
     }
 
     /**
@@ -206,6 +279,48 @@ class JournalEntryController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to reverse entry: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Print Journal Voucher as PDF.
+     */
+    public function printVoucher(JournalEntry $journalEntry)
+    {
+        $journalEntry->load('lines.account', 'lines.department', 'campus', 'department');
+
+        $totalDebit = $journalEntry->lines->sum('debit');
+        $totalCredit = $journalEntry->lines->sum('credit');
+
+        $data = [
+            'entry'       => $journalEntry,
+            'totalDebit'  => $totalDebit,
+            'totalCredit' => $totalCredit,
+            'printedAt'   => now()->format('F d, Y h:i A'),
+            'printedBy'   => auth()->user()->name ?? 'System',
+        ];
+
+        $pdf = Pdf::loadView('pages.gl.journal-entries.print-voucher', $data)
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download("JV-{$journalEntry->entry_number}.pdf");
+    }
+
+    /**
+     * Approval queue - list entries pending approval.
+     */
+    public function approvalQueue()
+    {
+        $pendingEntries = JournalEntry::with('lines.account', 'department')
+            ->where('status', 'pending_approval')
+            ->latest('entry_date')
+            ->paginate(20);
+
+        $approvedEntries = JournalEntry::with('lines.account', 'department')
+            ->where('status', 'approved')
+            ->latest('entry_date')
+            ->paginate(20);
+
+        return view('pages.gl.journal-entries.approval-queue', compact('pendingEntries', 'approvedEntries'));
     }
 
     /**

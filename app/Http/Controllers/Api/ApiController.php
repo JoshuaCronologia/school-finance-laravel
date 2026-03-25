@@ -421,7 +421,13 @@ class ApiController extends Controller
     {
         $asOfDate = $request->input('as_of_date', now()->toDateString());
 
-        $accounts = ChartOfAccount::select('chart_of_accounts.*')
+        $accounts = ChartOfAccount::select(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->selectRaw('COALESCE(SUM(jel.debit), 0) as total_debit')
             ->selectRaw('COALESCE(SUM(jel.credit), 0) as total_credit')
             ->leftJoin('journal_entry_lines as jel', 'chart_of_accounts.id', '=', 'jel.account_id')
@@ -430,7 +436,13 @@ class ApiController extends Controller
                      ->where('je.status', '=', 'posted')
                      ->whereDate('je.posting_date', '<=', $asOfDate);
             })
-            ->groupBy('chart_of_accounts.id')
+            ->groupBy(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->orderBy('chart_of_accounts.account_code')
             ->get()
             ->filter(fn($a) => $a->total_debit > 0 || $a->total_credit > 0)

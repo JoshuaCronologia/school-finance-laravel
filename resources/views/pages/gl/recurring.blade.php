@@ -73,7 +73,7 @@
 
 {{-- Create Template Modal --}}
 <x-modal name="create-template" title="Create Recurring Journal Template" maxWidth="4xl">
-    <form action="{{ route('gl.recurring.store') }}" method="POST" x-data="{
+    <form action="{{ route('gl.recurring.store') }}" method="POST" v-pre x-data="{
         lines: [
             { account_id: '', description: '', debit: 0, credit: 0 },
             { account_id: '', description: '', debit: 0, credit: 0 }
@@ -205,11 +205,11 @@
             </div>
             <div>
                 <label class="form-label">Start Date</label>
-                <input type="date" name="start_date" class="form-input" value="{{ $template->start_date }}">
+                <input type="date" name="start_date" class="form-input" value="{{ $template->start_date ? \Carbon\Carbon::parse($template->start_date)->format('Y-m-d') : '' }}">
             </div>
             <div>
                 <label class="form-label">End Date</label>
-                <input type="date" name="end_date" class="form-input" value="{{ $template->end_date ?? '' }}">
+                <input type="date" name="end_date" class="form-input" value="{{ $template->end_date ? \Carbon\Carbon::parse($template->end_date)->format('Y-m-d') : '' }}">
             </div>
             <div class="md:col-span-3">
                 <label class="form-label">Description</label>

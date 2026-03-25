@@ -11,6 +11,63 @@ use Illuminate\Http\Request;
 
 class VendorController extends Controller
 {
+    /**
+     * AP Aging report per vendor.
+     */
+    public function aging(Request $request)
+    {
+        $asOfDate = $request->input('as_of_date', now()->toDateString());
+        $today = \Carbon\Carbon::parse($asOfDate);
+
+        $vendors = Vendor::where('is_active', true)
+            ->whereHas('bills', function ($q) {
+                $q->whereNotIn('status', ['cancelled', 'voided', 'paid'])
+                  ->where('balance', '>', 0);
+            })
+            ->with(['bills' => function ($q) {
+                $q->whereNotIn('status', ['cancelled', 'voided', 'paid'])
+                  ->where('balance', '>', 0);
+            }])
+            ->orderBy('name')
+            ->get();
+
+        $agingData = [];
+        $totals = ['current' => 0, 'days_1_30' => 0, 'days_31_60' => 0, 'days_61_90' => 0, 'over_90' => 0, 'total' => 0];
+
+        foreach ($vendors as $vendor) {
+            $buckets = ['current' => 0, 'days_1_30' => 0, 'days_31_60' => 0, 'days_61_90' => 0, 'over_90' => 0, 'total' => 0];
+
+            foreach ($vendor->bills as $bill) {
+                $daysOverdue = $today->diffInDays($bill->due_date, false);
+                $balance = (float) $bill->balance;
+
+                if ($daysOverdue >= 0) {
+                    $buckets['current'] += $balance;
+                } elseif ($daysOverdue >= -30) {
+                    $buckets['days_1_30'] += $balance;
+                } elseif ($daysOverdue >= -60) {
+                    $buckets['days_31_60'] += $balance;
+                } elseif ($daysOverdue >= -90) {
+                    $buckets['days_61_90'] += $balance;
+                } else {
+                    $buckets['over_90'] += $balance;
+                }
+
+                $buckets['total'] += $balance;
+            }
+
+            $agingData[] = (object) array_merge(['vendor' => $vendor], $buckets);
+
+            foreach ($totals as $key => &$val) {
+                $val += $buckets[$key];
+            }
+        }
+
+        $totals = (object) $totals;
+
+        return view('pages.ap.aging', compact('agingData', 'totals', 'asOfDate'));
+    }
+
     public function index(Request $request)
     {
         $query = Vendor::withCount('bills');
@@ -45,7 +102,7 @@ class VendorController extends Controller
 
         $paymentTerms = PaymentTerm::where('is_active', true)->get();
 
-        return view('pages.ap.vendors', compact('vendors', 'paymentTerms'));
+        return view('pages.ap.vendors.index', compact('vendors', 'paymentTerms'));
     }
 
     public function store(Request $request)
@@ -59,7 +116,7 @@ class VendorController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'tin' => 'nullable|string|max:20',
-            'vat_type' => 'nullable|in:vatable,non-vatable,zero-rated',
+            'vat_type' => 'nullable|in:vatable,non-vatable,zero-rated,tax_exempt',
             'withholding_tax_type' => 'nullable|string|max:50',
             'payment_terms_id' => 'nullable|exists:payment_terms,id',
             'credit_limit' => 'nullable|numeric|min:0',
@@ -118,8 +175,12 @@ class VendorController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'tin' => 'nullable|string|max:20',
-            'vat_type' => 'nullable|in:vatable,non-vatable,zero-rated',
+            'vat_type' => 'nullable|in:vatable,non-vatable,zero-rated,tax_exempt',
+            'withholding_tax_type' => 'nullable|string|max:50',
             'payment_terms_id' => 'nullable|exists:payment_terms,id',
+            'bank_name' => 'nullable|string|max:255',
+            'account_name' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:50',
             'is_active' => 'boolean',
         ]);
 

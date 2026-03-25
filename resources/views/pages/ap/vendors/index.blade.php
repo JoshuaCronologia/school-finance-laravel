@@ -23,13 +23,13 @@
 @endif
 
 {{-- Filters --}}
-<x-filter-bar action="{{ route('ap.vendors.index') }}" method="GET">
+<x-filter-bar action="{{ route('vendors.index') }}" method="GET">
     <div>
         <label class="form-label">Type</label>
-        <select name="type" class="form-input w-44">
+        <select name="vendor_type" class="form-input w-44">
             <option value="">All Types</option>
-            @foreach(['vendor', 'supplier', 'contractor'] as $t)
-                <option value="{{ $t }}" {{ request('type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
+            @foreach(['supplier', 'contractor', 'utility', 'government', 'individual', 'other'] as $t)
+                <option value="{{ $t }}" {{ request('vendor_type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
             @endforeach
         </select>
     </div>
@@ -51,7 +51,7 @@
             <th>Name</th>
             <th>Type</th>
             <th>TIN</th>
-            <th>Email</th>
+            <th>Tax Classification</th>
             <th>Phone</th>
             <th class="text-right">Outstanding Balance</th>
             <th>Status</th>
@@ -60,15 +60,23 @@
     </thead>
     <tbody>
         @forelse($vendors as $vendor)
+        @php
+            $vatLabels = ['vatable' => 'VAT', 'non-vatable' => 'Non-VAT', 'zero-rated' => 'Zero Rated', 'tax_exempt' => 'Tax Exempt'];
+        @endphp
         <tr>
             <td class="font-medium text-secondary-900">{{ $vendor->vendor_code ?? '-' }}</td>
             <td class="font-medium">{{ $vendor->name }}</td>
-            <td>{{ ucfirst($vendor->type ?? '-') }}</td>
+            <td>{{ ucfirst($vendor->vendor_type ?? '-') }}</td>
             <td>{{ $vendor->tin ?? '-' }}</td>
-            <td>{{ $vendor->email ?? '-' }}</td>
+            <td>
+                <span class="text-xs">{{ $vatLabels[$vendor->vat_type] ?? '-' }}</span>
+                @if($vendor->withholding_tax_type)
+                    <span class="text-xs text-secondary-400">/ {{ $vendor->withholding_tax_type }}</span>
+                @endif
+            </td>
             <td>{{ $vendor->phone ?? '-' }}</td>
             <td class="text-right font-medium">{{ '₱' . number_format($vendor->outstanding_balance ?? 0, 2) }}</td>
-            <td><x-badge :status="$vendor->status ?? 'active'" /></td>
+            <td><x-badge :status="$vendor->is_active ? 'active' : 'inactive'" /></td>
             <td>
                 <button @click="$dispatch('open-modal', 'edit-vendor-{{ $vendor->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
             </td>
@@ -91,7 +99,7 @@
 
 {{-- Add Vendor Modal --}}
 <x-modal name="add-vendor" title="Add Vendor" maxWidth="4xl">
-    <form action="{{ route('ap.vendors.store') }}" method="POST">
+    <form action="{{ route('vendors.store') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -104,11 +112,14 @@
             </div>
             <div>
                 <label class="form-label">Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
+                <select name="vendor_type" class="form-input" required>
                     <option value="">Select Type</option>
-                    <option value="vendor">Vendor</option>
                     <option value="supplier">Supplier</option>
                     <option value="contractor">Contractor</option>
+                    <option value="utility">Utility</option>
+                    <option value="government">Government</option>
+                    <option value="individual">Individual</option>
+                    <option value="other">Other</option>
                 </select>
             </div>
             <div>
@@ -132,33 +143,37 @@
                 <input type="text" name="tin" class="form-input" placeholder="xxx-xxx-xxx-xxx">
             </div>
             <div>
-                <label class="form-label">VAT Type</label>
+                <label class="form-label">Tax Classification</label>
                 <select name="vat_type" class="form-input">
                     <option value="">Select</option>
-                    <option value="vat_registered">VAT Registered</option>
-                    <option value="non_vat">Non-VAT</option>
-                    <option value="vat_exempt">VAT Exempt</option>
+                    <option value="vatable">VATable (VAT Registered)</option>
+                    <option value="non-vatable">Non-VAT</option>
+                    <option value="zero-rated">Zero Rated</option>
+                    <option value="tax_exempt">Tax Exempt</option>
                 </select>
             </div>
             <div>
-                <label class="form-label">WHT Type</label>
-                <select name="wht_type" class="form-input">
-                    <option value="">Select</option>
-                    <option value="WC010">WC010 - 1%</option>
-                    <option value="WC020">WC020 - 2%</option>
-                    <option value="WC050">WC050 - 5%</option>
-                    <option value="WC100">WC100 - 10%</option>
-                    <option value="WC150">WC150 - 15%</option>
+                <label class="form-label">ATC (Alphanumeric Tax Code)</label>
+                <select name="withholding_tax_type" class="form-input">
+                    <option value="">Select ATC</option>
+                    <option value="WI010">WI010 - EWT Prof. fees (individual) 5%</option>
+                    <option value="WI020">WI020 - EWT Prof. fees (individual) 10%</option>
+                    <option value="WI100">WI100 - EWT Prof. fees (individual) 15%</option>
+                    <option value="WC010">WC010 - EWT Prof. fees (corporate) 10%</option>
+                    <option value="WC020">WC020 - EWT Prof. fees (corporate) 15%</option>
+                    <option value="WC100">WC100 - EWT Rental (corporate) 5%</option>
+                    <option value="WB010">WB010 - EWT Goods 1%</option>
+                    <option value="WB020">WB020 - EWT Services 2%</option>
+                    <option value="WB050">WB050 - EWT Rentals 5%</option>
                 </select>
             </div>
             <div>
                 <label class="form-label">Payment Terms</label>
-                <select name="payment_terms" class="form-input">
+                <select name="payment_terms_id" class="form-input">
                     <option value="">Select</option>
-                    <option value="cod">COD</option>
-                    <option value="net_15">Net 15</option>
-                    <option value="net_30">Net 30</option>
-                    <option value="net_60">Net 60</option>
+                    @foreach($paymentTerms ?? [] as $pt)
+                        <option value="{{ $pt->id }}">{{ $pt->name ?? $pt->code }}</option>
+                    @endforeach
                 </select>
             </div>
             <div>
@@ -167,11 +182,11 @@
             </div>
             <div>
                 <label class="form-label">Account Name</label>
-                <input type="text" name="bank_account_name" class="form-input" placeholder="Account holder name">
+                <input type="text" name="account_name" class="form-input" placeholder="Account holder name">
             </div>
             <div>
                 <label class="form-label">Account Number</label>
-                <input type="text" name="bank_account_number" class="form-input" placeholder="Bank account number">
+                <input type="text" name="account_number" class="form-input" placeholder="Bank account number">
             </div>
         </div>
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
@@ -184,7 +199,7 @@
 {{-- Edit Vendor Modals --}}
 @foreach($vendors as $vendor)
 <x-modal name="edit-vendor-{{ $vendor->id }}" title="Edit Vendor" maxWidth="4xl">
-    <form action="{{ route('ap.vendors.update', $vendor) }}" method="POST">
+    <form action="{{ route('vendors.update', $vendor) }}" method="POST">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -198,10 +213,13 @@
             </div>
             <div>
                 <label class="form-label">Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
-                    <option value="vendor" {{ $vendor->type == 'vendor' ? 'selected' : '' }}>Vendor</option>
-                    <option value="supplier" {{ $vendor->type == 'supplier' ? 'selected' : '' }}>Supplier</option>
-                    <option value="contractor" {{ $vendor->type == 'contractor' ? 'selected' : '' }}>Contractor</option>
+                <select name="vendor_type" class="form-input" required>
+                    <option value="supplier" {{ ($vendor->vendor_type ?? '') == 'supplier' ? 'selected' : '' }}>Supplier</option>
+                    <option value="contractor" {{ ($vendor->vendor_type ?? '') == 'contractor' ? 'selected' : '' }}>Contractor</option>
+                    <option value="utility" {{ ($vendor->vendor_type ?? '') == 'utility' ? 'selected' : '' }}>Utility</option>
+                    <option value="government" {{ ($vendor->vendor_type ?? '') == 'government' ? 'selected' : '' }}>Government</option>
+                    <option value="individual" {{ ($vendor->vendor_type ?? '') == 'individual' ? 'selected' : '' }}>Individual</option>
+                    <option value="other" {{ ($vendor->vendor_type ?? '') == 'other' ? 'selected' : '' }}>Other</option>
                 </select>
             </div>
             <div>
@@ -225,33 +243,37 @@
                 <input type="text" name="tin" class="form-input" value="{{ $vendor->tin ?? '' }}">
             </div>
             <div>
-                <label class="form-label">VAT Type</label>
+                <label class="form-label">Tax Classification</label>
                 <select name="vat_type" class="form-input">
                     <option value="">Select</option>
-                    <option value="vat_registered" {{ ($vendor->vat_type ?? '') == 'vat_registered' ? 'selected' : '' }}>VAT Registered</option>
-                    <option value="non_vat" {{ ($vendor->vat_type ?? '') == 'non_vat' ? 'selected' : '' }}>Non-VAT</option>
-                    <option value="vat_exempt" {{ ($vendor->vat_type ?? '') == 'vat_exempt' ? 'selected' : '' }}>VAT Exempt</option>
+                    <option value="vatable" {{ ($vendor->vat_type ?? '') == 'vatable' ? 'selected' : '' }}>VATable (VAT Registered)</option>
+                    <option value="non-vatable" {{ ($vendor->vat_type ?? '') == 'non-vatable' ? 'selected' : '' }}>Non-VAT</option>
+                    <option value="zero-rated" {{ ($vendor->vat_type ?? '') == 'zero-rated' ? 'selected' : '' }}>Zero Rated</option>
+                    <option value="tax_exempt" {{ ($vendor->vat_type ?? '') == 'tax_exempt' ? 'selected' : '' }}>Tax Exempt</option>
                 </select>
             </div>
             <div>
-                <label class="form-label">WHT Type</label>
-                <select name="wht_type" class="form-input">
-                    <option value="">Select</option>
-                    <option value="WC010" {{ ($vendor->wht_type ?? '') == 'WC010' ? 'selected' : '' }}>WC010 - 1%</option>
-                    <option value="WC020" {{ ($vendor->wht_type ?? '') == 'WC020' ? 'selected' : '' }}>WC020 - 2%</option>
-                    <option value="WC050" {{ ($vendor->wht_type ?? '') == 'WC050' ? 'selected' : '' }}>WC050 - 5%</option>
-                    <option value="WC100" {{ ($vendor->wht_type ?? '') == 'WC100' ? 'selected' : '' }}>WC100 - 10%</option>
-                    <option value="WC150" {{ ($vendor->wht_type ?? '') == 'WC150' ? 'selected' : '' }}>WC150 - 15%</option>
+                <label class="form-label">ATC (Alphanumeric Tax Code)</label>
+                <select name="withholding_tax_type" class="form-input">
+                    <option value="">Select ATC</option>
+                    <option value="WI010" {{ ($vendor->withholding_tax_type ?? '') == 'WI010' ? 'selected' : '' }}>WI010 - EWT Prof. fees (indiv.) 5%</option>
+                    <option value="WI020" {{ ($vendor->withholding_tax_type ?? '') == 'WI020' ? 'selected' : '' }}>WI020 - EWT Prof. fees (indiv.) 10%</option>
+                    <option value="WI100" {{ ($vendor->withholding_tax_type ?? '') == 'WI100' ? 'selected' : '' }}>WI100 - EWT Prof. fees (indiv.) 15%</option>
+                    <option value="WC010" {{ ($vendor->withholding_tax_type ?? '') == 'WC010' ? 'selected' : '' }}>WC010 - EWT Prof. fees (corp.) 10%</option>
+                    <option value="WC020" {{ ($vendor->withholding_tax_type ?? '') == 'WC020' ? 'selected' : '' }}>WC020 - EWT Prof. fees (corp.) 15%</option>
+                    <option value="WC100" {{ ($vendor->withholding_tax_type ?? '') == 'WC100' ? 'selected' : '' }}>WC100 - EWT Rental (corp.) 5%</option>
+                    <option value="WB010" {{ ($vendor->withholding_tax_type ?? '') == 'WB010' ? 'selected' : '' }}>WB010 - EWT Goods 1%</option>
+                    <option value="WB020" {{ ($vendor->withholding_tax_type ?? '') == 'WB020' ? 'selected' : '' }}>WB020 - EWT Services 2%</option>
+                    <option value="WB050" {{ ($vendor->withholding_tax_type ?? '') == 'WB050' ? 'selected' : '' }}>WB050 - EWT Rentals 5%</option>
                 </select>
             </div>
             <div>
                 <label class="form-label">Payment Terms</label>
-                <select name="payment_terms" class="form-input">
+                <select name="payment_terms_id" class="form-input">
                     <option value="">Select</option>
-                    <option value="cod" {{ ($vendor->payment_terms ?? '') == 'cod' ? 'selected' : '' }}>COD</option>
-                    <option value="net_15" {{ ($vendor->payment_terms ?? '') == 'net_15' ? 'selected' : '' }}>Net 15</option>
-                    <option value="net_30" {{ ($vendor->payment_terms ?? '') == 'net_30' ? 'selected' : '' }}>Net 30</option>
-                    <option value="net_60" {{ ($vendor->payment_terms ?? '') == 'net_60' ? 'selected' : '' }}>Net 60</option>
+                    @foreach($paymentTerms ?? [] as $pt)
+                        <option value="{{ $pt->id }}" {{ ($vendor->payment_terms_id ?? '') == $pt->id ? 'selected' : '' }}>{{ $pt->name ?? $pt->code }}</option>
+                    @endforeach
                 </select>
             </div>
             <div>
@@ -260,17 +282,17 @@
             </div>
             <div>
                 <label class="form-label">Account Name</label>
-                <input type="text" name="bank_account_name" class="form-input" value="{{ $vendor->bank_account_name ?? '' }}">
+                <input type="text" name="account_name" class="form-input" value="{{ $vendor->account_name ?? '' }}">
             </div>
             <div>
                 <label class="form-label">Account Number</label>
-                <input type="text" name="bank_account_number" class="form-input" value="{{ $vendor->bank_account_number ?? '' }}">
+                <input type="text" name="account_number" class="form-input" value="{{ $vendor->account_number ?? '' }}">
             </div>
             <div>
                 <label class="form-label">Status</label>
-                <select name="status" class="form-input">
-                    <option value="active" {{ ($vendor->status ?? 'active') == 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="inactive" {{ ($vendor->status ?? '') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                <select name="is_active" class="form-input">
+                    <option value="1" {{ $vendor->is_active ? 'selected' : '' }}>Active</option>
+                    <option value="0" {{ !$vendor->is_active ? 'selected' : '' }}>Inactive</option>
                 </select>
             </div>
         </div>

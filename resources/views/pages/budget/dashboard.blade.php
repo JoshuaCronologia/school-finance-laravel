@@ -4,23 +4,32 @@
 @section('content')
 <x-page-header title="Budget Dashboard" subtitle="Budget monitoring and analysis" />
 
-{{-- Department Filter --}}
+{{-- Department Filter & PDF Export --}}
 <div class="card mb-6">
     <div class="card-body">
-        <form method="GET" class="flex flex-wrap items-end gap-4">
-            <div>
-                <label class="form-label">Department</label>
-                <select name="department_id" class="form-input w-64" onchange="this.form.submit()">
-                    <option value="">All Departments</option>
-                    @foreach($departments ?? [] as $dept)
-                        <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            @if(request('department_id'))
-                <a href="{{ request()->url() }}" class="btn-secondary">Clear Filter</a>
-            @endif
-        </form>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <form method="GET" class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="form-label">Department</label>
+                    <select name="department_id" class="form-input w-64" onchange="this.form.submit()">
+                        <option value="">All Departments</option>
+                        @foreach($departments ?? [] as $dept)
+                            <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @if(request('department_id'))
+                    <a href="{{ request()->url() }}" class="btn-secondary">Clear Filter</a>
+                @endif
+            </form>
+
+            <a href="{{ route('budget.budget-vs-actual.pdf', ['department_id' => request('department_id')]) }}" class="btn-primary inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                Budget vs Actual PDF
+            </a>
+        </div>
     </div>
 </div>
 
@@ -44,13 +53,13 @@
 </div>
 
 {{-- Charts --}}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" data-vue-root>
     {{-- Budget by Department Bar Chart --}}
     <div class="card">
         <div class="card-header"><h3 class="card-title">Budget by Department</h3></div>
         <div class="card-body">
             <div id="dept-budget-chart" style="min-height: 320px;">
-                <bar-chart :data='@json($departmentChartData ?? $departmentBudgets)' :stacked="false" :labels='["Actual", "Budget", "Committed"]'></bar-chart>
+                <bar-chart :labels='@json($deptLabels)' :datasets='@json($deptDatasets)' :currency="true"></bar-chart>
             </div>
             {{-- Fallback: progress bars when Vue is not available --}}
             <noscript>
@@ -77,12 +86,9 @@
         <div class="card-body flex flex-col items-center justify-center">
             <div id="utilization-chart" style="max-width: 320px; width: 100%;">
                 <doughnut-chart
-                    :data='@json([
-                        ["label" => "Actual Spent", "value" => $totalActual],
-                        ["label" => "Committed", "value" => $totalCommitted],
-                        ["label" => "Remaining", "value" => $totalRemaining]
-                    ])'
-                    :center-label="'{{ $utilizationRate }}%'"
+                    :labels='@json($utilizationLabels)'
+                    :data='@json($utilizationValues)'
+                    :currency="true"
                 ></doughnut-chart>
             </div>
             {{-- Fallback SVG donut --}}

@@ -16,7 +16,7 @@ class ApprovalController extends Controller
     public function index()
     {
         $pendingApprovals = DisbursementRequest::with(['department', 'category', 'items'])
-            ->where('status', 'pending')
+            ->where('status', 'pending_approval')
             ->latest('request_date')
             ->paginate(20);
 
@@ -40,7 +40,7 @@ class ApprovalController extends Controller
             return $dr;
         });
 
-        $totalPendingAmount = DisbursementRequest::where('status', 'pending')->sum('amount');
+        $totalPendingAmount = DisbursementRequest::where('status', 'pending_approval')->sum('amount');
 
         return view('pages.ap.approval-queue', compact('pendingApprovals', 'totalPendingAmount'));
     }
@@ -51,7 +51,7 @@ class ApprovalController extends Controller
             'comments' => 'nullable|string|max:1000',
         ]);
 
-        if ($disbursement->status !== 'pending') {
+        if ($disbursement->status !== 'pending_approval') {
             return back()->with('error', 'Only pending requests can be approved.');
         }
 
@@ -83,7 +83,7 @@ class ApprovalController extends Controller
             'comments' => 'required|string|max:1000',
         ]);
 
-        if ($disbursement->status !== 'pending') {
+        if ($disbursement->status !== 'pending_approval') {
             return back()->with('error', 'Only pending requests can be rejected.');
         }
 
@@ -116,7 +116,7 @@ class ApprovalController extends Controller
             'comments' => 'required|string|max:1000',
         ]);
 
-        if ($disbursement->status !== 'pending') {
+        if ($disbursement->status !== 'pending_approval') {
             return back()->with('error', 'Only pending requests can be returned for revision.');
         }
 
@@ -130,7 +130,7 @@ class ApprovalController extends Controller
                 'acted_at' => now(),
             ]);
 
-            $disbursement->update(['status' => 'returned']);
+            $disbursement->update(['status' => 'draft']);
 
             // Release committed budget
             if ($disbursement->budget_id) {

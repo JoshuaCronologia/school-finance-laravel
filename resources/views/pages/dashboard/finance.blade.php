@@ -31,40 +31,42 @@
 </div>
 
 {{-- Charts Row --}}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    {{-- Budget vs Actual by Department --}}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Budget vs Actual by Department</h3>
+<div data-vue-root>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {{-- Budget vs Actual by Department --}}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Budget vs Actual by Department</h3>
+            </div>
+            <div class="card-body">
+                <div id="bar-chart-container" style="min-height: 320px;">
+                    <bar-chart :labels='@json($departmentLabels)' :datasets='@json($departmentDatasets)' :currency="true"></bar-chart>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div id="bar-chart-container" style="min-height: 320px;">
-                <bar-chart :data='@json($departmentData)'></bar-chart>
+
+        {{-- Monthly Expense Trend --}}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Monthly Expense Trend</h3>
+            </div>
+            <div class="card-body">
+                <div id="line-chart-container" style="min-height: 320px;">
+                    <line-chart :labels='@json($monthlyLabels)' :datasets='@json($monthlyDatasets)' :currency="true" :fill="true"></line-chart>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- Monthly Expense Trend --}}
-    <div class="card">
+    {{-- Spending by Category --}}
+    <div class="card mb-6">
         <div class="card-header">
-            <h3 class="card-title">Monthly Expense Trend</h3>
+            <h3 class="card-title">Spending by Category</h3>
         </div>
-        <div class="card-body">
-            <div id="line-chart-container" style="min-height: 320px;">
-                <line-chart :data='@json($monthlyTrend)'></line-chart>
+        <div class="card-body flex justify-center">
+            <div style="max-width: 400px; width: 100%;">
+                <doughnut-chart :labels='@json($categoryLabels)' :data='@json($categoryValues)' :currency="true"></doughnut-chart>
             </div>
-        </div>
-    </div>
-</div>
-
-{{-- Spending by Category --}}
-<div class="card mb-6">
-    <div class="card-header">
-        <h3 class="card-title">Spending by Category</h3>
-    </div>
-    <div class="card-body flex justify-center">
-        <div style="max-width: 400px; width: 100%;">
-            <doughnut-chart :data='@json($categoryData ?? [])'></doughnut-chart>
         </div>
     </div>
 </div>

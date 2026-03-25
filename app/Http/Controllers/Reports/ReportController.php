@@ -18,7 +18,13 @@ class ReportController extends Controller
     {
         $asOfDate = $request->input('as_of_date', now()->toDateString());
 
-        $accounts = ChartOfAccount::select('chart_of_accounts.*')
+        $accounts = ChartOfAccount::select(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->selectRaw('COALESCE(SUM(jel.debit), 0) as total_debit')
             ->selectRaw('COALESCE(SUM(jel.credit), 0) as total_credit')
             ->selectRaw('COALESCE(SUM(jel.debit), 0) - COALESCE(SUM(jel.credit), 0) as net_balance')
@@ -28,7 +34,13 @@ class ReportController extends Controller
                      ->where('je.status', '=', 'posted')
                      ->whereDate('je.posting_date', '<=', $asOfDate);
             })
-            ->groupBy('chart_of_accounts.id')
+            ->groupBy(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->orderBy('chart_of_accounts.account_code')
             ->get()
             ->filter(fn($a) => $a->total_debit > 0 || $a->total_credit > 0);
@@ -126,7 +138,7 @@ class ReportController extends Controller
             ->whereDate('je.posting_date', '<=', $dateTo)
             ->where('coa.account_type', 'asset')
             ->where('coa.account_code', 'like', '1010%')
-            ->where('je.journal_type', 'CRJ')
+            ->where('je.journal_type', 'revenue')
             ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
 
         // Cash paid to suppliers (DR to AP accounts)
@@ -137,7 +149,7 @@ class ReportController extends Controller
             ->whereDate('je.posting_date', '<=', $dateTo)
             ->where('coa.account_type', 'asset')
             ->where('coa.account_code', 'like', '1010%')
-            ->where('je.journal_type', 'CDJ')
+            ->where('je.journal_type', 'expense')
             ->sum(DB::raw('journal_entry_lines.credit - journal_entry_lines.debit'));
 
         $operatingCashFlow = $cashFromCustomers - $cashToSuppliers;
@@ -163,13 +175,13 @@ class ReportController extends Controller
         $dateTo = $request->input('date_to', now()->toDateString());
         $accountId = $request->input('account_id');
 
-        $accounts = ChartOfAccount::active()->orderBy('account_code')->get();
+        $allAccounts = ChartOfAccount::active()->orderBy('account_code')->get();
 
         $query = JournalEntryLine::select(
                 'journal_entry_lines.*',
                 'je.entry_number', 'je.entry_date', 'je.posting_date',
                 'je.reference_number', 'je.journal_type', 'je.description as je_description',
-                'coa.account_code', 'coa.account_name', 'coa.account_type'
+                'coa.account_code', 'coa.account_name', 'coa.account_type', 'coa.normal_balance'
             )
             ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
             ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
@@ -186,8 +198,50 @@ class ReportController extends Controller
             ->get()
             ->groupBy('account_id');
 
+        // Build structured account data with opening balance and transactions
+        $accounts = collect();
+        foreach ($entries as $acctId => $transactions) {
+            $first = $transactions->first();
+
+            // Opening balance: sum of all posted entries before dateFrom
+            $openingBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                ->where('je.status', 'posted')
+                ->whereDate('je.posting_date', '<', $dateFrom)
+                ->where('journal_entry_lines.account_id', $acctId)
+                ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+
+            // For credit-normal accounts, flip the sign
+            if ($first->normal_balance === 'credit') {
+                $openingBalance = -$openingBalance;
+            }
+
+            $totalDebit = $transactions->sum('debit');
+            $totalCredit = $transactions->sum('credit');
+
+            $account = (object) [
+                'account_code'   => $first->account_code,
+                'account_name'   => $first->account_name,
+                'account_type'   => $first->account_type,
+                'normal_balance' => $first->normal_balance,
+                'opening_balance' => $openingBalance,
+                'transactions'   => $transactions,
+                'total_debit'    => $totalDebit,
+                'total_credit'   => $totalCredit,
+                'ending_balance' => 0,
+            ];
+
+            // Calculate ending balance
+            if ($first->normal_balance === 'debit') {
+                $account->ending_balance = $openingBalance + $totalDebit - $totalCredit;
+            } else {
+                $account->ending_balance = $openingBalance + $totalCredit - $totalDebit;
+            }
+
+            $accounts->push($account);
+        }
+
         return view('pages.reports.general-ledger', compact(
-            'entries', 'accounts', 'dateFrom', 'dateTo', 'accountId'
+            'accounts', 'allAccounts', 'dateFrom', 'dateTo', 'accountId'
         ));
     }
 
@@ -222,6 +276,88 @@ class ReportController extends Controller
         });
 
         return view('pages.reports.expense-schedule', compact('expenses', 'totalExpenses', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * General Journal - all posted journal entries.
+     */
+    public function generalJournal(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo = $request->input('date_to', now()->toDateString());
+
+        $entries = \App\Models\JournalEntry::with('lines.account')
+            ->where('status', 'posted')
+            ->whereDate('posting_date', '>=', $dateFrom)
+            ->whereDate('posting_date', '<=', $dateTo)
+            ->orderBy('posting_date')
+            ->orderBy('entry_number')
+            ->get();
+
+        $totalDebit = $entries->sum(fn($e) => $e->lines->sum('debit'));
+        $totalCredit = $entries->sum(fn($e) => $e->lines->sum('credit'));
+
+        return view('pages.reports.general-journal', compact('entries', 'dateFrom', 'dateTo', 'totalDebit', 'totalCredit'));
+    }
+
+    /**
+     * Cash Receipts Book - journal entries that debit cash/bank accounts.
+     */
+    public function cashReceiptsBook(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo = $request->input('date_to', now()->toDateString());
+
+        $entries = JournalEntryLine::select(
+                'journal_entry_lines.*',
+                'je.entry_number', 'je.posting_date', 'je.reference_number',
+                'je.description as je_description', 'je.journal_type',
+                'coa.account_code', 'coa.account_name'
+            )
+            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
+            ->where('je.status', 'posted')
+            ->whereDate('je.posting_date', '>=', $dateFrom)
+            ->whereDate('je.posting_date', '<=', $dateTo)
+            ->where('coa.account_code', '>=', '1010')
+            ->where('coa.account_code', '<=', '1050')
+            ->where('journal_entry_lines.debit', '>', 0)
+            ->orderBy('je.posting_date')
+            ->get();
+
+        $totalAmount = $entries->sum('debit');
+
+        return view('pages.reports.cash-receipts-book', compact('entries', 'dateFrom', 'dateTo', 'totalAmount'));
+    }
+
+    /**
+     * Cash Disbursements Book - journal entries that credit cash/bank accounts.
+     */
+    public function cashDisbursementsBook(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo = $request->input('date_to', now()->toDateString());
+
+        $entries = JournalEntryLine::select(
+                'journal_entry_lines.*',
+                'je.entry_number', 'je.posting_date', 'je.reference_number',
+                'je.description as je_description', 'je.journal_type',
+                'coa.account_code', 'coa.account_name'
+            )
+            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
+            ->where('je.status', 'posted')
+            ->whereDate('je.posting_date', '>=', $dateFrom)
+            ->whereDate('je.posting_date', '<=', $dateTo)
+            ->where('coa.account_code', '>=', '1010')
+            ->where('coa.account_code', '<=', '1050')
+            ->where('journal_entry_lines.credit', '>', 0)
+            ->orderBy('je.posting_date')
+            ->get();
+
+        $totalAmount = $entries->sum('credit');
+
+        return view('pages.reports.cash-disbursements-book', compact('entries', 'dateFrom', 'dateTo', 'totalAmount'));
     }
 
     /**
@@ -285,15 +421,17 @@ class ReportController extends Controller
             $variance = $budgetedForMonth - $actualForMonth;
             $variancePct = $budgetedForMonth > 0 ? ($variance / $budgetedForMonth) * 100 : 0;
 
-            $monthlyData[$m] = [
+            $monthlyData[$m] = (object) [
                 'month' => $m,
                 'month_name' => date('F', mktime(0, 0, 0, $m, 1)),
-                'budgeted' => $budgetedForMonth,
+                'budget' => $budgetedForMonth,
                 'actual' => $actualForMonth,
                 'variance' => $variance,
                 'variance_pct' => $variancePct,
             ];
         }
+
+        $monthlyData = collect($monthlyData)->values();
 
         return view('pages.reports.monthly-variance', compact('monthlyData'));
     }
@@ -304,7 +442,13 @@ class ReportController extends Controller
 
     private function getAccountBalances(string $asOfDate)
     {
-        return ChartOfAccount::select('chart_of_accounts.*')
+        return ChartOfAccount::select(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->selectRaw('COALESCE(SUM(jel.debit), 0) - COALESCE(SUM(jel.credit), 0) as balance')
             ->leftJoin('journal_entry_lines as jel', 'chart_of_accounts.id', '=', 'jel.account_id')
             ->leftJoin('journal_entries as je', function ($join) use ($asOfDate) {
@@ -312,7 +456,13 @@ class ReportController extends Controller
                      ->where('je.status', '=', 'posted')
                      ->whereDate('je.posting_date', '<=', $asOfDate);
             })
-            ->groupBy('chart_of_accounts.id')
+            ->groupBy(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->having(DB::raw('COALESCE(SUM(jel.debit), 0) + COALESCE(SUM(jel.credit), 0)'), '>', 0)
             ->orderBy('chart_of_accounts.account_code')
             ->get();
@@ -320,7 +470,13 @@ class ReportController extends Controller
 
     private function getAccountBalancesForPeriod(string $type, string $dateFrom, string $dateTo)
     {
-        return ChartOfAccount::select('chart_of_accounts.*')
+        return ChartOfAccount::select(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->selectRaw('COALESCE(SUM(jel.debit), 0) - COALESCE(SUM(jel.credit), 0) as balance')
             ->leftJoin('journal_entry_lines as jel', 'chart_of_accounts.id', '=', 'jel.account_id')
             ->leftJoin('journal_entries as je', function ($join) use ($dateFrom, $dateTo) {
@@ -330,7 +486,13 @@ class ReportController extends Controller
                      ->whereDate('je.posting_date', '<=', $dateTo);
             })
             ->where('chart_of_accounts.account_type', $type)
-            ->groupBy('chart_of_accounts.id')
+            ->groupBy(
+                'chart_of_accounts.id',
+                'chart_of_accounts.account_code',
+                'chart_of_accounts.account_name',
+                'chart_of_accounts.account_type',
+                'chart_of_accounts.normal_balance'
+            )
             ->having(DB::raw('COALESCE(SUM(jel.debit), 0) + COALESCE(SUM(jel.credit), 0)'), '>', 0)
             ->orderBy('chart_of_accounts.account_code')
             ->get();

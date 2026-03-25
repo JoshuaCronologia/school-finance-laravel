@@ -8,6 +8,12 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back to Requests
         </a>
+        @if($disbursement->status === 'paid' && $disbursement->payment)
+            <a href="{{ route('ap.payments.print', $disbursement->payment) }}" class="btn-secondary inline-flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659" /></svg>
+                Print Voucher
+            </a>
+        @endif
         @if($disbursement->status === 'draft')
             <a href="{{ route('ap.disbursements.edit', $disbursement) }}" class="btn-secondary">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
@@ -21,13 +27,14 @@
                 </button>
             </form>
         @endif
-        @if($disbursement->status === 'for_approval')
-            <form action="{{ route('ap.disbursements.approve', $disbursement) }}" method="POST" class="inline">
+        @if($disbursement->status === 'pending_approval')
+            <form action="{{ route('ap.approval.approve', $disbursement) }}" method="POST" class="inline">
                 @csrf
                 <button type="submit" class="btn-primary bg-success-600 hover:bg-success-700">Approve</button>
             </form>
-            <form action="{{ route('ap.disbursements.reject', $disbursement) }}" method="POST" class="inline">
+            <form action="{{ route('ap.approval.reject', $disbursement) }}" method="POST" class="inline">
                 @csrf
+                <input type="hidden" name="comments" value="Rejected from disbursement detail page">
                 <button type="submit" class="btn-secondary text-danger-600 border-danger-300 hover:bg-danger-50">Reject</button>
             </form>
         @endif
@@ -125,11 +132,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($disbursement->lines ?? [] as $i => $line)
+                        @forelse($disbursement->items ?? [] as $i => $line)
                         <tr>
                             <td>{{ $i + 1 }}</td>
                             <td>{{ $line->description ?? '-' }}</td>
-                            <td class="text-right">{{ $line->qty }}</td>
+                            <td class="text-right">{{ $line->quantity }}</td>
                             <td class="text-right">{{ '₱' . number_format($line->unit_cost, 2) }}</td>
                             <td class="text-right font-medium">{{ '₱' . number_format($line->amount, 2) }}</td>
                             <td>{{ $line->account_code ?? '-' }}</td>

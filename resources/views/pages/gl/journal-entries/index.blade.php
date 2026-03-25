@@ -8,10 +8,19 @@
 
 <x-page-header title="Journal Entries" :subtitle="$jeCount . ' entries'">
     <x-slot:actions>
-        <button @click="$dispatch('open-modal', 'new-journal-entry')" class="btn-primary">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            + New Journal Entry
-        </button>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('gl.journal-entries.approval') }}" class="btn-secondary inline-flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                Approval Queue
+                @if(($pendingApprovalCount ?? 0) > 0)
+                    <span class="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{{ $pendingApprovalCount }}</span>
+                @endif
+            </a>
+            <button @click="$dispatch('open-modal', 'new-journal-entry')" class="btn-primary">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                + New Journal Entry
+            </button>
+        </div>
     </x-slot:actions>
 </x-page-header>
 
@@ -35,10 +44,10 @@
     </div>
     <div>
         <label class="form-label">Type</label>
-        <select name="type" class="form-input w-44">
+        <select name="journal_type" class="form-input w-44">
             <option value="">All Types</option>
-            @foreach(['general', 'adjusting', 'closing', 'reversing', 'compound'] as $t)
-                <option value="{{ $t }}" {{ request('type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
+            @foreach(['general', 'adjusting', 'closing', 'reversing', 'revenue', 'expense', 'payroll'] as $t)
+                <option value="{{ $t }}" {{ request('journal_type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
             @endforeach
         </select>
     </div>
@@ -68,32 +77,26 @@
             </thead>
             <tbody>
                 @forelse($journalEntries as $je)
-                <tr x-data="{ expanded: false }">
+                <tr class="cursor-pointer hover:bg-gray-50 je-toggle-row">
                     <td>
-                        <button @click="expanded = !expanded" class="text-secondary-400 hover:text-secondary-600 transition-transform" :class="expanded ? 'rotate-90' : ''">
+                        <button class="text-secondary-400 hover:text-secondary-600 transition-transform je-chevron">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                         </button>
                     </td>
-                    <td class="font-medium text-secondary-900">{{ $je->journal_number ?? $je->reference ?? '-' }}</td>
-                    <td>{{ \Carbon\Carbon::parse($je->entry_date)->format('M d, Y') }}</td>
+                    <td>
+                        <a href="{{ route('gl.journal-entries.show', $je) }}" class="text-primary-600 hover:underline font-medium" onclick="event.stopPropagation()">{{ $je->entry_number }}</a>
+                    </td>
+                    <td>{{ $je->entry_date->format('M d, Y') }}</td>
                     <td class="max-w-xs truncate">{{ $je->description ?? '-' }}</td>
                     <td>
-                        @php
-                            $jTypeBadge = match($je->type ?? '') {
-                                'adjusting' => 'badge-warning',
-                                'closing' => 'badge-danger',
-                                'reversing' => 'badge-neutral',
-                                default => 'badge-info',
-                            };
-                        @endphp
-                        <span class="badge {{ $jTypeBadge }}">{{ ucfirst($je->type ?? 'general') }}</span>
+                        <span class="badge badge-info">{{ ucfirst($je->journal_type) }}</span>
                     </td>
-                    <td class="text-right font-medium">{{ '₱' . number_format($je->total_debit ?? 0, 2) }}</td>
-                    <td class="text-right font-medium">{{ '₱' . number_format($je->total_credit ?? 0, 2) }}</td>
-                    <td><x-badge :status="$je->status ?? 'draft'" /></td>
+                    <td class="text-right font-medium">{{ '₱' . number_format($je->total_debit, 2) }}</td>
+                    <td class="text-right font-medium">{{ '₱' . number_format($je->total_credit, 2) }}</td>
+                    <td><x-badge :status="$je->status" /></td>
                 </tr>
                 {{-- Expandable lines row --}}
-                <tr x-data="{ expanded: false }" x-show="expanded" x-transition x-ref="detail_{{ $je->id }}" style="display: none;">
+                <tr class="je-detail-row hidden">
                     <td colspan="8" class="bg-gray-50 p-0">
                         <div class="px-8 py-3">
                             <table class="w-full text-sm">
@@ -109,8 +112,8 @@
                                 <tbody>
                                     @foreach($je->lines ?? [] as $line)
                                     <tr class="border-t border-gray-100">
-                                        <td class="py-1">{{ $line->account->code ?? $line->account_code ?? '-' }}</td>
-                                        <td class="py-1">{{ $line->account->name ?? $line->account_name ?? '-' }}</td>
+                                        <td class="py-1">{{ $line->account->account_code ?? '-' }}</td>
+                                        <td class="py-1">{{ $line->account->account_name ?? '-' }}</td>
                                         <td class="py-1">{{ $line->description ?? '-' }}</td>
                                         <td class="py-1 text-right">{{ ($line->debit ?? 0) > 0 ? '₱' . number_format($line->debit, 2) : '-' }}</td>
                                         <td class="py-1 text-right">{{ ($line->credit ?? 0) > 0 ? '₱' . number_format($line->credit, 2) : '-' }}</td>
@@ -141,21 +144,16 @@
 
 @push('scripts')
 <script>
-document.addEventListener('alpine:init', () => {
-    // Handle expandable rows - sync the two x-data instances
-    document.querySelectorAll('[x-data="{ expanded: false }"]').forEach((el, idx, arr) => {
-        if (idx % 2 === 0 && arr[idx + 1]) {
-            const trigger = el;
-            const detail = arr[idx + 1];
-            trigger.addEventListener('click', (e) => {
-                if (e.target.closest('button')) {
-                    const isExpanded = detail.style.display !== 'none';
-                    detail.style.display = isExpanded ? 'none' : '';
-                }
-            });
-        }
+    document.querySelectorAll('.je-toggle-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const detail = row.nextElementSibling;
+            if (detail && detail.classList.contains('je-detail-row')) {
+                detail.classList.toggle('hidden');
+                const chevron = row.querySelector('.je-chevron');
+                if (chevron) chevron.classList.toggle('rotate-90');
+            }
+        });
     });
-});
 </script>
 @endpush
 
@@ -173,28 +171,35 @@ document.addEventListener('alpine:init', () => {
         removeLine(i) { if (this.lines.length > 2) this.lines.splice(i, 1); }
     }">
         @csrf
+
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            <strong>JE Number:</strong> Auto-generated upon saving (series-based for audit trail).
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div>
                 <label class="form-label">Date <span class="text-danger-500">*</span></label>
                 <input type="date" name="entry_date" class="form-input" value="{{ date('Y-m-d') }}" required>
             </div>
             <div>
-                <label class="form-label">Reference</label>
-                <input type="text" name="reference" class="form-input" placeholder="Reference #">
+                <label class="form-label">Reference #</label>
+                <input type="text" name="reference_number" class="form-input" placeholder="Check #, OR #, etc.">
             </div>
             <div>
                 <label class="form-label">Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
+                <select name="journal_type" class="form-input" required>
                     <option value="general">General</option>
                     <option value="adjusting">Adjusting</option>
                     <option value="closing">Closing</option>
                     <option value="reversing">Reversing</option>
-                    <option value="compound">Compound</option>
+                    <option value="revenue">Revenue</option>
+                    <option value="expense">Expense</option>
+                    <option value="payroll">Payroll</option>
                 </select>
             </div>
             <div>
-                <label class="form-label">Description</label>
-                <input type="text" name="description" class="form-input" placeholder="Entry description">
+                <label class="form-label">Description <span class="text-danger-500">*</span></label>
+                <input type="text" name="description" class="form-input" placeholder="e.g. Bank charges for March" required>
             </div>
         </div>
 
@@ -219,11 +224,11 @@ document.addEventListener('alpine:init', () => {
                                     <select x-model="line.account_id" :name="'lines['+index+'][account_id]'" class="form-input text-sm" required>
                                         <option value="">Select Account</option>
                                         @foreach($accounts ?? [] as $acct)
-                                            <option value="{{ $acct->id }}">{{ $acct->code }} - {{ $acct->name }}</option>
+                                            <option value="{{ $acct->id }}">{{ $acct->account_code }} - {{ $acct->account_name }}</option>
                                         @endforeach
                                     </select>
                                 </td>
-                                <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm" placeholder="Line description"></td>
+                                <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm" placeholder="Line description" required></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.debit" :name="'lines['+index+'][debit]'" class="form-input text-sm text-right" step="0.01" min="0" @input="if(parseFloat(line.debit) > 0) line.credit = 0"></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.credit" :name="'lines['+index+'][credit]'" class="form-input text-sm text-right" step="0.01" min="0" @input="if(parseFloat(line.credit) > 0) line.debit = 0"></td>
                                 <td class="py-1 px-2">
@@ -254,8 +259,8 @@ document.addEventListener('alpine:init', () => {
 
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
             <button type="button" @click="$dispatch('close-modal', 'new-journal-entry')" class="btn-secondary">Cancel</button>
-            <button type="submit" name="action" value="draft" class="btn-secondary">Save as Draft</button>
-            <button type="submit" name="action" value="post" class="btn-primary" :disabled="difference !== 0">Post Entry</button>
+            <button type="submit" name="action" value="draft" class="btn-secondary" :disabled="difference !== 0">Save as Draft</button>
+            <button type="submit" name="action" value="submit_approval" class="btn-primary" :disabled="difference !== 0">Submit for Approval</button>
         </div>
     </form>
 </x-modal>

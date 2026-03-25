@@ -39,7 +39,7 @@ class ChartOfAccountsController extends Controller
         $campuses = Campus::all();
         $accountTypes = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
-        return view('pages.gl.accounts', compact('accounts', 'parentAccounts', 'campuses', 'accountTypes'));
+        return view('pages.gl.accounts.index', compact('accounts', 'parentAccounts', 'campuses', 'accountTypes'));
     }
 
     public function store(Request $request)

@@ -13,6 +13,14 @@ use Illuminate\Support\Facades\DB;
 
 class PostingEngine
 {
+    private const JOURNAL_TYPE_MAP = [
+        'PJ'  => 'expense',
+        'CDJ' => 'expense',
+        'SJ'  => 'revenue',
+        'CRJ' => 'revenue',
+        'GJ'  => 'general',
+        'AJ'  => 'adjusting',
+    ];
     /**
      * Post an AP Bill to the General Ledger.
      * Debit: Expense accounts (per bill lines)
@@ -28,7 +36,7 @@ class PostingEngine
                 'entry_date' => $bill->bill_date,
                 'posting_date' => $bill->posting_date ?? now(),
                 'reference_number' => $bill->bill_number,
-                'journal_type' => 'PJ',
+                'journal_type' => self::JOURNAL_TYPE_MAP['PJ'],
                 'description' => "AP Bill: {$bill->bill_number} - {$bill->vendor->name}",
                 'source_module' => 'AP',
                 'source_id' => $bill->id,
@@ -122,7 +130,7 @@ class PostingEngine
                 'entry_date' => $payment->payment_date,
                 'posting_date' => $payment->payment_date,
                 'reference_number' => $payment->payment_number,
-                'journal_type' => 'CDJ',
+                'journal_type' => self::JOURNAL_TYPE_MAP['CDJ'],
                 'description' => "Payment: {$payment->payment_number} - {$payment->vendor->name}",
                 'source_module' => 'AP',
                 'source_id' => $payment->id,
@@ -195,7 +203,7 @@ class PostingEngine
                 'entry_date' => $invoice->invoice_date,
                 'posting_date' => $invoice->posting_date ?? now(),
                 'reference_number' => $invoice->invoice_number,
-                'journal_type' => 'SJ',
+                'journal_type' => self::JOURNAL_TYPE_MAP['SJ'],
                 'description' => "AR Invoice: {$invoice->invoice_number} - {$invoice->customer->name}",
                 'source_module' => 'AR',
                 'source_id' => $invoice->id,
@@ -275,7 +283,7 @@ class PostingEngine
                 'entry_date' => $collection->collection_date,
                 'posting_date' => $collection->collection_date,
                 'reference_number' => $collection->receipt_number,
-                'journal_type' => 'CRJ',
+                'journal_type' => self::JOURNAL_TYPE_MAP['CRJ'],
                 'description' => "Collection: {$collection->receipt_number} - {$collection->customer->name}",
                 'source_module' => 'AR',
                 'source_id' => $collection->id,

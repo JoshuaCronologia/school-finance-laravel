@@ -3,157 +3,128 @@
 
 @section('content')
 @php
-    $operating = $operating ?? ['inflows' => 0, 'outflows' => 0, 'net' => 0, 'items' => collect()];
-    $investing = $investing ?? ['inflows' => 0, 'outflows' => 0, 'net' => 0, 'items' => collect()];
-    $financing = $financing ?? ['inflows' => 0, 'outflows' => 0, 'net' => 0, 'items' => collect()];
-    $netCashFlow = ($operating['net'] ?? 0) + ($investing['net'] ?? 0) + ($financing['net'] ?? 0);
+    $dateFrom = $dateFrom ?? now()->startOfYear()->format('Y-m-d');
+    $dateTo = $dateTo ?? now()->format('Y-m-d');
 @endphp
 
-<x-page-header title="Cash Flow Statement" subtitle="Statement of Cash Flows">
+<x-page-header title="Statement of Cash Flows" :subtitle="'For the period ' . \Carbon\Carbon::parse($dateFrom)->format('M d, Y') . ' to ' . \Carbon\Carbon::parse($dateTo)->format('M d, Y')">
     <x-slot:actions>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">Excel</a>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn-secondary text-sm">PDF</a>
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
     </x-slot:actions>
 </x-page-header>
 
-<x-filter-bar />
-
-{{-- Operating Activities --}}
 <div class="card mb-6">
-    <div class="card-header bg-blue-50">
-        <div class="flex items-center justify-between w-full">
-            <h3 class="text-sm font-semibold text-blue-800">Operating Activities</h3>
-            <span class="text-sm font-mono font-bold {{ ($operating['net'] ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">
-                Net: ₱{{ number_format($operating['net'] ?? 0, 2) }}
-            </span>
+    <form class="card-body">
+        <div class="flex flex-wrap items-end gap-4">
+            <div>
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input w-44">
+            </div>
+            <div>
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input w-44">
+            </div>
+            <button type="submit" class="btn-primary">Generate</button>
         </div>
-    </div>
-    <div class="card-body">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div class="p-3 bg-success-50 rounded-lg">
-                <p class="text-xs text-success-600 font-medium">Inflows</p>
-                <p class="text-lg font-bold text-success-700 font-mono">₱{{ number_format($operating['inflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 bg-danger-50 rounded-lg">
-                <p class="text-xs text-danger-600 font-medium">Outflows</p>
-                <p class="text-lg font-bold text-danger-700 font-mono">₱{{ number_format($operating['outflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 {{ ($operating['net'] ?? 0) >= 0 ? 'bg-blue-50' : 'bg-warning-50' }} rounded-lg">
-                <p class="text-xs {{ ($operating['net'] ?? 0) >= 0 ? 'text-blue-600' : 'text-warning-600' }} font-medium">Net</p>
-                <p class="text-lg font-bold {{ ($operating['net'] ?? 0) >= 0 ? 'text-blue-700' : 'text-warning-700' }} font-mono">₱{{ number_format($operating['net'] ?? 0, 2) }}</p>
-            </div>
-        </div>
-        @if(isset($operating['items']) && $operating['items']->isNotEmpty())
-        <table class="data-table">
-            <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
-            <tbody>
-                @foreach($operating['items'] as $item)
-                <tr>
-                    <td>{{ $item->description ?? $item->account_name ?? '' }}</td>
-                    <td class="text-right font-mono {{ ($item->amount ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">₱{{ number_format($item->amount ?? 0, 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-        @else
-        <p class="text-center text-secondary-400 py-4">No operating activity data available</p>
-        @endif
-    </div>
+    </form>
 </div>
 
-{{-- Investing Activities --}}
+{{-- Pro Forma Cash Flow Statement --}}
 <div class="card mb-6">
-    <div class="card-header bg-purple-50">
-        <div class="flex items-center justify-between w-full">
-            <h3 class="text-sm font-semibold text-purple-800">Investing Activities</h3>
-            <span class="text-sm font-mono font-bold {{ ($investing['net'] ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">
-                Net: ₱{{ number_format($investing['net'] ?? 0, 2) }}
-            </span>
+    <div class="card-header bg-gray-50">
+        <div class="text-center w-full">
+            <h2 class="text-lg font-bold text-secondary-900">Statement of Cash Flows</h2>
+            <p class="text-sm text-secondary-500">For the period {{ \Carbon\Carbon::parse($dateFrom)->format('F d, Y') }} to {{ \Carbon\Carbon::parse($dateTo)->format('F d, Y') }}</p>
         </div>
     </div>
-    <div class="card-body">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div class="p-3 bg-success-50 rounded-lg">
-                <p class="text-xs text-success-600 font-medium">Inflows</p>
-                <p class="text-lg font-bold text-success-700 font-mono">₱{{ number_format($investing['inflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 bg-danger-50 rounded-lg">
-                <p class="text-xs text-danger-600 font-medium">Outflows</p>
-                <p class="text-lg font-bold text-danger-700 font-mono">₱{{ number_format($investing['outflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 {{ ($investing['net'] ?? 0) >= 0 ? 'bg-purple-50' : 'bg-warning-50' }} rounded-lg">
-                <p class="text-xs {{ ($investing['net'] ?? 0) >= 0 ? 'text-purple-600' : 'text-warning-600' }} font-medium">Net</p>
-                <p class="text-lg font-bold {{ ($investing['net'] ?? 0) >= 0 ? 'text-purple-700' : 'text-warning-700' }} font-mono">₱{{ number_format($investing['net'] ?? 0, 2) }}</p>
-            </div>
-        </div>
-        @if(isset($investing['items']) && $investing['items']->isNotEmpty())
-        <table class="data-table">
-            <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
-            <tbody>
-                @foreach($investing['items'] as $item)
-                <tr>
-                    <td>{{ $item->description ?? $item->account_name ?? '' }}</td>
-                    <td class="text-right font-mono {{ ($item->amount ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">₱{{ number_format($item->amount ?? 0, 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-        @else
-        <p class="text-center text-secondary-400 py-4">No investing activity data available</p>
-        @endif
-    </div>
-</div>
+    <div class="card-body max-w-3xl mx-auto">
 
-{{-- Financing Activities --}}
-<div class="card mb-6">
-    <div class="card-header bg-indigo-50">
-        <div class="flex items-center justify-between w-full">
-            <h3 class="text-sm font-semibold text-indigo-800">Financing Activities</h3>
-            <span class="text-sm font-mono font-bold {{ ($financing['net'] ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">
-                Net: ₱{{ number_format($financing['net'] ?? 0, 2) }}
-            </span>
+        {{-- OPERATING ACTIVITIES --}}
+        <div class="mb-6">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3">Cash Flows from Operating Activities</h3>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr>
+                        <td class="py-1.5 pl-6">Net Income</td>
+                        <td class="py-1.5 text-right font-mono w-40">₱{{ number_format($netIncome ?? 0, 2) }}</td>
+                    </tr>
+                    <tr class="text-secondary-500 italic">
+                        <td class="py-1 pl-6 text-xs" colspan="2">Adjustments for non-cash items:</td>
+                    </tr>
+                    <tr>
+                        <td class="py-1.5 pl-10">Cash received from customers</td>
+                        <td class="py-1.5 text-right font-mono w-40">₱{{ number_format($cashFromCustomers ?? 0, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="py-1.5 pl-10">Cash paid to suppliers</td>
+                        <td class="py-1.5 text-right font-mono w-40 text-danger-600">(₱{{ number_format(abs($cashToSuppliers ?? 0), 2) }})</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-300 font-semibold">
+                        <td class="py-2 pl-2">Net Cash from Operating Activities</td>
+                        <td class="py-2 text-right font-mono {{ ($operatingCashFlow ?? 0) >= 0 ? '' : 'text-danger-600' }}">₱{{ number_format($operatingCashFlow ?? 0, 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
-    </div>
-    <div class="card-body">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div class="p-3 bg-success-50 rounded-lg">
-                <p class="text-xs text-success-600 font-medium">Inflows</p>
-                <p class="text-lg font-bold text-success-700 font-mono">₱{{ number_format($financing['inflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 bg-danger-50 rounded-lg">
-                <p class="text-xs text-danger-600 font-medium">Outflows</p>
-                <p class="text-lg font-bold text-danger-700 font-mono">₱{{ number_format($financing['outflows'] ?? 0, 2) }}</p>
-            </div>
-            <div class="p-3 {{ ($financing['net'] ?? 0) >= 0 ? 'bg-indigo-50' : 'bg-warning-50' }} rounded-lg">
-                <p class="text-xs {{ ($financing['net'] ?? 0) >= 0 ? 'text-indigo-600' : 'text-warning-600' }} font-medium">Net</p>
-                <p class="text-lg font-bold {{ ($financing['net'] ?? 0) >= 0 ? 'text-indigo-700' : 'text-warning-700' }} font-mono">₱{{ number_format($financing['net'] ?? 0, 2) }}</p>
-            </div>
-        </div>
-        @if(isset($financing['items']) && $financing['items']->isNotEmpty())
-        <table class="data-table">
-            <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
-            <tbody>
-                @foreach($financing['items'] as $item)
-                <tr>
-                    <td>{{ $item->description ?? $item->account_name ?? '' }}</td>
-                    <td class="text-right font-mono {{ ($item->amount ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600' }}">₱{{ number_format($item->amount ?? 0, 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-        @else
-        <p class="text-center text-secondary-400 py-4">No financing activity data available</p>
-        @endif
-    </div>
-</div>
 
-{{-- Net Cash Flow Total --}}
-<div class="card">
-    <div class="card-body">
-        <div class="flex items-center justify-between p-4 rounded-lg {{ $netCashFlow >= 0 ? 'bg-success-50' : 'bg-danger-50' }}">
-            <span class="text-lg font-bold {{ $netCashFlow >= 0 ? 'text-success-800' : 'text-danger-800' }}">Net Cash Flow</span>
-            <span class="text-xl font-mono font-bold {{ $netCashFlow >= 0 ? 'text-success-700' : 'text-danger-700' }}">₱{{ number_format($netCashFlow, 2) }}</span>
+        {{-- INVESTING ACTIVITIES --}}
+        <div class="mb-6">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3">Cash Flows from Investing Activities</h3>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr class="text-secondary-400 italic">
+                        <td class="py-1.5 pl-6" colspan="2">No investing activities recorded for this period.</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-300 font-semibold">
+                        <td class="py-2 pl-2">Net Cash from Investing Activities</td>
+                        <td class="py-2 text-right font-mono w-40">₱0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {{-- FINANCING ACTIVITIES --}}
+        <div class="mb-6">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3">Cash Flows from Financing Activities</h3>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr class="text-secondary-400 italic">
+                        <td class="py-1.5 pl-6" colspan="2">No financing activities recorded for this period.</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-300 font-semibold">
+                        <td class="py-2 pl-2">Net Cash from Financing Activities</td>
+                        <td class="py-2 text-right font-mono w-40">₱0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {{-- NET CHANGE --}}
+        <div class="border-t-2 border-secondary-900 pt-3 mb-4">
+            <table class="w-full text-sm">
+                <tr class="font-semibold">
+                    <td class="py-1.5">Net Increase (Decrease) in Cash</td>
+                    <td class="py-1.5 text-right font-mono w-40 {{ ($netCashChange ?? 0) >= 0 ? '' : 'text-danger-600' }}">₱{{ number_format($netCashChange ?? 0, 2) }}</td>
+                </tr>
+                <tr>
+                    <td class="py-1.5">Cash at Beginning of Period</td>
+                    <td class="py-1.5 text-right font-mono w-40">₱{{ number_format($beginningCash ?? 0, 2) }}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="border-t-2 border-double border-secondary-900 pt-2">
+            <table class="w-full">
+                <tr class="font-bold text-base">
+                    <td class="py-2">Cash at End of Period</td>
+                    <td class="py-2 text-right font-mono w-40">₱{{ number_format($endingCash ?? 0, 2) }}</td>
+                </tr>
+            </table>
         </div>
     </div>
 </div>

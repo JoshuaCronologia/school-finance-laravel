@@ -115,7 +115,7 @@
 
 {{-- New Invoice Modal --}}
 <x-modal name="new-invoice" title="New Invoice" maxWidth="5xl">
-    <form action="{{ route('ar.invoices.store') }}" method="POST" x-data="{
+    <form action="{{ route('ar.invoices.store') }}" method="POST" v-pre x-data="{
         lines: [{ fee_code: '', description: '', qty: 1, unit_amount: 0, amount: 0, revenue_account: '' }],
         discount: 0,
         tax: 0,
@@ -235,7 +235,7 @@
 {{-- Edit Invoice Modals --}}
 @foreach($invoices as $invoice)
 <x-modal name="edit-invoice-{{ $invoice->id }}" title="Edit Invoice #{{ $invoice->invoice_number }}" maxWidth="5xl">
-    <form action="{{ route('ar.invoices.update', $invoice) }}" method="POST" x-data="{
+    <form action="{{ route('ar.invoices.update', $invoice) }}" method="POST" v-pre x-data="{
         lines: @js($invoice->lines ?? [['fee_code' => '', 'description' => '', 'qty' => 1, 'unit_amount' => 0, 'amount' => 0, 'revenue_account' => '']]),
         discount: {{ $invoice->discount_amount ?? 0 }},
         tax: {{ $invoice->tax_amount ?? 0 }},
@@ -259,11 +259,11 @@
             </div>
             <div>
                 <label class="form-label">Invoice Date <span class="text-danger-500">*</span></label>
-                <input type="date" name="invoice_date" class="form-input" value="{{ $invoice->invoice_date }}" required>
+                <input type="date" name="invoice_date" class="form-input" value="{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('Y-m-d') }}" required>
             </div>
             <div>
                 <label class="form-label">Due Date <span class="text-danger-500">*</span></label>
-                <input type="date" name="due_date" class="form-input" value="{{ $invoice->due_date }}" required>
+                <input type="date" name="due_date" class="form-input" value="{{ \Carbon\Carbon::parse($invoice->due_date)->format('Y-m-d') }}" required>
             </div>
             <div>
                 <label class="form-label">School Year</label>

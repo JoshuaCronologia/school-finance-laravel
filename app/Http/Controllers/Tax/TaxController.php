@@ -249,4 +249,166 @@ class TaxController extends Controller
 
         return view('pages.tax.print-check', compact('payment'));
     }
+
+    /**
+     * BIR 0619-E - Monthly Remittance of Creditable Income Taxes Withheld (Expanded).
+     */
+    public function bir0619e(Request $request)
+    {
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+
+        $payments = DisbursementPayment::with('disbursement')
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereMonth('payment_date', $month)
+            ->whereYear('payment_date', $year)
+            ->get();
+
+        $totalTaxBase = $payments->sum('gross_amount');
+        $totalTaxWithheld = $payments->sum('withholding_tax');
+
+        return view('pages.tax.bir-0619e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'month', 'year'));
+    }
+
+    /**
+     * BIR 0619-F - Monthly Remittance of Final Income Taxes Withheld.
+     */
+    public function bir0619f(Request $request)
+    {
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+
+        return view('pages.tax.bir-0619f', compact('month', 'year'));
+    }
+
+    /**
+     * BIR 1601-C - Monthly Remittance of Income Taxes Withheld on Compensation.
+     */
+    public function bir1601c(Request $request)
+    {
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+
+        return view('pages.tax.bir-1601c', compact('month', 'year'));
+    }
+
+    /**
+     * BIR 1601-EQ - Quarterly Remittance of Creditable Income Taxes Withheld (Expanded).
+     */
+    public function bir1601eq(Request $request)
+    {
+        $quarter = $request->input('quarter', ceil(now()->month / 3));
+        $year = $request->input('year', now()->year);
+
+        $startMonth = ($quarter - 1) * 3 + 1;
+        $endMonth = $quarter * 3;
+
+        $payments = DisbursementPayment::with('disbursement')
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->whereMonth('payment_date', '>=', $startMonth)
+            ->whereMonth('payment_date', '<=', $endMonth)
+            ->get();
+
+        $totalTaxBase = $payments->sum('gross_amount');
+        $totalTaxWithheld = $payments->sum('withholding_tax');
+
+        return view('pages.tax.bir-1601eq', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'quarter', 'year'));
+    }
+
+    /**
+     * BIR 1604-E - Annual Information Return of Creditable Income Taxes Withheld (Expanded).
+     */
+    public function bir1604e(Request $request)
+    {
+        $year = $request->input('year', now()->year);
+
+        $payments = DisbursementPayment::with('disbursement')
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->get();
+
+        $totalTaxBase = $payments->sum('gross_amount');
+        $totalTaxWithheld = $payments->sum('withholding_tax');
+        $payeeCount = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? '')->count();
+
+        return view('pages.tax.bir-1604e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'payeeCount', 'year'));
+    }
+
+    /**
+     * BIR 1604-CF - Annual Information Return of Income Tax Withheld on Compensation and Final.
+     */
+    public function bir1604cf(Request $request)
+    {
+        $year = $request->input('year', now()->year);
+
+        return view('pages.tax.bir-1604cf', compact('year'));
+    }
+
+    /**
+     * Alphalist - Quarterly (QAP).
+     */
+    public function alphalistQuarterly(Request $request)
+    {
+        $quarter = $request->input('quarter', ceil(now()->month / 3));
+        $year = $request->input('year', now()->year);
+
+        $startMonth = ($quarter - 1) * 3 + 1;
+        $endMonth = $quarter * 3;
+
+        $payments = DisbursementPayment::with('disbursement')
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->whereMonth('payment_date', '>=', $startMonth)
+            ->whereMonth('payment_date', '<=', $endMonth)
+            ->orderBy('payment_date')
+            ->get();
+
+        $alphalist = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown')
+            ->map(function ($group, $payeeName) {
+                $first = $group->first();
+                return (object) [
+                    'payee_name' => $payeeName,
+                    'tin' => $first->disbursement->vendor->tin ?? '',
+                    'atc' => $first->disbursement->vendor->withholding_tax_type ?? '',
+                    'income_payment' => $group->sum('gross_amount'),
+                    'tax_withheld' => $group->sum('withholding_tax'),
+                ];
+            })->sortBy('payee_name')->values();
+
+        return view('pages.tax.alphalist-quarterly', compact('alphalist', 'quarter', 'year'));
+    }
+
+    /**
+     * Alphalist - Annual.
+     */
+    public function alphalistAnnual(Request $request)
+    {
+        $year = $request->input('year', now()->year);
+
+        $payments = DisbursementPayment::with('disbursement')
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->orderBy('payment_date')
+            ->get();
+
+        $alphalist = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown')
+            ->map(function ($group, $payeeName) {
+                $first = $group->first();
+                return (object) [
+                    'payee_name' => $payeeName,
+                    'tin' => $first->disbursement->vendor->tin ?? '',
+                    'atc' => $first->disbursement->vendor->withholding_tax_type ?? '',
+                    'income_payment' => $group->sum('gross_amount'),
+                    'tax_withheld' => $group->sum('withholding_tax'),
+                ];
+            })->sortBy('payee_name')->values();
+
+        return view('pages.tax.alphalist-annual', compact('alphalist', 'year'));
+    }
 }

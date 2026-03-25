@@ -29,47 +29,8 @@
     <div class="card-header">
         <h3 class="text-sm font-semibold text-secondary-900">Monthly Trend</h3>
     </div>
-    <div class="card-body" x-data="{}" x-init="
-        if (typeof Chart !== 'undefined') {
-            const ctx = $refs.trendChart.getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: {!! json_encode($months) !!},
-                    datasets: [
-                        {
-                            label: 'Budget',
-                            data: {!! json_encode($monthlyData->pluck('budget')->toArray() ?: array_fill(0, 12, 0)) !!},
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            fill: true,
-                            tension: 0.3,
-                        },
-                        {
-                            label: 'Actual',
-                            data: {!! json_encode($monthlyData->pluck('actual')->toArray() ?: array_fill(0, 12, 0)) !!},
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.3,
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₱' + ctx.parsed.y.toLocaleString() } }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'K' } }
-                    }
-                }
-            });
-        }
-    ">
-        <canvas x-ref="trendChart" height="100"></canvas>
+    <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
     </div>
 </div>
 
@@ -142,6 +103,61 @@
 </div>
 @endsection
 
-@push('styles')
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var canvas = document.getElementById('trendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {!! json_encode($months) !!},
+            datasets: [
+                {
+                    label: 'Budget',
+                    data: {!! json_encode($monthlyData->pluck('budget')->values()->toArray() ?: array_fill(0, 12, 0)) !!},
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Actual',
+                    data: {!! json_encode($monthlyData->pluck('actual')->values()->toArray() ?: array_fill(0, 12, 0)) !!},
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': \u20B1' + ctx.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(v) {
+                            return '\u20B1' + (v / 1000).toFixed(0) + 'K';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 @endpush

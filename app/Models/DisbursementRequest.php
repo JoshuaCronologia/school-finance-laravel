@@ -31,6 +31,7 @@ class DisbursementRequest extends Model
         'budget_id',
         'requested_by',
         'status',
+        'attachments',
     ];
 
     protected $casts = [
@@ -72,6 +73,11 @@ class DisbursementRequest extends Model
     public function payment(): HasOne
     {
         return $this->hasOne(DisbursementPayment::class, 'disbursement_id');
+    }
+
+    public function requestedBy(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'requested_by');
     }
 
     public function scopePendingApproval(Builder $query): Builder

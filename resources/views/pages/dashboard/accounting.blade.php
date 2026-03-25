@@ -51,6 +51,13 @@
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 New Journal Entry
             </a>
+            <a href="{{ route('gl.journal-entries.approval') }}" class="btn-secondary inline-flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                JE Approval Queue
+                @if(($pendingApprovalCount ?? 0) > 0)
+                    <span class="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">{{ $pendingApprovalCount }}</span>
+                @endif
+            </a>
             <a href="{{ route('ar.invoices.create') }}" class="btn-secondary">New Invoice</a>
             <a href="{{ route('ar.collections.create') }}" class="btn-secondary">Receive Payment</a>
             <a href="{{ route('ap.bills.create') }}" class="btn-secondary">Create Bill</a>
@@ -140,7 +147,7 @@
                 <tbody>
                     @forelse($topExpenseCategories ?? [] as $cat)
                     <tr>
-                        <td>{{ $cat->account->account_name ?? 'Unknown' }}</td>
+                        <td>{{ $cat->account_name ?? 'Unknown' }}</td>
                         <td class="text-right font-medium">{{ '₱' . number_format($cat->total, 2) }}</td>
                     </tr>
                     @empty
@@ -160,7 +167,7 @@
                 <tbody>
                     @forelse($topVendors ?? [] as $tv)
                     <tr>
-                        <td>{{ $tv->vendor->name ?? 'Unknown' }}</td>
+                        <td>{{ $tv->name ?? 'Unknown' }}</td>
                         <td class="text-right font-medium">{{ '₱' . number_format($tv->total_balance ?? $tv->total_paid ?? 0, 2) }}</td>
                     </tr>
                     @empty
@@ -194,47 +201,45 @@
             </thead>
             <tbody>
                 @forelse($recentJEs ?? [] as $je)
-                <tbody x-data="{ expanded: false }">
-                    <tr class="cursor-pointer hover:bg-gray-50" @click="expanded = !expanded">
-                        <td>
-                            <button class="btn-icon p-1">
-                                <svg :class="expanded ? 'rotate-90' : ''" class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
-                            </button>
-                        </td>
-                        <td><a href="{{ route('gl.journal-entries.show', $je) }}" class="text-primary-600 hover:underline font-medium" @click.stop>{{ $je->entry_number }}</a></td>
-                        <td>{{ $je->entry_date->format('M d, Y') }}</td>
-                        <td><span class="badge badge-info">{{ $je->journal_type }}</span></td>
-                        <td class="max-w-xs truncate">{{ $je->description }}</td>
-                        <td class="text-right">{{ '₱' . number_format($je->total_debit, 2) }}</td>
-                        <td class="text-right">{{ '₱' . number_format($je->total_credit, 2) }}</td>
-                        <td><x-badge :status="$je->status" /></td>
-                    </tr>
-                    {{-- Expandable detail row --}}
-                    <tr x-show="expanded" x-collapse style="display: none;">
-                        <td colspan="8" class="bg-gray-50 p-0">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="bg-gray-100">
-                                        <th class="px-4 py-2 text-left">Account Code</th>
-                                        <th class="px-4 py-2 text-left">Account Name</th>
-                                        <th class="px-4 py-2 text-right">Debit</th>
-                                        <th class="px-4 py-2 text-right">Credit</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($je->lines ?? [] as $line)
-                                    <tr class="border-t border-gray-100">
-                                        <td class="px-4 py-1.5">{{ $line->account->account_code ?? '-' }}</td>
-                                        <td class="px-4 py-1.5">{{ $line->account->account_name ?? '-' }}</td>
-                                        <td class="px-4 py-1.5 text-right">{{ $line->debit > 0 ? '₱' . number_format($line->debit, 2) : '-' }}</td>
-                                        <td class="px-4 py-1.5 text-right">{{ $line->credit > 0 ? '₱' . number_format($line->credit, 2) : '-' }}</td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
+                <tr class="cursor-pointer hover:bg-gray-50 je-toggle-row">
+                    <td>
+                        <button class="btn-icon p-1">
+                            <svg class="w-4 h-4 transition-transform je-chevron" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                        </button>
+                    </td>
+                    <td><a href="{{ route('gl.journal-entries.show', $je) }}" class="text-primary-600 hover:underline font-medium" onclick="event.stopPropagation()">{{ $je->entry_number }}</a></td>
+                    <td>{{ $je->entry_date->format('M d, Y') }}</td>
+                    <td><span class="badge badge-info">{{ $je->journal_type }}</span></td>
+                    <td class="max-w-xs truncate">{{ $je->description }}</td>
+                    <td class="text-right">{{ '₱' . number_format($je->total_debit, 2) }}</td>
+                    <td class="text-right">{{ '₱' . number_format($je->total_credit, 2) }}</td>
+                    <td><x-badge :status="$je->status" /></td>
+                </tr>
+                {{-- Expandable detail row --}}
+                <tr class="je-detail-row hidden">
+                    <td colspan="8" class="bg-gray-50 p-0">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="px-4 py-2 text-left">Account Code</th>
+                                    <th class="px-4 py-2 text-left">Account Name</th>
+                                    <th class="px-4 py-2 text-right">Debit</th>
+                                    <th class="px-4 py-2 text-right">Credit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($je->lines ?? [] as $line)
+                                <tr class="border-t border-gray-100">
+                                    <td class="px-4 py-1.5">{{ $line->account->account_code ?? '-' }}</td>
+                                    <td class="px-4 py-1.5">{{ $line->account->account_name ?? '-' }}</td>
+                                    <td class="px-4 py-1.5 text-right">{{ $line->debit > 0 ? '₱' . number_format($line->debit, 2) : '-' }}</td>
+                                    <td class="px-4 py-1.5 text-right">{{ $line->credit > 0 ? '₱' . number_format($line->credit, 2) : '-' }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
                 @empty
                 <tr><td colspan="8" class="text-center text-secondary-400">No journal entries yet</td></tr>
                 @endforelse
@@ -246,12 +251,13 @@
 
 @push('scripts')
 <script>
-    // Expandable rows are handled via Alpine.js x-data/x-show above.
-    // The parent row and detail row share the same Alpine scope via event delegation.
-    document.querySelectorAll('[data-expand-toggle]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = document.getElementById(btn.dataset.expandToggle);
-            if (target) target.classList.toggle('hidden');
+    document.querySelectorAll('.je-toggle-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const detail = row.nextElementSibling;
+            if (detail && detail.classList.contains('je-detail-row')) {
+                detail.classList.toggle('hidden');
+                row.querySelector('.je-chevron').classList.toggle('rotate-90');
+            }
         });
     });
 </script>

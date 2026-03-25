@@ -10,6 +10,7 @@ use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\FundSource;
 use App\Services\AuditService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,9 +19,15 @@ class BudgetController extends Controller
     /**
      * Budget dashboard with overall stats and utilization.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $budgets = Budget::with('department', 'category')->get();
+        $query = Budget::with('department', 'category');
+
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
+        }
+
+        $budgets = $query->get();
 
         $totalBudget = $budgets->sum('annual_budget');
         $totalCommitted = $budgets->sum('committed');
@@ -39,17 +46,25 @@ class BudgetController extends Controller
             ];
         })->values();
 
-        $budgetsByCategory = $budgets->groupBy('category_id')->map(function ($group) {
-            return [
-                'category' => $group->first()->category,
-                'budget' => $group->sum('annual_budget'),
-                'actual' => $group->sum('actual'),
-            ];
-        })->values();
+        // Bar chart: Budget by Department
+        $deptLabels = $budgetsByDepartment->map(fn ($d) => $d['department']->name ?? 'Unassigned');
+        $deptDatasets = [
+            ['label' => 'Budget',    'data' => $budgetsByDepartment->pluck('budget')->map(fn ($v) => (float) $v)],
+            ['label' => 'Actual',    'data' => $budgetsByDepartment->pluck('actual')->map(fn ($v) => (float) $v)],
+            ['label' => 'Committed', 'data' => $budgetsByDepartment->pluck('committed')->map(fn ($v) => (float) $v)],
+        ];
+
+        // Doughnut chart: Budget Utilization
+        $utilizationLabels = ['Actual Spent', 'Committed', 'Remaining'];
+        $utilizationValues = [(float) $totalActual, (float) $totalCommitted, (float) max($totalRemaining, 0)];
+
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         return view('pages.budget.dashboard', compact(
             'totalBudget', 'totalCommitted', 'totalActual', 'totalRemaining',
-            'utilizationRate', 'budgetsByDepartment', 'budgetsByCategory', 'budgets'
+            'utilizationRate', 'budgetsByDepartment', 'budgets', 'departments',
+            'deptLabels', 'deptDatasets',
+            'utilizationLabels', 'utilizationValues'
         ));
     }
 
@@ -280,6 +295,61 @@ class BudgetController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export Budget vs Actual report as PDF.
+     */
+    public function budgetVsActualPdf(Request $request)
+    {
+        $departmentId = $request->input('department_id');
+        $department = $departmentId ? Department::find($departmentId) : null;
+
+        $query = Budget::with('department', 'category')->where('status', 'active');
+
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+
+        $budgets = $query->orderBy('department_id')->orderBy('budget_name')->get()
+            ->map(function ($b) {
+                $b->remaining = $b->annual_budget - $b->committed - $b->actual;
+                $b->variance = $b->annual_budget - $b->actual;
+                $b->variance_pct = $b->annual_budget > 0
+                    ? (($b->annual_budget - $b->actual) / $b->annual_budget) * 100 : 0;
+                $b->department_name = $b->department->name ?? null;
+                $b->category_name = $b->category->name ?? null;
+                return $b;
+            });
+
+        $summary = [
+            'total_budget'       => $budgets->sum('annual_budget'),
+            'total_committed'    => $budgets->sum('committed'),
+            'total_actual'       => $budgets->sum('actual'),
+            'total_remaining'    => $budgets->sum('remaining'),
+            'total_variance'     => $budgets->sum('variance'),
+        ];
+        $summary['overall_utilization'] = $summary['total_budget'] > 0
+            ? (($summary['total_committed'] + $summary['total_actual']) / $summary['total_budget']) * 100 : 0;
+
+        $data = [
+            'budgets'        => $budgets,
+            'summary'        => $summary,
+            'departmentName' => $department->name ?? null,
+            'schoolYear'     => $budgets->first()->school_year ?? now()->format('Y'),
+            'generatedAt'    => now()->format('F d, Y h:i A'),
+        ];
+
+        $pdf = Pdf::loadView('pages.budget.pdf-budget-vs-actual', $data)
+            ->setPaper('legal', 'landscape');
+
+        $filename = 'Budget-vs-Actual';
+        if ($department) {
+            $filename .= '-' . str_replace(' ', '_', $department->name);
+        }
+        $filename .= '-' . now()->format('Y-m-d') . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     // Alias methods for route compatibility

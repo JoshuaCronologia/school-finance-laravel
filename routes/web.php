@@ -59,10 +59,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [BudgetController::class, 'dashboard'])->name('dashboard');
         Route::get('/planning', [BudgetController::class, 'planning'])->name('planning');
         Route::get('/allocation', [BudgetController::class, 'allocation'])->name('allocation');
+        Route::get('/budget-vs-actual/pdf', [BudgetController::class, 'budgetVsActualPdf'])->name('budget-vs-actual.pdf');
         Route::post('/planning', [BudgetController::class, 'storePlan'])->name('planning.store');
         Route::put('/planning/{plan}', [BudgetController::class, 'updatePlan'])->name('planning.update');
+        Route::post('/planning/copy-previous', [BudgetController::class, 'copyFromPreviousYear'])->name('planning.copy-previous');
+        Route::get('/planning/export', [BudgetController::class, 'export'])->name('planning.export');
         Route::post('/allocation', [BudgetController::class, 'storeAllocation'])->name('allocation.store');
-        Route::put('/allocation/{allocation}', [BudgetController::class, 'updateAllocation'])->name('allocation.update');
+        Route::post('/allocation/update', [BudgetController::class, 'updateAllocation'])->name('allocation.update');
+        Route::get('/allocation/export', [BudgetController::class, 'export'])->name('allocation.export');
     });
 
     // =============================================================
@@ -70,13 +74,26 @@ Route::middleware(['auth'])->group(function () {
     // =============================================================
     Route::prefix('ap')->name('ap.')->group(function () {
         Route::resource('bills', BillController::class);
+        Route::post('/bills/{bill}/approve', [BillController::class, 'approve'])->name('bills.approve');
+        Route::post('/bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
+        Route::get('disbursements/export', [DisbursementController::class, 'export'])->name('disbursements.export');
         Route::resource('disbursements', DisbursementController::class);
+        Route::post('/disbursements/{disbursement}/submit', [DisbursementController::class, 'submit'])->name('disbursements.submit');
         Route::get('/approval-queue', [ApprovalController::class, 'index'])->name('approval-queue');
-        Route::post('/approval-queue/{bill}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
-        Route::post('/approval-queue/{bill}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
+        Route::post('/approval-queue/{disbursement}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
+        Route::post('/approval-queue/{disbursement}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
+        // Supplier / disbursement payments
         Route::get('/payment-processing', [PaymentController::class, 'index'])->name('payment-processing');
-        Route::post('/payment-processing/process', [PaymentController::class, 'process'])->name('payment.process');
+        Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index'); // alias for convenience
+        Route::post('/payments/{disbursement}', [PaymentController::class, 'processPayment'])->name('payments.store');
+        Route::post('/payments/{payment}/void', [PaymentController::class, 'voidPayment'])->name('payments.void');
+        Route::get('/payments/{payment}/print', [PaymentController::class, 'printVoucher'])->name('payments.print');
+        // Backward compatibility for older frontend code pointing here
+        Route::post('/payment-processing/{disbursement}/process', [PaymentController::class, 'processPayment'])->name('payment.process');
     });
+
+    // AP Aging per vendor
+    Route::get('/ap/aging', [VendorController::class, 'aging'])->name('ap.aging');
 
     Route::resource('vendors', VendorController::class);
 
@@ -86,8 +103,11 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('ar')->name('ar.')->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::resource('collections', CollectionController::class);
+        Route::get('/collections/{collection}/print', [CollectionController::class, 'printReceipt'])->name('collections.print');
         Route::resource('customers', CustomerController::class);
         Route::get('/aging', [ARController::class, 'aging'])->name('aging');
+        // Simple export placeholder: reuse aging view data for now
+        Route::get('/aging/export', fn() => redirect()->route('ar.aging'))->name('aging.export');
         Route::get('/soa', [ARController::class, 'soa'])->name('soa');
         Route::get('/soa/{customer}', [ARController::class, 'soaDetail'])->name('soa.detail');
         Route::get('/soa/{customer}/pdf', [ARController::class, 'soaPdf'])->name('soa.pdf');
@@ -99,8 +119,17 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('gl')->name('gl.')->group(function () {
         Route::resource('accounts', ChartOfAccountsController::class);
         Route::resource('journal-entries', JournalEntryController::class);
+        Route::get('/journal-entries-approval', [JournalEntryController::class, 'approvalQueue'])->name('journal-entries.approval');
+        Route::post('/journal-entries/{journal_entry}/submit-approval', [JournalEntryController::class, 'submitForApproval'])->name('journal-entries.submit-approval');
+        Route::post('/journal-entries/{journal_entry}/approve', [JournalEntryController::class, 'approve'])->name('journal-entries.approve');
+        Route::post('/journal-entries/{journal_entry}/reject', [JournalEntryController::class, 'reject'])->name('journal-entries.reject');
+        Route::post('/journal-entries/{journal_entry}/post', [JournalEntryController::class, 'post'])->name('journal-entries.post');
+        Route::post('/journal-entries/{journal_entry}/reverse', [JournalEntryController::class, 'reverse'])->name('journal-entries.reverse');
+        Route::get('/journal-entries/{journal_entry}/print', [JournalEntryController::class, 'printVoucher'])->name('journal-entries.print');
         Route::get('/recurring', [JournalEntryController::class, 'recurring'])->name('recurring');
         Route::post('/recurring', [JournalEntryController::class, 'storeRecurring'])->name('recurring.store');
+        Route::get('/bank-reconciliation', [\App\Http\Controllers\GL\BankReconciliationController::class, 'index'])->name('bank-reconciliation');
+        Route::get('/bank-reconciliation/pdf', [\App\Http\Controllers\GL\BankReconciliationController::class, 'pdf'])->name('bank-reconciliation.pdf');
         Route::get('/ledger-inquiry', [GLController::class, 'ledgerInquiry'])->name('ledger-inquiry');
         Route::get('/period-closing', [PeriodClosingController::class, 'index'])->name('period-closing');
         Route::post('/period-closing/close', [PeriodClosingController::class, 'close'])->name('period-closing.close');
@@ -118,6 +147,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/general-ledger', [ReportController::class, 'generalLedger'])->name('general-ledger');
         Route::get('/budget-vs-actual', [ReportController::class, 'budgetVsActual'])->name('budget-vs-actual');
         Route::get('/monthly-variance', [ReportController::class, 'monthlyVariance'])->name('monthly-variance');
+        Route::get('/expense-schedule', [ReportController::class, 'expenseSchedule'])->name('expense-schedule');
+        Route::get('/general-journal', [ReportController::class, 'generalJournal'])->name('general-journal');
+        Route::get('/cash-receipts-book', [ReportController::class, 'cashReceiptsBook'])->name('cash-receipts-book');
+        Route::get('/cash-disbursements-book', [ReportController::class, 'cashDisbursementsBook'])->name('cash-disbursements-book');
 
         // Export endpoints
         Route::get('/trial-balance/export/{format}', [ReportController::class, 'exportTrialBalance'])->name('trial-balance.export');
@@ -143,6 +176,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/special-journals', [TaxController::class, 'specialJournals'])->name('special-journals');
         Route::get('/check-writer', [TaxController::class, 'checkWriter'])->name('check-writer');
         Route::post('/check-writer/print', [TaxController::class, 'printCheck'])->name('check-writer.print');
+        // BIR Forms
+        Route::get('/bir-0619e', [TaxController::class, 'bir0619e'])->name('bir-0619e');
+        Route::get('/bir-0619f', [TaxController::class, 'bir0619f'])->name('bir-0619f');
+        Route::get('/bir-1601c', [TaxController::class, 'bir1601c'])->name('bir-1601c');
+        Route::get('/bir-1601eq', [TaxController::class, 'bir1601eq'])->name('bir-1601eq');
+        Route::get('/bir-1604e', [TaxController::class, 'bir1604e'])->name('bir-1604e');
+        Route::get('/bir-1604cf', [TaxController::class, 'bir1604cf'])->name('bir-1604cf');
+        Route::get('/alphalist-quarterly', [TaxController::class, 'alphalistQuarterly'])->name('alphalist-quarterly');
+        Route::get('/alphalist-annual', [TaxController::class, 'alphalistAnnual'])->name('alphalist-annual');
     });
 
     // =============================================================

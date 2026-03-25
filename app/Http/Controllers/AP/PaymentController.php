@@ -9,6 +9,7 @@ use App\Services\AuditService;
 use App\Services\BudgetService;
 use App\Services\NumberingService;
 use App\Services\PostingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,20 +17,23 @@ class PaymentController extends Controller
 {
     public function index()
     {
-        $approvedDisbursements = DisbursementRequest::with('department', 'category')
+        $readyForPayment = DisbursementRequest::with('department', 'category')
             ->where('status', 'approved')
             ->whereDoesntHave('payment')
             ->latest('request_date')
             ->get();
 
-        $recentPayments = DisbursementPayment::with('disbursement.department')
+        $payments = DisbursementPayment::with('disbursement.department')
             ->latest('payment_date')
             ->paginate(20);
 
-        $totalReadyForPayment = $approvedDisbursements->sum('amount');
+        $totalReadyForPayment = $readyForPayment->sum('amount');
+
+        // Placeholder; replace with real bank accounts when model exists
+        $bankAccounts = [];
 
         return view('pages.ap.payment-processing', compact(
-            'approvedDisbursements', 'recentPayments', 'totalReadyForPayment'
+            'readyForPayment', 'payments', 'totalReadyForPayment', 'bankAccounts'
         ));
     }
 
@@ -84,7 +88,7 @@ class PaymentController extends Controller
                 return $payment;
             });
 
-            return redirect()->route('ap.payment-processing')
+            return redirect()->route('ap.payments.index')
                 ->with('success', "Payment {$payment->voucher_number} processed successfully.");
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to process payment: ' . $e->getMessage());
@@ -122,8 +126,17 @@ class PaymentController extends Controller
 
     public function printVoucher(DisbursementPayment $payment)
     {
-        $payment->load('disbursement.items', 'disbursement.department', 'disbursement.category');
+        $payment->load('disbursement.items', 'disbursement.department', 'disbursement.category', 'disbursement.approvals');
 
-        return view('pages.ap.print-voucher', compact('payment'));
+        $data = [
+            'payment'   => $payment,
+            'printedAt' => now()->format('F d, Y h:i A'),
+            'printedBy' => auth()->user()->name ?? 'System',
+        ];
+
+        $pdf = Pdf::loadView('pages.ap.print-voucher', $data)
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download("PV-{$payment->voucher_number}.pdf");
     }
 }

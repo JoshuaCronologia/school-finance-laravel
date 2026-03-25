@@ -11,9 +11,9 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine.js – plugins must load BEFORE the core -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -37,10 +37,10 @@
          style="display: none;"></div>
 
     <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-           class="sidebar bg-gradient-to-b from-slate-900 to-slate-800 transform transition-transform duration-200 ease-in-out lg:translate-x-0 scrollbar-thin">
+           class="sidebar bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 scrollbar-thin">
 
         {{-- Logo --}}
-        <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div class="flex items-center gap-3 px-5 py-5 border-b border-gray-200">
             <div class="flex items-center justify-center w-9 h-9 bg-primary-600 rounded-lg">
                 {{-- Graduation cap icon --}}
                 <svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -48,8 +48,8 @@
                 </svg>
             </div>
             <div>
-                <span class="text-base font-bold text-white tracking-tight">ORANGEAPPS</span>
-                <span class="block text-[10px] font-medium text-slate-400 uppercase tracking-widest">School Finance ERP</span>
+                <span class="text-base font-bold text-gray-900 tracking-tight">ORANGEAPPS</span>
+                <span class="block text-[10px] font-medium text-gray-500 uppercase tracking-widest">School Finance ERP</span>
             </div>
         </div>
 
@@ -120,6 +120,7 @@
                     <a href="/ap/disbursements/create" class="sidebar-link text-xs {{ $currentRoute === '/ap/disbursements/create' ? 'sidebar-link--active' : '' }}">Create Request</a>
                     <a href="/ap/approval-queue" class="sidebar-link text-xs {{ $currentRoute === '/ap/approval-queue' ? 'sidebar-link--active' : '' }}">Approval Queue</a>
                     <a href="/ap/payment-processing" class="sidebar-link text-xs {{ $currentRoute === '/ap/payment-processing' ? 'sidebar-link--active' : '' }}">Payment Processing</a>
+                    <a href="/tax/check-writer" class="sidebar-link text-xs {{ $currentRoute === '/tax/check-writer' ? 'sidebar-link--active' : '' }}">Check Writer</a>
                 </div>
             </div>
 
@@ -129,7 +130,7 @@
             </a>
 
             {{-- AP Payments (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/ap/payments') || str_starts_with($currentRoute, '/ap/aging') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/ap/payment-processing') || str_starts_with($currentRoute, '/ar/aging') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
@@ -138,8 +139,8 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    <a href="/ap/payments" class="sidebar-link text-xs {{ $currentRoute === '/ap/payments' ? 'sidebar-link--active' : '' }}">Supplier Payments</a>
-                    <a href="/ap/aging" class="sidebar-link text-xs {{ $currentRoute === '/ap/aging' ? 'sidebar-link--active' : '' }}">AP Aging</a>
+                    <a href="/ap/payment-processing" class="sidebar-link text-xs {{ $currentRoute === '/ap/payment-processing' ? 'sidebar-link--active' : '' }}">Supplier Payments</a>
+                    <a href="/ar/aging" class="sidebar-link text-xs {{ $currentRoute === '/ar/aging' ? 'sidebar-link--active' : '' }}">AP Aging</a>
                 </div>
             </div>
 
@@ -192,6 +193,10 @@
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                 <span>Ledger Inquiry</span>
             </a>
+            <a href="/gl/bank-reconciliation" class="sidebar-link {{ $currentRoute === '/gl/bank-reconciliation' ? 'sidebar-link--active' : '' }}">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21" /></svg>
+                <span>Bank Reconciliation</span>
+            </a>
             <a href="/gl/period-closing" class="sidebar-link {{ $currentRoute === '/gl/period-closing' ? 'sidebar-link--active' : '' }}">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
                 <span>Period Closing</span>
@@ -210,11 +215,18 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-1 mb-1 pl-1">Financial Statements</p>
                     <a href="/reports/trial-balance" class="sidebar-link text-xs {{ $currentRoute === '/reports/trial-balance' ? 'sidebar-link--active' : '' }}">Trial Balance</a>
                     <a href="/reports/balance-sheet" class="sidebar-link text-xs {{ $currentRoute === '/reports/balance-sheet' ? 'sidebar-link--active' : '' }}">Balance Sheet</a>
                     <a href="/reports/income-statement" class="sidebar-link text-xs {{ $currentRoute === '/reports/income-statement' ? 'sidebar-link--active' : '' }}">Income Statement</a>
                     <a href="/reports/cash-flow" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-flow' ? 'sidebar-link--active' : '' }}">Cash Flow</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Books of Accounts</p>
                     <a href="/reports/general-ledger" class="sidebar-link text-xs {{ $currentRoute === '/reports/general-ledger' ? 'sidebar-link--active' : '' }}">General Ledger</a>
+                    <a href="/reports/general-journal" class="sidebar-link text-xs {{ $currentRoute === '/reports/general-journal' ? 'sidebar-link--active' : '' }}">General Journal</a>
+                    <a href="/reports/cash-receipts-book" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-receipts-book' ? 'sidebar-link--active' : '' }}">Cash Receipts Book</a>
+                    <a href="/reports/cash-disbursements-book" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-disbursements-book' ? 'sidebar-link--active' : '' }}">Cash Disbursements Book</a>
+                    <a href="/tax/special-journals" class="sidebar-link text-xs {{ $currentRoute === '/tax/special-journals' ? 'sidebar-link--active' : '' }}">Special Journals</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Other Reports</p>
                     <a href="/reports/expense-schedule" class="sidebar-link text-xs {{ $currentRoute === '/reports/expense-schedule' ? 'sidebar-link--active' : '' }}">Expense Schedule</a>
                 </div>
             </div>
@@ -244,12 +256,22 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    <a href="/tax/bir-2307" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-2307' ? 'sidebar-link--active' : '' }}">BIR 2307</a>
-                    <a href="/tax/bir-1601e" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601e' ? 'sidebar-link--active' : '' }}">BIR 1601-E</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Monthly</p>
+                    <a href="/tax/bir-0619e" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-0619e' ? 'sidebar-link--active' : '' }}">0619-E (EWT)</a>
+                    <a href="/tax/bir-0619f" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-0619f' ? 'sidebar-link--active' : '' }}">0619-F (Final WT)</a>
+                    <a href="/tax/bir-1601c" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601c' ? 'sidebar-link--active' : '' }}">1601-C (Compensation)</a>
                     <a href="/tax/vat-2550m" class="sidebar-link text-xs {{ $currentRoute === '/tax/vat-2550m' ? 'sidebar-link--active' : '' }}">VAT 2550M</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Quarterly</p>
+                    <a href="/tax/bir-1601eq" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601eq' ? 'sidebar-link--active' : '' }}">1601-EQ (Expanded)</a>
+                    <a href="/tax/bir-1601e" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601e' ? 'sidebar-link--active' : '' }}">1601-E Return</a>
+                    <a href="/tax/alphalist-quarterly" class="sidebar-link text-xs {{ $currentRoute === '/tax/alphalist-quarterly' ? 'sidebar-link--active' : '' }}">Alphalist (QAP)</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Annual</p>
+                    <a href="/tax/bir-1604e" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1604e' ? 'sidebar-link--active' : '' }}">1604-E (Expanded)</a>
+                    <a href="/tax/bir-1604cf" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1604cf' ? 'sidebar-link--active' : '' }}">1604-CF (Comp/Final)</a>
+                    <a href="/tax/alphalist-annual" class="sidebar-link text-xs {{ $currentRoute === '/tax/alphalist-annual' ? 'sidebar-link--active' : '' }}">Alphalist (Annual)</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Other</p>
+                    <a href="/tax/bir-2307" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-2307' ? 'sidebar-link--active' : '' }}">BIR 2307</a>
                     <a href="/tax/alphalist" class="sidebar-link text-xs {{ $currentRoute === '/tax/alphalist' ? 'sidebar-link--active' : '' }}">QAP / SAWT</a>
-                    <a href="/tax/special-journals" class="sidebar-link text-xs {{ $currentRoute === '/tax/special-journals' ? 'sidebar-link--active' : '' }}">Special Journals</a>
-                    <a href="/tax/check-writer" class="sidebar-link text-xs {{ $currentRoute === '/tax/check-writer' ? 'sidebar-link--active' : '' }}">Check Writer</a>
                 </div>
             </div>
 

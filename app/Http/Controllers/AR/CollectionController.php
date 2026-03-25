@@ -51,7 +51,7 @@ class CollectionController extends Controller
 
         $customers = Customer::where('is_active', true)->orderBy('name')->get();
 
-        return view('pages.ar.collections', compact(
+        return view('pages.ar.collections.index', compact(
             'collections', 'totalCollected', 'totalUnapplied', 'customers'
         ));
     }
@@ -65,7 +65,7 @@ class CollectionController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        return view('pages.ar.collection-create', compact('customers', 'openInvoices'));
+        return view('pages.ar.collections.create', compact('customers', 'openInvoices'));
     }
 
     public function store(Request $request)
@@ -141,13 +141,13 @@ class CollectionController extends Controller
     {
         $collection->load('customer', 'allocations.invoice', 'journalEntry.lines.account');
 
-        return view('pages.ar.collection-show', compact('collection'));
+        return view('pages.ar.collections.show', compact('collection'));
     }
 
     public function printReceipt(ArCollection $collection)
     {
         $collection->load('customer', 'allocations.invoice');
 
-        return view('pages.ar.print-receipt', compact('collection'));
+        return view('pages.ar.collections.print-receipt', compact('collection'));
     }
 }

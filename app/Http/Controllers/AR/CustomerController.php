@@ -48,7 +48,7 @@ class CustomerController extends Controller
             ->where('account_name', 'like', '%receivable%')
             ->orderBy('account_code')->get();
 
-        return view('pages.ar.customers', compact('customers', 'campuses', 'arAccounts'));
+        return view('pages.ar.customers.index', compact('customers', 'campuses', 'arAccounts'));
     }
 
     public function store(Request $request)
@@ -97,7 +97,7 @@ class CustomerController extends Controller
             ->whereNotIn('status', ['cancelled', 'voided'])
             ->sum('amount_paid');
 
-        return view('pages.ar.customer-show', compact(
+        return view('pages.ar.customers.show', compact(
             'customer', 'invoices', 'outstandingBalance', 'totalInvoiced', 'totalPaid'
         ));
     }

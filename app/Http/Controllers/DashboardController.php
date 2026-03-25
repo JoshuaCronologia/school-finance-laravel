@@ -50,14 +50,17 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        $spendingByCategory = Budget::with('category')
+        $categoryRows = Budget::with('category')
             ->select('category_id', DB::raw('SUM(actual) as total'))
             ->groupBy('category_id')
             ->orderByDesc('total')
             ->take(5)
             ->get();
 
-        $departmentBudgets = Budget::with('department')
+        $categoryLabels = $categoryRows->map(fn ($r) => $r->category->name ?? 'Uncategorized')->values();
+        $categoryValues = $categoryRows->pluck('total')->map(fn ($v) => (float) $v)->values();
+
+        $departmentRows = Budget::with('department')
             ->select(
                 'department_id',
                 DB::raw('SUM(annual_budget) as budget'),
@@ -67,10 +70,25 @@ class DashboardController extends Controller
             ->groupBy('department_id')
             ->get();
 
+        $departmentLabels = $departmentRows->map(fn ($r) => $r->department->name ?? 'Unknown')->values();
+        $departmentDatasets = [
+            ['label' => 'Budget',    'data' => $departmentRows->pluck('budget')->map(fn ($v) => (float) $v)->values()],
+            ['label' => 'Actual',    'data' => $departmentRows->pluck('actual')->map(fn ($v) => (float) $v)->values()],
+            ['label' => 'Committed', 'data' => $departmentRows->pluck('committed')->map(fn ($v) => (float) $v)->values()],
+        ];
+
+        $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        $monthlyLabels = $monthlyExpenses->map(fn ($r) => $months[$r->month - 1] ?? $r->month)->values();
+        $monthlyDatasets = [
+            ['label' => 'Expenses', 'data' => $monthlyExpenses->pluck('total')->map(fn ($v) => (float) $v)->values()],
+        ];
+
         return view('pages.dashboard.finance', compact(
             'totalBudget', 'committed', 'actual', 'remaining',
-            'topDepartments', 'monthlyExpenses', 'recentDisbursements',
-            'spendingByCategory', 'departmentBudgets'
+            'topDepartments', 'recentDisbursements',
+            'departmentLabels', 'departmentDatasets',
+            'monthlyLabels', 'monthlyDatasets',
+            'categoryLabels', 'categoryValues'
         ));
     }
 
@@ -79,10 +97,10 @@ class DashboardController extends Controller
      */
     public function accounting()
     {
-        $totalAR = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
+        $totalReceivables = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
             ->sum('balance');
 
-        $totalAP = ApBill::whereNotIn('status', ['cancelled', 'voided'])
+        $totalPayables = ApBill::whereNotIn('status', ['cancelled', 'voided'])
             ->sum('balance');
 
         $cashBalance = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as balance'))
@@ -93,7 +111,7 @@ class DashboardController extends Controller
             ->where('chart_of_accounts.account_code', '<=', '1050')
             ->value('balance') ?? 0;
 
-        $currentMonthRevenue = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.credit - journal_entry_lines.debit) as total'))
+        $totalRevenue = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.credit - journal_entry_lines.debit) as total'))
             ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
             ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
             ->where('chart_of_accounts.account_type', 'revenue')
@@ -102,7 +120,7 @@ class DashboardController extends Controller
             ->whereYear('journal_entries.posting_date', now()->year)
             ->value('total') ?? 0;
 
-        $currentMonthExpenses = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total'))
+        $totalExpenses = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total'))
             ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
             ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
             ->where('chart_of_accounts.account_type', 'expense')
@@ -111,15 +129,39 @@ class DashboardController extends Controller
             ->whereYear('journal_entries.posting_date', now()->year)
             ->value('total') ?? 0;
 
-        $recentEntries = JournalEntry::with('lines')
+        $netIncome = $totalRevenue - $totalExpenses;
+
+        $recentJEs = JournalEntry::with('lines.account')
             ->latest('entry_date')
             ->take(10)
             ->get();
 
-        $unpostedCount = JournalEntry::where('status', 'draft')->count();
+        $unpostedCount = JournalEntry::whereIn('status', ['draft'])->count();
+        $pendingApprovalCount = JournalEntry::where('status', 'pending_approval')->count();
 
-        $arAging = $this->calculateArAging();
-        $apAging = $this->calculateApAging();
+        $arAgingArray = $this->calculateArAging();
+        $apAgingArray = $this->calculateApAging();
+
+        $arAging = (object) [
+            'current'      => $arAgingArray['current'],
+            'days_30'      => $arAgingArray['1_30'],
+            'days_60'      => $arAgingArray['31_60'],
+            'days_90'      => $arAgingArray['61_90'],
+            'days_over_90' => $arAgingArray['over_90'],
+            'total'        => array_sum($arAgingArray),
+        ];
+
+        $apAging = (object) [
+            'current'      => $apAgingArray['current'],
+            'days_30'      => $apAgingArray['1_30'],
+            'days_60'      => $apAgingArray['31_60'],
+            'days_90'      => $apAgingArray['61_90'],
+            'days_over_90' => $apAgingArray['over_90'],
+            'total'        => array_sum($apAgingArray),
+        ];
+
+        $overdueAR = $arAging->days_30 + $arAging->days_60 + $arAging->days_90 + $arAging->days_over_90;
+        $overdueAP = $apAging->days_30 + $apAging->days_60 + $apAging->days_90 + $apAging->days_over_90;
 
         $topExpenseCategories = JournalEntryLine::select(
                 'chart_of_accounts.account_name',
@@ -148,10 +190,10 @@ class DashboardController extends Controller
             ->get();
 
         return view('pages.dashboard.accounting', compact(
-            'totalAR', 'totalAP', 'cashBalance',
-            'currentMonthRevenue', 'currentMonthExpenses',
-            'recentEntries', 'unpostedCount',
-            'arAging', 'apAging',
+            'totalReceivables', 'totalPayables', 'cashBalance',
+            'netIncome', 'totalRevenue', 'totalExpenses',
+            'recentJEs', 'unpostedCount', 'pendingApprovalCount',
+            'arAging', 'apAging', 'overdueAR', 'overdueAP',
             'topExpenseCategories', 'topVendors'
         ));
     }

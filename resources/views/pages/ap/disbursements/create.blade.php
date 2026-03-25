@@ -60,23 +60,29 @@
                 <div>
                     <label class="form-label">Payee <span class="text-danger-500">*</span></label>
                     <template x-if="payeeType === 'vendor'">
-                        <select name="payee_id" class="form-input" required>
-                            <option value="">Select Vendor</option>
-                            @foreach($vendors ?? [] as $vendor)
-                                <option value="{{ $vendor->id }}" {{ old('payee_id', $disbursement->payee_id ?? '') == $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
-                            @endforeach
-                        </select>
+                        <div>
+                            <select name="payee_id" class="form-input" x-model="payeeId" @change="payeeName = $event.target.options[$event.target.selectedIndex].dataset.name || ''" required>
+                                <option value="">Select Vendor</option>
+                                @foreach($vendors ?? [] as $vendor)
+                                    <option value="{{ $vendor->id }}" data-name="{{ $vendor->name }}" {{ old('payee_id', $disbursement->payee_id ?? '') == $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="payee_name" :value="payeeName">
+                        </div>
                     </template>
                     <template x-if="payeeType === 'employee'">
-                        <select name="payee_id" class="form-input" required>
-                            <option value="">Select Employee</option>
-                            @foreach($employees ?? [] as $emp)
-                                <option value="{{ $emp->id }}" {{ old('payee_id', $disbursement->payee_id ?? '') == $emp->id ? 'selected' : '' }}>{{ $emp->name }}</option>
-                            @endforeach
-                        </select>
+                        <div>
+                            <select name="payee_id" class="form-input" x-model="payeeId" @change="payeeName = $event.target.options[$event.target.selectedIndex].dataset.name || ''" required>
+                                <option value="">Select Employee</option>
+                                @foreach($employees ?? [] as $emp)
+                                    <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" {{ old('payee_id', $disbursement->payee_id ?? '') == $emp->id ? 'selected' : '' }}>{{ $emp->name }}</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="payee_name" :value="payeeName">
+                        </div>
                     </template>
                     <template x-if="payeeType === 'other'">
-                        <input type="text" name="payee_name" class="form-input" value="{{ old('payee_name', $disbursement->payee_name ?? '') }}" placeholder="Enter payee name" required>
+                        <input type="text" name="payee_name" class="form-input" x-model="payeeName" value="{{ old('payee_name', $disbursement->payee_name ?? '') }}" placeholder="Enter payee name" required>
                     </template>
                     <template x-if="!payeeType">
                         <input type="text" class="form-input bg-gray-50" placeholder="Select payee type first" disabled>
@@ -93,10 +99,10 @@
                 </div>
                 <div>
                     <label class="form-label">Expense Category <span class="text-danger-500">*</span></label>
-                    <select name="expense_category_id" class="form-input" x-model="categoryId" @change="checkBudget()" required>
+                    <select name="category_id" class="form-input" x-model="categoryId" @change="checkBudget()" required>
                         <option value="">Select Category</option>
                         @foreach($categories ?? [] as $cat)
-                            <option value="{{ $cat->id }}" {{ old('expense_category_id', $disbursement->expense_category_id ?? '') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                            <option value="{{ $cat->id }}" {{ old('category_id', $disbursement->category_id ?? '') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -195,35 +201,35 @@
                     <template x-for="(line, index) in lines" :key="index">
                         <tr>
                             <td>
-                                <input type="text" :name="'lines[' + index + '][description]'" class="form-input text-sm" x-model="line.description" placeholder="Item description">
+                                <input type="text" :name="'items[' + index + '][description]'" class="form-input text-sm" x-model="line.description" placeholder="Item description" required>
                             </td>
                             <td>
-                                <input type="number" :name="'lines[' + index + '][qty]'" class="form-input text-sm text-right" x-model.number="line.qty" min="1" step="1" @input="calcLine(index)">
+                                <input type="number" :name="'items[' + index + '][quantity]'" class="form-input text-sm text-right" x-model.number="line.qty" min="1" step="1" @input="calcLine(index)">
                             </td>
                             <td>
-                                <input type="number" :name="'lines[' + index + '][unit_cost]'" class="form-input text-sm text-right" x-model.number="line.unit_cost" min="0" step="0.01" @input="calcLine(index)">
+                                <input type="number" :name="'items[' + index + '][unit_cost]'" class="form-input text-sm text-right" x-model.number="line.unit_cost" min="0" step="0.01" @input="calcLine(index)">
                             </td>
                             <td>
                                 <input type="text" class="form-input text-sm text-right bg-gray-50" :value="formatNum(line.amount)" readonly>
-                                <input type="hidden" :name="'lines[' + index + '][amount]'" :value="line.amount">
+                                <input type="hidden" :name="'items[' + index + '][amount]'" :value="line.amount">
                             </td>
                             <td>
-                                <select :name="'lines[' + index + '][account_code]'" class="form-input text-sm" x-model="line.account_code">
+                                <select :name="'items[' + index + '][account_code]'" class="form-input text-sm" x-model="line.account_code">
                                     <option value="">Select</option>
                                     @foreach($accounts ?? [] as $account)
-                                        <option value="{{ $account->code }}">{{ $account->code }}</option>
+                                        <option value="{{ $account->account_code }}">{{ $account->account_code }}</option>
                                     @endforeach
                                 </select>
                             </td>
                             <td>
-                                <select :name="'lines[' + index + '][tax_code]'" class="form-input text-sm" x-model="line.tax_code">
+                                <select :name="'items[' + index + '][tax_code]'" class="form-input text-sm" x-model="line.tax_code">
                                     <option value="">None</option>
                                     <option value="VAT12">VAT 12%</option>
                                     <option value="VAT_EXEMPT">Exempt</option>
                                 </select>
                             </td>
                             <td>
-                                <input type="text" :name="'lines[' + index + '][remarks]'" class="form-input text-sm" x-model="line.remarks" placeholder="Notes">
+                                <input type="text" :name="'items[' + index + '][remarks]'" class="form-input text-sm" x-model="line.remarks" placeholder="Notes">
                             </td>
                             <td>
                                 <button type="button" @click="removeLine(index)" class="btn-icon text-danger-500 hover:text-danger-700" x-show="lines.length > 1">
@@ -277,16 +283,21 @@
     </div>
 </form>
 
+@php
+    $defaultLine = ['description' => '', 'qty' => 1, 'unit_cost' => 0, 'amount' => 0, 'account_code' => '', 'tax_code' => '', 'remarks' => ''];
+    $initialLines = old('lines', isset($disbursement) && $disbursement->lines ? $disbursement->lines->toArray() : [$defaultLine]);
+@endphp
+
 @push('scripts')
 <script>
 function disbursementForm() {
     return {
         payeeType: '{{ old('payee_type', $disbursement->payee_type ?? '') }}',
+        payeeId: '{{ old('payee_id', $disbursement->payee_id ?? '') }}',
+        payeeName: '{{ old('payee_name', $disbursement->payee_name ?? '') }}',
         departmentId: '{{ old('department_id', $disbursement->department_id ?? '') }}',
-        categoryId: '{{ old('expense_category_id', $disbursement->expense_category_id ?? '') }}',
-        lines: @json(old('lines', isset($disbursement) && $disbursement->lines ? $disbursement->lines->toArray() : [
-            { description: '', qty: 1, unit_cost: 0, amount: 0, account_code: '', tax_code: '', remarks: '' }
-        ])),
+        categoryId: '{{ old('category_id', $disbursement->category_id ?? '') }}',
+        lines: @json($initialLines),
         budgetInfo: { loaded: false, budget: 0, committed: 0, actual: 0, remaining: 0 },
 
         get totalAmount() {

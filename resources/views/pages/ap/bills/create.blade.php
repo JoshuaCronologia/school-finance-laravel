@@ -109,18 +109,18 @@
                     <template x-for="(line, index) in lines" :key="index">
                         <tr>
                             <td>
-                                <select :name="'lines[' + index + '][account_code]'" class="form-input text-sm" x-model="line.account_code">
+                                <select :name="'lines[' + index + '][account_id]'" class="form-input text-sm" x-model="line.account_id">
                                     <option value="">Select</option>
                                     @foreach($accounts ?? [] as $account)
-                                        <option value="{{ $account->code }}">{{ $account->code }} - {{ $account->name }}</option>
+                                        <option value="{{ $account->id }}">{{ $account->account_code }} - {{ $account->account_name }}</option>
                                     @endforeach
                                 </select>
                             </td>
                             <td>
-                                <input type="text" :name="'lines[' + index + '][description]'" class="form-input text-sm" x-model="line.description" placeholder="Item description">
+                                <input type="text" :name="'lines[' + index + '][description]'" class="form-input text-sm" x-model="line.description" placeholder="Item description" required>
                             </td>
                             <td>
-                                <input type="number" :name="'lines[' + index + '][qty]'" class="form-input text-sm text-right" x-model.number="line.qty" min="1" step="1" @input="calcLineAmount(index)">
+                                <input type="number" :name="'lines[' + index + '][quantity]'" class="form-input text-sm text-right" x-model.number="line.qty" min="1" step="1" @input="calcLineAmount(index)">
                             </td>
                             <td>
                                 <input type="number" :name="'lines[' + index + '][unit_cost]'" class="form-input text-sm text-right" x-model.number="line.unit_cost" min="0" step="0.01" @input="calcLineAmount(index)">
@@ -130,11 +130,11 @@
                                 <input type="hidden" :name="'lines[' + index + '][amount]'" :value="line.amount">
                             </td>
                             <td>
-                                <select :name="'lines[' + index + '][tax_code]'" class="form-input text-sm" x-model="line.tax_code" @change="recalcTotals()">
+                                <select :name="'lines[' + index + '][tax_code_id]'" class="form-input text-sm" x-model="line.tax_code" @change="recalcTotals()">
                                     <option value="">None</option>
-                                    <option value="VAT12">VAT 12%</option>
-                                    <option value="VAT_EXEMPT">VAT Exempt</option>
-                                    <option value="ZERO_RATED">Zero Rated</option>
+                                    @foreach($taxCodes ?? [] as $tc)
+                                        <option value="{{ $tc->id }}">{{ $tc->code ?? $tc->name }}</option>
+                                    @endforeach
                                 </select>
                             </td>
                             <td>
@@ -205,9 +205,14 @@
 <script>
 function billLineItems() {
     return {
-        lines: @json(old('lines', isset($bill) && $bill->lines ? $bill->lines->toArray() : [
-            { account_code: '', description: '', qty: 1, unit_cost: 0, amount: 0, tax_code: '', wht_code: '' }
-        ])),
+        lines: {!! json_encode(
+            old('lines',
+                isset($bill) && $bill->lines
+                    ? $bill->lines->map(fn($l) => ['account_id' => $l->account_id, 'description' => $l->description, 'qty' => $l->quantity, 'unit_cost' => $l->unit_cost, 'amount' => $l->amount, 'tax_code' => $l->tax_code_id ?? '', 'wht_code' => ''])->toArray()
+                    : [['account_id' => '', 'description' => '', 'qty' => 1, 'unit_cost' => 0, 'amount' => 0, 'tax_code' => '', 'wht_code' => '']]
+            ),
+            JSON_UNESCAPED_UNICODE
+        ) !!},
         totals: { gross: 0, vat: 0, wht: 0, net: 0 },
 
         init() {
@@ -215,7 +220,7 @@ function billLineItems() {
         },
 
         addLine() {
-            this.lines.push({ account_code: '', description: '', qty: 1, unit_cost: 0, amount: 0, tax_code: '', wht_code: '' });
+            this.lines.push({ account_id: '', description: '', qty: 1, unit_cost: 0, amount: 0, tax_code: '', wht_code: '' });
         },
 
         removeLine(index) {
