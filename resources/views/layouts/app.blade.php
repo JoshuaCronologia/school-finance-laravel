@@ -87,7 +87,7 @@
                 <span>Budget Allocation</span>
             </a>
 
-            {{-- Budget Analysis (collapsible) --}}
+            {{-- Budget Analysis (collapsible)
             <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
@@ -100,7 +100,7 @@
                     <a href="/reports/budget-vs-actual" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-vs-actual' ? 'sidebar-link--active' : '' }}">Budget vs Actual</a>
                     <a href="/reports/monthly-variance" class="sidebar-link text-xs {{ $currentRoute === '/reports/monthly-variance' ? 'sidebar-link--active' : '' }}">Monthly Variance</a>
                 </div>
-            </div>
+            </div> --}}
 
             {{-- ACCOUNTS PAYABLE --}}
             <p class="sidebar-section-title mt-4">Accounts Payable</p>
