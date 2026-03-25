@@ -148,7 +148,7 @@
             <tr>
                 <td>
                     @php
-                        $preparedBy = $d->requestedBy->name ?? null;
+                        $preparedBy = $d->requested_by ?? null;
                     @endphp
                     @if($preparedBy)
                         <div class="signature-name">{{ $preparedBy }}</div>

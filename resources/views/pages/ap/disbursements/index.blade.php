@@ -81,7 +81,7 @@
             <td class="text-right font-medium">{{ '₱' . number_format($request->amount, 2) }}</td>
             <td>{{ ucfirst(str_replace('_', ' ', $request->payment_method ?? '-')) }}</td>
             <td><x-badge :status="$request->status" /></td>
-            <td>{{ $request->requestedBy->name ?? $request->requested_by_name ?? '-' }}</td>
+            <td>{{ $request->requested_by ?? '-' }}</td>
         </tr>
         @empty
         <tr>

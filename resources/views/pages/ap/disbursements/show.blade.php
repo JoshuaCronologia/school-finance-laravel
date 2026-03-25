@@ -107,7 +107,7 @@
                     </div>
                     <div>
                         <dt class="text-xs text-secondary-500">Requested By</dt>
-                        <dd class="text-sm font-medium text-secondary-900">{{ $disbursement->requestedBy->name ?? $disbursement->requested_by_name ?? '-' }}</dd>
+                        <dd class="text-sm font-medium text-secondary-900">{{ $disbursement->requested_by ?? '-' }}</dd>
                     </div>
                 </dl>
             </div>
