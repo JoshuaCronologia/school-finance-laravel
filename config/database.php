@@ -35,6 +35,7 @@ return [
             'sslmode' => env('DB_SSLMODE', 'require'),
             'options' => [
                 PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_STRINGIFY_FETCHES => true,
             ],
         ],
 

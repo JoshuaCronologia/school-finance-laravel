@@ -8311,3 +8311,133 @@
 #33 C:/xampp73/htdocs/school-finance-laravel/artisan(13): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
 #34 {main}
 "} 
+[2026-03-25 19:00:40] local.ERROR: SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  must be owner of type integer or type boolean
+CONTEXT:  SQL statement "CREATE CAST (integer AS boolean) WITH INOUT AS IMPLICIT"
+PL/pgSQL function inline_code_block line 9 at SQL statement (Connection: pgsql, SQL: 
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_cast
+                        WHERE castsource = 'integer'::regtype
+                        AND casttarget = 'boolean'::regtype
+                        AND castcontext = 'i'
+                    ) THEN
+                        CREATE CAST (integer AS boolean) WITH INOUT AS IMPLICIT;
+                    END IF;
+                END
+                $$;
+            ) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42501): SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  must be owner of type integer or type boolean
+CONTEXT:  SQL statement \"CREATE CAST (integer AS boolean) WITH INOUT AS IMPLICIT\"
+PL/pgSQL function inline_code_block line 9 at SQL statement (Connection: pgsql, SQL: 
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_cast
+                        WHERE castsource = 'integer'::regtype
+                        AND casttarget = 'boolean'::regtype
+                        AND castcontext = 'i'
+                    ) THEN
+                        CREATE CAST (integer AS boolean) WITH INOUT AS IMPLICIT;
+                    END IF;
+                END
+                $$;
+            ) at C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
+[stacktrace]
+#0 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate/Database/Connection->runQueryCallback('/n              ...', Array, Object(Closure))
+#1 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(614): Illuminate/Database/Connection->run('/n              ...', Array, Object(Closure))
+#2 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate/Database/Connection->unprepared('/n              ...')
+#3 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate/Database/DatabaseManager->__call('unprepared', Array)
+#4 C:/xampp73/htdocs/school-finance-laravel/database/migrations/2025_01_01_000000_add_pgsql_boolean_cast.php(13): Illuminate/Support/Facades/Facade::__callStatic('unprepared', Array)
+#5 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate/Database/Migrations/Migration@anonymous->up()
+#6 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate/Database/Migrations/Migrator->runMethod(Object(Illuminate/Database/PostgresConnection), Object(Illuminate/Database/Migrations/Migration@anonymous), 'up')
+#7 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Concerns/ManagesTransactions.php(32): Illuminate/Database/Migrations/Migrator->Illuminate/Database/Migrations/{closure}(Object(Illuminate/Database/PostgresConnection))
+#8 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(440): Illuminate/Database/Connection->transaction(Object(Closure))
+#9 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate/Database/Migrations/Migrator->runMigration(Object(Illuminate/Database/Migrations/Migration@anonymous), 'up')
+#10 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate/Database/Migrations/Migrator->Illuminate/Database/Migrations/{closure}()
+#11 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate/Console/View/Components/Task->render('2025_01_01_0000...', Object(Closure))
+#12 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate/Database/Migrations/Migrator->write('Illuminate//Cons...', '2025_01_01_0000...', Object(Closure))
+#13 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate/Database/Migrations/Migrator->runUp('C://xampp73//htdo...', 1, false)
+#14 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate/Database/Migrations/Migrator->runPending(Array, Array)
+#15 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate/Database/Migrations/Migrator->run(Array, Array)
+#16 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate/Database/Console/Migrations/MigrateCommand->Illuminate/Database/Console/Migrations/{closure}()
+#17 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate/Database/Migrations/Migrator->usingConnection(NULL, Object(Closure))
+#18 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate/Database/Console/Migrations/MigrateCommand->runMigrations()
+#19 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate/Database/Console/Migrations/MigrateCommand->handle()
+#20 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate/Container/BoundMethod::Illuminate/Container/{closure}()
+#21 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate/Container/Util::unwrapIfClosure(Object(Closure))
+#22 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate/Container/BoundMethod::callBoundMethod(Object(Illuminate/Foundation/Application), Array, Object(Closure))
+#23 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate/Container/BoundMethod::call(Object(Illuminate/Foundation/Application), Array, Array, NULL)
+#24 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate/Container/Container->call(Array)
+#25 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Command/Command.php(341): Illuminate/Console/Command->execute(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#26 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony/Component/Console/Command/Command->run(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#27 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Concerns/CallsCommands.php(68): Illuminate/Console/Command->run(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#28 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Concerns/CallsCommands.php(29): Illuminate/Console/Command->runCommand('migrate', Array, Object(Illuminate/Console/OutputStyle))
+#29 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/FreshCommand.php(82): Illuminate/Console/Command->call('migrate', Array)
+#30 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate/Database/Console/Migrations/FreshCommand->handle()
+#31 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate/Container/BoundMethod::Illuminate/Container/{closure}()
+#32 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate/Container/Util::unwrapIfClosure(Object(Closure))
+#33 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate/Container/BoundMethod::callBoundMethod(Object(Illuminate/Foundation/Application), Array, Object(Closure))
+#34 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate/Container/BoundMethod::call(Object(Illuminate/Foundation/Application), Array, Array, NULL)
+#35 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate/Container/Container->call(Array)
+#36 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Command/Command.php(341): Illuminate/Console/Command->execute(Object(Symfony/Component/Console/Input/ArgvInput), Object(Illuminate/Console/OutputStyle))
+#37 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony/Component/Console/Command/Command->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Illuminate/Console/OutputStyle))
+#38 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(1117): Illuminate/Console/Command->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#39 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(356): Symfony/Component/Console/Application->doRunCommand(Object(Illuminate/Database/Console/Migrations/FreshCommand), Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#40 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#41 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#42 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#43 C:/xampp73/htdocs/school-finance-laravel/artisan(13): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#44 {main}
+
+[previous exception] [object] (PDOException(code: 42501): SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  must be owner of type integer or type boolean
+CONTEXT:  SQL statement \"CREATE CAST (integer AS boolean) WITH INOUT AS IMPLICIT\"
+PL/pgSQL function inline_code_block line 9 at SQL statement at C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php:620)
+[stacktrace]
+#0 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(620): PDO->exec('/n              ...')
+#1 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate/Database/Connection->Illuminate/Database/{closure}('/n              ...', Array)
+#2 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate/Database/Connection->runQueryCallback('/n              ...', Array, Object(Closure))
+#3 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Connection.php(614): Illuminate/Database/Connection->run('/n              ...', Array, Object(Closure))
+#4 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate/Database/Connection->unprepared('/n              ...')
+#5 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate/Database/DatabaseManager->__call('unprepared', Array)
+#6 C:/xampp73/htdocs/school-finance-laravel/database/migrations/2025_01_01_000000_add_pgsql_boolean_cast.php(13): Illuminate/Support/Facades/Facade::__callStatic('unprepared', Array)
+#7 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate/Database/Migrations/Migration@anonymous->up()
+#8 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate/Database/Migrations/Migrator->runMethod(Object(Illuminate/Database/PostgresConnection), Object(Illuminate/Database/Migrations/Migration@anonymous), 'up')
+#9 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Concerns/ManagesTransactions.php(32): Illuminate/Database/Migrations/Migrator->Illuminate/Database/Migrations/{closure}(Object(Illuminate/Database/PostgresConnection))
+#10 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(440): Illuminate/Database/Connection->transaction(Object(Closure))
+#11 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate/Database/Migrations/Migrator->runMigration(Object(Illuminate/Database/Migrations/Migration@anonymous), 'up')
+#12 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate/Database/Migrations/Migrator->Illuminate/Database/Migrations/{closure}()
+#13 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate/Console/View/Components/Task->render('2025_01_01_0000...', Object(Closure))
+#14 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate/Database/Migrations/Migrator->write('Illuminate//Cons...', '2025_01_01_0000...', Object(Closure))
+#15 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate/Database/Migrations/Migrator->runUp('C://xampp73//htdo...', 1, false)
+#16 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate/Database/Migrations/Migrator->runPending(Array, Array)
+#17 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate/Database/Migrations/Migrator->run(Array, Array)
+#18 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate/Database/Console/Migrations/MigrateCommand->Illuminate/Database/Console/Migrations/{closure}()
+#19 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate/Database/Migrations/Migrator->usingConnection(NULL, Object(Closure))
+#20 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate/Database/Console/Migrations/MigrateCommand->runMigrations()
+#21 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate/Database/Console/Migrations/MigrateCommand->handle()
+#22 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate/Container/BoundMethod::Illuminate/Container/{closure}()
+#23 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate/Container/Util::unwrapIfClosure(Object(Closure))
+#24 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate/Container/BoundMethod::callBoundMethod(Object(Illuminate/Foundation/Application), Array, Object(Closure))
+#25 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate/Container/BoundMethod::call(Object(Illuminate/Foundation/Application), Array, Array, NULL)
+#26 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate/Container/Container->call(Array)
+#27 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Command/Command.php(341): Illuminate/Console/Command->execute(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#28 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony/Component/Console/Command/Command->run(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#29 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Concerns/CallsCommands.php(68): Illuminate/Console/Command->run(Object(Symfony/Component/Console/Input/ArrayInput), Object(Illuminate/Console/OutputStyle))
+#30 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Concerns/CallsCommands.php(29): Illuminate/Console/Command->runCommand('migrate', Array, Object(Illuminate/Console/OutputStyle))
+#31 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/FreshCommand.php(82): Illuminate/Console/Command->call('migrate', Array)
+#32 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate/Database/Console/Migrations/FreshCommand->handle()
+#33 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate/Container/BoundMethod::Illuminate/Container/{closure}()
+#34 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate/Container/Util::unwrapIfClosure(Object(Closure))
+#35 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate/Container/BoundMethod::callBoundMethod(Object(Illuminate/Foundation/Application), Array, Object(Closure))
+#36 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate/Container/BoundMethod::call(Object(Illuminate/Foundation/Application), Array, Array, NULL)
+#37 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate/Container/Container->call(Array)
+#38 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Command/Command.php(341): Illuminate/Console/Command->execute(Object(Symfony/Component/Console/Input/ArgvInput), Object(Illuminate/Console/OutputStyle))
+#39 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony/Component/Console/Command/Command->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Illuminate/Console/OutputStyle))
+#40 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(1117): Illuminate/Console/Command->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#41 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(356): Symfony/Component/Console/Application->doRunCommand(Object(Illuminate/Database/Console/Migrations/FreshCommand), Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#42 C:/xampp73/htdocs/school-finance-laravel/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#43 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#44 C:/xampp73/htdocs/school-finance-laravel/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#45 C:/xampp73/htdocs/school-finance-laravel/artisan(13): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#46 {main}
+"} 
