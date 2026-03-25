@@ -49,10 +49,10 @@
         "LOG_CHANNEL": "stderr",
         "SESSION_DRIVER": "cookie",
         "DB_CONNECTION": "pgsql",
-        "DB_HOST": "db.mwwyssirtluulmwohquy.supabase.co",
-        "DB_PORT": "5432",
+        "DB_HOST": "aws-1-ap-southeast-2.pooler.supabase.com",
+        "DB_PORT": "6543",
         "DB_DATABASE": "postgres",
-        "DB_USERNAME": "postgres",
+        "DB_USERNAME": "postgres.mwwyssirtluulmwohquy",
         "DB_PASSWORD": "Joshua_Orange_apps",
         "DB_SSLMODE": "require"
     }
