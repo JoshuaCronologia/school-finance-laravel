@@ -257,35 +257,41 @@
 </div>
 @endsection
 
-@push('styles')
-<style>
-    @media print {
-        /* Hide everything except the check */
-        body * { visibility: hidden !important; }
-        #check-print-area, #check-print-area * { visibility: visible !important; }
-        #check-print-area {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 8in !important;
-            border: none !important;
-            border-radius: 0 !important;
-            padding: 0.5in !important;
-            margin: 0 !important;
-            background: white !important;
-        }
-        /* Remove dashed border for print */
-        #check-print-area { border-style: none !important; }
-    }
-</style>
-@endpush
-
 @push('scripts')
 <script>
     function printCheck() {
         var area = document.getElementById('check-print-area');
         if (!area) { alert('Check preview not found.'); return; }
-        window.print();
+
+        // Clone and extract computed text from Alpine x-text elements
+        var clone = area.cloneNode(true);
+
+        // Get all Tailwind CSS from the page
+        var styles = '';
+        for (var i = 0; i < document.styleSheets.length; i++) {
+            try {
+                var sheet = document.styleSheets[i];
+                if (sheet.cssRules) {
+                    for (var j = 0; j < sheet.cssRules.length; j++) {
+                        styles += sheet.cssRules[j].cssText + '\n';
+                    }
+                }
+            } catch(e) {} // skip cross-origin sheets
+        }
+
+        var win = window.open('', '_blank', 'width=900,height=500');
+        win.document.write('<!DOCTYPE html><html><head><title>Print Check</title>');
+        win.document.write('<style>' + styles + '</style>');
+        win.document.write('<style>');
+        win.document.write('@page { margin: 0; size: 8in 3.5in; }');
+        win.document.write('body { margin: 0; padding: 0.4in 0.5in; font-family: Arial, sans-serif; background: white; }');
+        win.document.write('#check-print-area { border: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; }');
+        win.document.write('</style></head><body>');
+        win.document.write(area.outerHTML);
+        win.document.write('</body></html>');
+        win.document.close();
+
+        setTimeout(function() { win.print(); }, 300);
     }
 </script>
 @endpush
