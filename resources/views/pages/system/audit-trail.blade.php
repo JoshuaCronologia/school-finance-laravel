@@ -48,7 +48,7 @@
 
 {{-- Timeline --}}
 <div class="space-y-4">
-    @forelse($auditLogs ?? [] as $log)
+    @forelse($logs ?? [] as $log)
     @php
         $actionColors = [
             'created' => ['bg' => 'bg-primary-100', 'text' => 'text-primary-600', 'icon' => 'M12 4.5v15m7.5-7.5h-15'],
@@ -123,9 +123,9 @@
 </div>
 
 {{-- Pagination --}}
-@if(($auditLogs ?? collect()) instanceof \Illuminate\Pagination\LengthAwarePaginator && $auditLogs->hasPages())
+@if(($logs ?? collect()) instanceof \Illuminate\Pagination\LengthAwarePaginator && $logs->hasPages())
 <div class="mt-6">
-    {{ $auditLogs->withQueryString()->links() }}
+    {{ $logs->withQueryString()->links() }}
 </div>
 @endif
 @endsection

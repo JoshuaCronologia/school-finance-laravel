@@ -87,12 +87,33 @@ app.config.globalProperties.$formatDate = (dateStr, options = {}) => {
 /* ----------------------------------------------------------------
    Mount
    ---------------------------------------------------------------- */
-// Vue was previously mounted on the entire #app container, which also holds
-// Alpine-driven pages. Mounting Vue there caused Vue to re-render the DOM and
-// Alpine to lose its scope (_x_dataStack became null), triggering many Alpine
-// expression errors. To avoid stepping on Alpine, only mount Vue when an
-// explicit root is present.
-const mountTarget = document.querySelector('[data-vue-root], #vue-app');
-if (mountTarget) {
-    app.mount(mountTarget);
+// Only mount Vue on explicit root containers to avoid conflicts with Alpine.js.
+// Re-mount after Turbo Drive navigations so charts render on page transitions.
+function mountVue() {
+    const mountTarget = document.querySelector('[data-vue-root], #vue-app');
+    if (mountTarget && !mountTarget.__vue_app__) {
+        // Create a fresh app instance for each mount (Turbo replaces DOM)
+        const freshApp = createApp({});
+        freshApp.config.compilerOptions.isCustomElement = () => false;
+        freshApp.config.warnHandler = app.config.warnHandler;
+        Object.entries(componentFiles).forEach(([path, module]) => {
+            const name = path
+                .replace('./components/', '')
+                .replace(/\.vue$/, '')
+                .split('/')
+                .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                .join('');
+            freshApp.component(name, module.default || module);
+        });
+        freshApp.config.globalProperties.$axios = axios;
+        freshApp.config.globalProperties.$currency = app.config.globalProperties.$currency;
+        freshApp.config.globalProperties.$formatDate = app.config.globalProperties.$formatDate;
+        freshApp.mount(mountTarget);
+    }
 }
+
+// Mount on initial load
+mountVue();
+
+// Re-mount after Turbo Drive page transitions
+document.addEventListener('turbo:load', mountVue);

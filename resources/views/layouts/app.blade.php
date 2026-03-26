@@ -18,6 +18,18 @@
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
+    <!-- Re-initialize Alpine after Turbo page transitions -->
+    <script>
+        document.addEventListener('turbo:render', () => {
+            if (window.Alpine) {
+                // Destroy then re-init Alpine on the new DOM
+                document.querySelectorAll('[x-data]').forEach(el => {
+                    if (!el._x_dataStack) window.Alpine.initTree(el);
+                });
+            }
+        });
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     @stack('styles')
