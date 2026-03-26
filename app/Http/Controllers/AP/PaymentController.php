@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    /**
+     * Payment Processing queue – approved disbursements waiting to be paid.
+     */
     public function index()
     {
         $readyForPayment = DisbursementRequest::with('department', 'category')
@@ -23,18 +26,44 @@ class PaymentController extends Controller
             ->latest('request_date')
             ->get();
 
-        $payments = DisbursementPayment::with('disbursement.department')
-            ->latest('payment_date')
-            ->paginate(20);
-
         $totalReadyForPayment = $readyForPayment->sum('amount');
-
-        // Placeholder; replace with real bank accounts when model exists
         $bankAccounts = [];
 
         return view('pages.ap.payment-processing', compact(
-            'readyForPayment', 'payments', 'totalReadyForPayment', 'bankAccounts'
+            'readyForPayment', 'totalReadyForPayment', 'bankAccounts'
         ));
+    }
+
+    /**
+     * Supplier Payments – history of all processed payments.
+     */
+    public function payments(Request $request)
+    {
+        $query = DisbursementPayment::with('disbursement.department');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('voucher_number', 'ilike', "%{$search}%")
+                  ->orWhereHas('disbursement', fn ($d) => $d->where('request_number', 'ilike', "%{$search}%")
+                      ->orWhere('payee_name', 'ilike', "%{$search}%"));
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('method')) {
+            $query->where('payment_method', $request->method);
+        }
+
+        $payments = $query->latest('payment_date')->paginate(20)->withQueryString();
+
+        $totalPaid = DisbursementPayment::where('status', 'completed')->sum('net_amount');
+        $totalVoided = DisbursementPayment::where('status', 'voided')->sum('net_amount');
+
+        return view('pages.ap.supplier-payments', compact('payments', 'totalPaid', 'totalVoided'));
     }
 
     public function processPayment(Request $request, DisbursementRequest $disbursement)

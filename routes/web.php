@@ -86,7 +86,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/approval-queue/{disbursement}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
         // Supplier / disbursement payments
         Route::get('/payment-processing', [PaymentController::class, 'index'])->name('payment-processing');
-        Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index'); // alias for convenience
+        Route::get('/supplier-payments', [PaymentController::class, 'payments'])->name('supplier-payments');
+        Route::get('/payments', [PaymentController::class, 'payments'])->name('payments.index');
         Route::post('/payments/{disbursement}', [PaymentController::class, 'processPayment'])->name('payments.store');
         Route::post('/payments/{payment}/void', [PaymentController::class, 'voidPayment'])->name('payments.void');
         Route::get('/payments/{payment}/print', [PaymentController::class, 'printVoucher'])->name('payments.print');

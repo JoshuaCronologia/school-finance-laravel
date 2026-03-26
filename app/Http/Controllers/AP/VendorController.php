@@ -8,6 +8,7 @@ use App\Models\ApPayment;
 use App\Models\PaymentTerm;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class VendorController extends Controller
 {
@@ -17,53 +18,55 @@ class VendorController extends Controller
     public function aging(Request $request)
     {
         $asOfDate = $request->input('as_of_date', now()->toDateString());
-        $today = \Carbon\Carbon::parse($asOfDate);
+        $cacheKey = 'ap:aging:' . $asOfDate;
 
-        $vendors = Vendor::where('is_active', true)
-            ->whereHas('bills', function ($q) {
-                $q->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-                  ->where('balance', '>', 0);
-            })
-            ->with(['bills' => function ($q) {
-                $q->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-                  ->where('balance', '>', 0);
-            }])
-            ->orderBy('name')
-            ->get();
+        $result = Cache::remember($cacheKey, 300, function () use ($asOfDate) {
+            // Single SQL query to bucket all AP aging by vendor instead of N+1
+            $rows = \Illuminate\Support\Facades\DB::select("
+                SELECT
+                    v.id as vendor_id, v.name as vendor_name, v.vendor_code,
+                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date <= 0 THEN b.balance END), 0) as current,
+                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 1 AND 30 THEN b.balance END), 0) as days_1_30,
+                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 31 AND 60 THEN b.balance END), 0) as days_31_60,
+                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 61 AND 90 THEN b.balance END), 0) as days_61_90,
+                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date > 90 THEN b.balance END), 0) as over_90,
+                    COALESCE(SUM(b.balance), 0) as total
+                FROM vendors v
+                JOIN ap_bills b ON b.vendor_id = v.id
+                WHERE v.is_active = true
+                  AND b.status NOT IN ('cancelled', 'voided', 'paid')
+                  AND b.balance > 0
+                GROUP BY v.id, v.name, v.vendor_code
+                ORDER BY v.name
+            ", [$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate]);
 
-        $agingData = [];
-        $totals = ['current' => 0, 'days_1_30' => 0, 'days_31_60' => 0, 'days_61_90' => 0, 'over_90' => 0, 'total' => 0];
+            $agingData = [];
+            $totals = ['current' => 0, 'days_1_30' => 0, 'days_31_60' => 0, 'days_61_90' => 0, 'over_90' => 0, 'total' => 0];
 
-        foreach ($vendors as $vendor) {
-            $buckets = ['current' => 0, 'days_1_30' => 0, 'days_31_60' => 0, 'days_61_90' => 0, 'over_90' => 0, 'total' => 0];
+            foreach ($rows as $row) {
+                $agingData[] = (object) [
+                    'vendor' => (object) ['id' => $row->vendor_id, 'name' => $row->vendor_name, 'vendor_code' => $row->vendor_code],
+                    'current' => (float) $row->current,
+                    'days_1_30' => (float) $row->days_1_30,
+                    'days_31_60' => (float) $row->days_31_60,
+                    'days_61_90' => (float) $row->days_61_90,
+                    'over_90' => (float) $row->over_90,
+                    'total' => (float) $row->total,
+                ];
 
-            foreach ($vendor->bills as $bill) {
-                $daysOverdue = $today->diffInDays($bill->due_date, false);
-                $balance = (float) $bill->balance;
-
-                if ($daysOverdue >= 0) {
-                    $buckets['current'] += $balance;
-                } elseif ($daysOverdue >= -30) {
-                    $buckets['days_1_30'] += $balance;
-                } elseif ($daysOverdue >= -60) {
-                    $buckets['days_31_60'] += $balance;
-                } elseif ($daysOverdue >= -90) {
-                    $buckets['days_61_90'] += $balance;
-                } else {
-                    $buckets['over_90'] += $balance;
-                }
-
-                $buckets['total'] += $balance;
+                $totals['current'] += (float) $row->current;
+                $totals['days_1_30'] += (float) $row->days_1_30;
+                $totals['days_31_60'] += (float) $row->days_31_60;
+                $totals['days_61_90'] += (float) $row->days_61_90;
+                $totals['over_90'] += (float) $row->over_90;
+                $totals['total'] += (float) $row->total;
             }
 
-            $agingData[] = (object) array_merge(['vendor' => $vendor], $buckets);
+            return ['agingData' => $agingData, 'totals' => (object) $totals];
+        });
 
-            foreach ($totals as $key => &$val) {
-                $val += $buckets[$key];
-            }
-        }
-
-        $totals = (object) $totals;
+        $agingData = $result['agingData'];
+        $totals = $result['totals'];
 
         return view('pages.ap.aging', compact('agingData', 'totals', 'asOfDate'));
     }

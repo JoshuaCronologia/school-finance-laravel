@@ -12,6 +12,7 @@ use App\Models\FundSource;
 use App\Services\AuditService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class BudgetController extends Controller
@@ -21,51 +22,58 @@ class BudgetController extends Controller
      */
     public function dashboard(Request $request)
     {
-        $query = Budget::with('department', 'category');
+        $deptFilter = $request->input('department_id');
+        $cacheKey = 'budget:dashboard:' . ($deptFilter ?: 'all');
 
-        if ($request->filled('department_id')) {
-            $query->where('department_id', $request->department_id);
-        }
+        $data = Cache::remember($cacheKey, 300, function () use ($deptFilter) {
+            $query = Budget::with('department', 'category');
 
-        $budgets = $query->get();
+            if ($deptFilter) {
+                $query->where('department_id', $deptFilter);
+            }
 
-        $totalBudget = $budgets->sum('annual_budget');
-        $totalCommitted = $budgets->sum('committed');
-        $totalActual = $budgets->sum('actual');
-        $totalRemaining = $totalBudget - $totalCommitted - $totalActual;
+            $budgets = $query->get();
 
-        $utilizationRate = $totalBudget > 0 ? (($totalCommitted + $totalActual) / $totalBudget) * 100 : 0;
+            $totalBudget = $budgets->sum('annual_budget');
+            $totalCommitted = $budgets->sum('committed');
+            $totalActual = $budgets->sum('actual');
+            $totalRemaining = $totalBudget - $totalCommitted - $totalActual;
 
-        $budgetsByDepartment = $budgets->groupBy('department_id')->map(function ($group) {
-            return [
-                'department' => $group->first()->department,
-                'budget' => $group->sum('annual_budget'),
-                'committed' => $group->sum('committed'),
-                'actual' => $group->sum('actual'),
-                'remaining' => $group->sum('annual_budget') - $group->sum('committed') - $group->sum('actual'),
+            $utilizationRate = $totalBudget > 0 ? (($totalCommitted + $totalActual) / $totalBudget) * 100 : 0;
+
+            $budgetsByDepartment = $budgets->groupBy('department_id')->map(function ($group) {
+                return [
+                    'department' => $group->first()->department,
+                    'budget' => $group->sum('annual_budget'),
+                    'committed' => $group->sum('committed'),
+                    'actual' => $group->sum('actual'),
+                    'remaining' => $group->sum('annual_budget') - $group->sum('committed') - $group->sum('actual'),
+                ];
+            })->values();
+
+            $deptLabels = $budgetsByDepartment->map(fn ($d) => $d['department']->name ?? 'Unassigned');
+            $deptDatasets = [
+                ['label' => 'Budget',    'data' => $budgetsByDepartment->pluck('budget')->map(fn ($v) => (float) $v)],
+                ['label' => 'Actual',    'data' => $budgetsByDepartment->pluck('actual')->map(fn ($v) => (float) $v)],
+                ['label' => 'Committed', 'data' => $budgetsByDepartment->pluck('committed')->map(fn ($v) => (float) $v)],
             ];
-        })->values();
 
-        // Bar chart: Budget by Department
-        $deptLabels = $budgetsByDepartment->map(fn ($d) => $d['department']->name ?? 'Unassigned');
-        $deptDatasets = [
-            ['label' => 'Budget',    'data' => $budgetsByDepartment->pluck('budget')->map(fn ($v) => (float) $v)],
-            ['label' => 'Actual',    'data' => $budgetsByDepartment->pluck('actual')->map(fn ($v) => (float) $v)],
-            ['label' => 'Committed', 'data' => $budgetsByDepartment->pluck('committed')->map(fn ($v) => (float) $v)],
-        ];
+            $utilizationLabels = ['Actual Spent', 'Committed', 'Remaining'];
+            $utilizationValues = [(float) $totalActual, (float) $totalCommitted, (float) max($totalRemaining, 0)];
 
-        // Doughnut chart: Budget Utilization
-        $utilizationLabels = ['Actual Spent', 'Committed', 'Remaining'];
-        $utilizationValues = [(float) $totalActual, (float) $totalCommitted, (float) max($totalRemaining, 0)];
+            return compact(
+                'totalBudget', 'totalCommitted', 'totalActual', 'totalRemaining',
+                'utilizationRate', 'budgetsByDepartment', 'budgets',
+                'deptLabels', 'deptDatasets',
+                'utilizationLabels', 'utilizationValues'
+            );
+        });
 
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $departments = Cache::remember('departments:active', 600, function () {
+            return Department::where('is_active', true)->orderBy('name')->get();
+        });
 
-        return view('pages.budget.dashboard', compact(
-            'totalBudget', 'totalCommitted', 'totalActual', 'totalRemaining',
-            'utilizationRate', 'budgetsByDepartment', 'budgets', 'departments',
-            'deptLabels', 'deptDatasets',
-            'utilizationLabels', 'utilizationValues'
-        ));
+        return view('pages.budget.dashboard', array_merge($data, compact('departments')));
     }
 
     /**

@@ -15,21 +15,42 @@ class PeriodClosingController extends Controller
     {
         $periods = AccountingPeriod::orderBy('start_date', 'desc')->get();
 
-        // Pre-closing checklist for each open period
-        $periods->each(function ($period) {
-            if ($period->status === 'open') {
-                $period->checklist = [
-                    'unposted_entries' => JournalEntry::where('status', 'draft')
-                        ->whereDate('entry_date', '>=', $period->start_date)
-                        ->whereDate('entry_date', '<=', $period->end_date)
-                        ->count(),
-                    'total_entries' => JournalEntry::where('status', 'posted')
-                        ->whereDate('posting_date', '>=', $period->start_date)
-                        ->whereDate('posting_date', '<=', $period->end_date)
-                        ->count(),
-                ];
+        // Batch-fetch checklist counts for all open periods in 2 queries instead of 2*N
+        $openPeriods = $periods->where('status', 'open');
+        if ($openPeriods->isNotEmpty()) {
+            $unpostedCounts = [];
+            $postedCounts = [];
+
+            // Build a single query for unposted counts per period
+            foreach (DB::select("
+                SELECT ap.id as period_id, COUNT(je.id) as cnt
+                FROM accounting_periods ap
+                LEFT JOIN journal_entries je ON je.status = 'draft'
+                    AND je.entry_date >= ap.start_date AND je.entry_date <= ap.end_date
+                WHERE ap.status = 'open'
+                GROUP BY ap.id
+            ") as $row) {
+                $unpostedCounts[$row->period_id] = (int) $row->cnt;
             }
-        });
+
+            foreach (DB::select("
+                SELECT ap.id as period_id, COUNT(je.id) as cnt
+                FROM accounting_periods ap
+                LEFT JOIN journal_entries je ON je.status = 'posted'
+                    AND je.posting_date >= ap.start_date AND je.posting_date <= ap.end_date
+                WHERE ap.status = 'open'
+                GROUP BY ap.id
+            ") as $row) {
+                $postedCounts[$row->period_id] = (int) $row->cnt;
+            }
+
+            $openPeriods->each(function ($period) use ($unpostedCounts, $postedCounts) {
+                $period->checklist = [
+                    'unposted_entries' => $unpostedCounts[$period->id] ?? 0,
+                    'total_entries' => $postedCounts[$period->id] ?? 0,
+                ];
+            });
+        }
 
         return view('pages.gl.period-closing', compact('periods'));
     }

@@ -130,7 +130,7 @@
             </a>
 
             {{-- AP Payments (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/ap/payment-processing') || str_starts_with($currentRoute, '/ar/aging') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/ap/supplier-payments') || str_starts_with($currentRoute, '/ap/aging') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
@@ -139,8 +139,8 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    <a href="/ap/payment-processing" class="sidebar-link text-xs {{ $currentRoute === '/ap/payment-processing' ? 'sidebar-link--active' : '' }}">Supplier Payments</a>
-                    <a href="/ar/aging" class="sidebar-link text-xs {{ $currentRoute === '/ar/aging' ? 'sidebar-link--active' : '' }}">AP Aging</a>
+                    <a href="/ap/supplier-payments" class="sidebar-link text-xs {{ $currentRoute === '/ap/supplier-payments' ? 'sidebar-link--active' : '' }}">Supplier Payments</a>
+                    <a href="/ap/aging" class="sidebar-link text-xs {{ $currentRoute === '/ap/aging' ? 'sidebar-link--active' : '' }}">AP Aging</a>
                 </div>
             </div>
 

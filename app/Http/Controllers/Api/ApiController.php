@@ -25,6 +25,7 @@ use App\Services\NumberingService;
 use App\Services\PostingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ApiController extends Controller
@@ -57,32 +58,38 @@ class ApiController extends Controller
 
     public function financeDashboard(): JsonResponse
     {
-        $totalBudget = Budget::sum('annual_budget');
-        $committed = Budget::sum('committed');
-        $actual = Budget::sum('actual');
+        return $this->success(Cache::remember('api:finance_dashboard', 300, function () {
+            $summary = Budget::selectRaw('
+                COALESCE(SUM(annual_budget), 0) as total_budget,
+                COALESCE(SUM(committed), 0) as committed,
+                COALESCE(SUM(actual), 0) as actual
+            ')->first();
 
-        return $this->success([
-            'total_budget' => $totalBudget,
-            'committed' => $committed,
-            'actual' => $actual,
-            'remaining' => $totalBudget - $committed - $actual,
-            'recent_disbursements' => DisbursementRequest::with('department')
-                ->latest('request_date')->take(5)->get(),
-        ]);
+            return [
+                'total_budget' => (float) $summary->total_budget,
+                'committed' => (float) $summary->committed,
+                'actual' => (float) $summary->actual,
+                'remaining' => (float) $summary->total_budget - $summary->committed - $summary->actual,
+                'recent_disbursements' => DisbursementRequest::with('department')
+                    ->latest('request_date')->take(5)->get(),
+            ];
+        }));
     }
 
     public function accountingDashboard(): JsonResponse
     {
-        $totalAR = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])->sum('balance');
-        $totalAP = ApBill::whereNotIn('status', ['cancelled', 'voided'])->sum('balance');
-        $unpostedCount = JournalEntry::where('status', 'draft')->count();
+        return $this->success(Cache::remember('api:accounting_dashboard', 300, function () {
+            $totalAR = (float) ArInvoice::whereNotIn('status', ['cancelled', 'voided'])->sum('balance');
+            $totalAP = (float) ApBill::whereNotIn('status', ['cancelled', 'voided'])->sum('balance');
+            $unpostedCount = JournalEntry::where('status', 'draft')->count();
 
-        return $this->success([
-            'total_ar' => $totalAR,
-            'total_ap' => $totalAP,
-            'unposted_je_count' => $unpostedCount,
-            'recent_entries' => JournalEntry::latest('entry_date')->take(10)->get(),
-        ]);
+            return [
+                'total_ar' => $totalAR,
+                'total_ap' => $totalAP,
+                'unposted_je_count' => $unpostedCount,
+                'recent_entries' => JournalEntry::latest('entry_date')->take(10)->get(),
+            ];
+        }));
     }
 
     // ---------------------------------------------------------------
