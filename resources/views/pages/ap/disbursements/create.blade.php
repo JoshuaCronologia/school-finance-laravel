@@ -215,9 +215,9 @@
                             </td>
                             <td>
                                 <select :name="'items[' + index + '][account_code]'" class="form-input text-sm" x-model="line.account_code">
-                                    <option value="">Select</option>
+                                    <option value="">Select Account</option>
                                     @foreach($accounts ?? [] as $account)
-                                        <option value="{{ $account->account_code }}">{{ $account->account_code }}</option>
+                                        <option value="{{ $account->account_code }}">{{ $account->account_code }} - {{ $account->account_name }}</option>
                                     @endforeach
                                 </select>
                             </td>
