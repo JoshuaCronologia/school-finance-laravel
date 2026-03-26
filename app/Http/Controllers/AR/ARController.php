@@ -147,4 +147,48 @@ class ARController extends Controller
     {
         return $this->soa(request()->merge(['customer_id' => $customer->id]));
     }
+
+    public function soaPdf(Customer $customer)
+    {
+        $customer->load('campus');
+        $asOfDate = request('as_of_date', now()->toDateString());
+
+        $invoices = ArInvoice::where('customer_id', $customer->id)
+            ->whereNotIn('status', ['cancelled', 'voided'])
+            ->whereDate('invoice_date', '<=', $asOfDate)
+            ->orderBy('invoice_date')->get()
+            ->map(fn($inv) => (object) [
+                'date' => $inv->invoice_date, 'reference' => $inv->invoice_number,
+                'description' => $inv->description ?? 'Invoice',
+                'debit' => (float) $inv->net_receivable, 'credit' => 0,
+            ]);
+
+        $collections = ArCollection::where('customer_id', $customer->id)
+            ->whereNotIn('status', ['cancelled', 'voided'])
+            ->whereDate('collection_date', '<=', $asOfDate)
+            ->orderBy('collection_date')->get()
+            ->map(fn($col) => (object) [
+                'date' => $col->collection_date, 'reference' => $col->receipt_number,
+                'description' => 'Payment - ' . $col->payment_method,
+                'debit' => 0, 'credit' => (float) $col->amount_received,
+            ]);
+
+        $runningBalance = 0;
+        $transactions = $invoices->concat($collections)->sortBy('date')->values()
+            ->map(function ($t) use (&$runningBalance) {
+                $runningBalance += $t->debit - $t->credit;
+                $t->balance = $runningBalance;
+                return $t;
+            });
+
+        $totalInvoiced = $transactions->sum('debit');
+        $totalCollected = $transactions->sum('credit');
+        $balance = $totalInvoiced - $totalCollected;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.ar.soa-pdf', compact(
+            'customer', 'transactions', 'totalInvoiced', 'totalCollected', 'balance', 'asOfDate'
+        ))->setPaper('letter', 'portrait');
+
+        return $pdf->download("SOA-{$customer->customer_code}-" . now()->format('Y-m-d') . ".pdf");
+    }
 }
