@@ -1,7 +1,7 @@
 {
     "version": 2,
     "framework": null,
-    "buildCommand": "npm install && npm run build && php artisan config:cache && php artisan route:cache && php artisan view:cache",
+    "buildCommand": "npm install && npm run build",
     "installCommand": "npm install",
     "outputDirectory": "public",
     "functions": {
@@ -36,7 +36,7 @@
     ],
     "env": {
         "APP_ENV": "production",
-        "APP_DEBUG": "true",
+        "APP_DEBUG": "false",
         "APP_KEY": "base64:ho1UcpdzhGq11KgZytDkmNEkU7LVEZUT90ASKcWxV1Q=",
         "APP_URL": "https://school-finance-laravel.vercel.app",
         "APP_CONFIG_CACHE": "/tmp/config.php",
