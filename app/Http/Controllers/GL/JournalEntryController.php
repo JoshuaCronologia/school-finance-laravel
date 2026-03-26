@@ -392,4 +392,63 @@ class JournalEntryController extends Controller
 
         return redirect()->route('gl.recurring')->with('success', 'Recurring template created.');
     }
+
+    public function updateRecurring(Request $request, RecurringJournalTemplate $template)
+    {
+        $validated = $request->validate([
+            'is_active' => 'boolean',
+        ]);
+
+        $template->update(['is_active' => $validated['is_active'] ?? false]);
+
+        return back()->with('success', 'Template updated.');
+    }
+
+    public function generateRecurring(RecurringJournalTemplate $template)
+    {
+        $template->load('lines.account');
+
+        if (!$template->is_active) {
+            return back()->with('error', 'Template is inactive.');
+        }
+
+        $totalDebit = $template->lines->sum('debit');
+        $totalCredit = $template->lines->sum('credit');
+
+        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
+            return back()->with('error', 'Template lines are not balanced.');
+        }
+
+        DB::transaction(function () use ($template) {
+            $je = JournalEntry::create([
+                'entry_number' => \App\Services\NumberingService::generate('JE'),
+                'entry_date' => now()->toDateString(),
+                'posting_date' => now()->toDateString(),
+                'journal_type' => 'general',
+                'description' => $template->description ?? "Generated from: {$template->template_name}",
+                'status' => 'draft',
+                'source_module' => 'recurring',
+                'source_id' => $template->id,
+                'created_by' => auth()->id(),
+            ]);
+
+            foreach ($template->lines as $line) {
+                JournalEntryLine::create([
+                    'journal_entry_id' => $je->id,
+                    'account_id' => $line->account_id,
+                    'description' => $line->description,
+                    'debit' => $line->debit,
+                    'credit' => $line->credit,
+                    'department_id' => $line->department_id,
+                ]);
+            }
+
+            $template->update(['last_generated_at' => now()]);
+
+            app(\App\Services\AuditService::class)->log('create', 'journal_entry', $je, null,
+                "Generated from recurring template: {$template->template_name}");
+        });
+
+        return back()->with('success', "Journal entry generated from template \"{$template->template_name}\".");
+    }
 }

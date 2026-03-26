@@ -87,16 +87,15 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
                 <label class="form-label">Template Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" required placeholder="e.g., Monthly Depreciation">
+                <input type="text" name="template_name" class="form-input" required placeholder="e.g., Monthly Depreciation">
             </div>
             <div>
                 <label class="form-label">Frequency <span class="text-danger-500">*</span></label>
                 <select name="frequency" class="form-input" required>
                     <option value="">Select</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly</option>
+                    <option value="semi-annually">Semi-Annually</option>
                     <option value="annually">Annually</option>
                 </select>
             </div>

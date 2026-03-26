@@ -131,6 +131,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/journal-entries/{journal_entry}/print', [JournalEntryController::class, 'printVoucher'])->name('journal-entries.print');
         Route::get('/recurring', [JournalEntryController::class, 'recurring'])->name('recurring');
         Route::post('/recurring', [JournalEntryController::class, 'storeRecurring'])->name('recurring.store');
+        Route::put('/recurring/{template}', [JournalEntryController::class, 'updateRecurring'])->name('recurring.update');
+        Route::post('/recurring/{template}/generate', [JournalEntryController::class, 'generateRecurring'])->name('recurring.generate');
         Route::get('/bank-reconciliation', [\App\Http\Controllers\GL\BankReconciliationController::class, 'index'])->name('bank-reconciliation');
         Route::get('/bank-reconciliation/pdf', [\App\Http\Controllers\GL\BankReconciliationController::class, 'pdf'])->name('bank-reconciliation.pdf');
         Route::get('/ledger-inquiry', [GLController::class, 'ledgerInquiry'])->name('ledger-inquiry');
