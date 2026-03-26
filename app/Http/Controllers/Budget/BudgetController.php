@@ -119,7 +119,7 @@ class BudgetController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $validated['status'] = 'active';
+        $validated['status'] = 'draft';
         $validated['committed'] = 0;
         $validated['actual'] = 0;
 
@@ -176,7 +176,7 @@ class BudgetController extends Controller
     public function allocation()
     {
         $budgets = Budget::with(['department', 'category', 'allocations'])
-            ->where('status', 'active')
+            ->whereIn('status', ['draft', 'approved'])
             ->orderBy('department_id')
             ->get()
             ->map(function ($budget) {
