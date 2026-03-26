@@ -283,9 +283,9 @@
         win.document.write('<!DOCTYPE html><html><head><title>Print Check</title>');
         win.document.write('<style>' + styles + '</style>');
         win.document.write('<style>');
-        win.document.write('@page { margin: 0; size: 8in 3.5in; }');
-        win.document.write('body { margin: 0; padding: 0.4in 0.5in; font-family: Arial, sans-serif; background: white; }');
-        win.document.write('#check-print-area { border: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; }');
+        win.document.write('@page { margin: 0; size: 8.5in 3.67in; }');  // Philippine standard check: 8.5" x 3.67"
+        win.document.write('body { margin: 0; padding: 0.25in 0.4in; font-family: Arial, sans-serif; background: white; width: 8.5in; height: 3.67in; overflow: hidden; }');
+        win.document.write('#check-print-area { border: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; max-height: 3.2in; overflow: hidden; }');
         win.document.write('</style></head><body>');
         win.document.write(area.outerHTML);
         win.document.write('</body></html>');
