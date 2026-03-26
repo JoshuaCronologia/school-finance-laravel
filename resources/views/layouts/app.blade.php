@@ -11,6 +11,9 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
+    <!-- Turbo Drive – instant page transitions without full reload -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8/dist/turbo.es2017-esm.min.js"></script>
+
     <!-- Alpine.js – plugins must load BEFORE the core -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -541,6 +544,30 @@
                 }
             };
         }
+    </script>
+
+    {{-- Turbo loading bar + Alpine compatibility --}}
+    <style>
+        .turbo-progress-bar { background: #4f46e5; height: 3px; position: fixed; top: 0; left: 0; z-index: 9999; transition: width 300ms ease; }
+    </style>
+    <script>
+        // Show progress bar during Turbo navigation
+        (function() {
+            let bar = null;
+            document.addEventListener('turbo:before-fetch-request', () => {
+                if (!bar) { bar = document.createElement('div'); bar.className = 'turbo-progress-bar'; document.body.prepend(bar); }
+                bar.style.width = '0%'; bar.style.display = 'block';
+                requestAnimationFrame(() => bar.style.width = '70%');
+            });
+            document.addEventListener('turbo:before-render', () => { if (bar) bar.style.width = '100%'; });
+            document.addEventListener('turbo:load', () => { if (bar) { bar.style.display = 'none'; bar.style.width = '0%'; } });
+        })();
+
+        // Disable Turbo on forms with file uploads and logout forms
+        document.addEventListener('turbo:before-fetch-request', (e) => {
+            const form = e.target.closest?.('form');
+            if (form?.enctype === 'multipart/form-data') { e.preventDefault(); form.submit(); }
+        });
     </script>
 
     @stack('scripts')
