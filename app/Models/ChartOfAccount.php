@@ -47,7 +47,7 @@ class ChartOfAccount extends Model
 
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', '=', true);
     }
 
     public function scopeAssets(Builder $query): Builder
@@ -77,6 +77,6 @@ class ChartOfAccount extends Model
 
     public function scopePostable(Builder $query): Builder
     {
-        return $query->where('is_postable', true);
+        return $query->where('is_postable', '=', true);
     }
 }

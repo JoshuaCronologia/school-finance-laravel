@@ -38,7 +38,7 @@
                 <select name="account_id" class="form-input">
                     <option value="">All Accounts</option>
                     <?php $__currentLoopData = $accounts ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $acct): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($acct->id); ?>" <?php echo e(request('account_id') == $acct->id ? 'selected' : ''); ?>><?php echo e($acct->code); ?> - <?php echo e($acct->name); ?></option>
+                        <option value="<?php echo e($acct->id); ?>" <?php echo e(request('account_id') == $acct->id ? 'selected' : ''); ?>><?php echo e($acct->account_code); ?> - <?php echo e($acct->account_name); ?></option>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </select>
             </div>

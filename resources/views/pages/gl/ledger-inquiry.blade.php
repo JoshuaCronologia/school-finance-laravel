@@ -20,7 +20,7 @@
                 <select name="account_id" class="form-input">
                     <option value="">All Accounts</option>
                     @foreach($accounts ?? [] as $acct)
-                        <option value="{{ $acct->id }}" {{ request('account_id') == $acct->id ? 'selected' : '' }}>{{ $acct->code }} - {{ $acct->name }}</option>
+                        <option value="{{ $acct->id }}" {{ request('account_id') == $acct->id ? 'selected' : '' }}>{{ $acct->account_code }} - {{ $acct->account_name }}</option>
                     @endforeach
                 </select>
             </div>
