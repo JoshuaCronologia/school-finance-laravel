@@ -142,7 +142,7 @@
             </div>
             <div>
                 <label class="form-label">Project / Activity</label>
-                <input type="text" name="project_activity" class="form-input" placeholder="e.g., Foundation Day 2026">
+                <input type="text" name="project" class="form-input" placeholder="e.g., Foundation Day 2026">
             </div>
             <div>
                 <label class="form-label">Campus</label>

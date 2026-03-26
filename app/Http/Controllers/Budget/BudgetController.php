@@ -91,6 +91,12 @@ class BudgetController extends Controller
         $costCenters = CostCenter::where('is_active', true)->get();
         $fundSources = FundSource::where('is_active', true)->get();
 
+        // Ensure remaining is calculated for each budget
+        $budgets->getCollection()->transform(function ($budget) {
+            $budget->remaining = $budget->annual_budget - $budget->committed - $budget->actual;
+            return $budget;
+        });
+
         return view('pages.budget.planning', compact(
             'budgets', 'departments', 'categories', 'costCenters', 'fundSources'
         ));
