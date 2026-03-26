@@ -123,12 +123,12 @@ class ARController extends Controller
 
                 $transactions = $invoices->concat($collections)->sortBy('date')->values();
 
-                // Running balance
+                // Running balance + cast to objects for blade
                 $runningBalance = 0;
                 $transactions = $transactions->map(function ($t) use (&$runningBalance) {
                     $runningBalance += $t['debit'] - $t['credit'];
                     $t['balance'] = $runningBalance;
-                    return $t;
+                    return (object) $t;
                 });
 
                 $totalInvoiced = $transactions->sum('debit');
