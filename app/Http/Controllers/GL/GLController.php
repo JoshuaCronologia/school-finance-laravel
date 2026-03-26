@@ -24,8 +24,8 @@ class GLController extends Controller
             $selectedAccount = ChartOfAccount::find($request->account_id);
 
             if ($selectedAccount) {
-                $dateFrom = $request->input('date_from', now()->startOfYear()->toDateString());
-                $dateTo = $request->input('date_to', now()->toDateString());
+                $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
+                $dateTo = $request->input('date_to') ?: now()->toDateString();
 
                 // Calculate opening balance (all posted entries before date_from)
                 $openingBalance = JournalEntryLine::select(
