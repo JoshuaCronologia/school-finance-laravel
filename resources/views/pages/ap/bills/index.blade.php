@@ -72,11 +72,11 @@
             <td>{{ \Carbon\Carbon::parse($bill->bill_date)->format('M d, Y') }}</td>
             <td>{{ $bill->vendor->name ?? $bill->vendor_name ?? '-' }}</td>
             <td class="max-w-xs truncate">{{ $bill->description ?? '-' }}</td>
-            <td class="text-right">{{ '₱' . number_format($bill->gross_amount, 2) }}</td>
-            <td class="text-right">{{ '₱' . number_format($bill->vat_amount, 2) }}</td>
-            <td class="text-right">{{ '₱' . number_format($bill->wht_amount, 2) }}</td>
-            <td class="text-right font-medium">{{ '₱' . number_format($bill->net_payable, 2) }}</td>
-            <td class="text-right font-medium">{{ '₱' . number_format($bill->balance, 2) }}</td>
+            <td class="text-right">@currency($bill->gross_amount ?? 0)</td>
+            <td class="text-right">@currency($bill->vat_amount ?? 0)</td>
+            <td class="text-right">@currency($bill->withholding_tax ?? 0)</td>
+            <td class="text-right font-medium">@currency($bill->net_payable ?? 0)</td>
+            <td class="text-right font-medium">@currency($bill->balance ?? 0)</td>
             <td><x-badge :status="$bill->status" /></td>
         </tr>
         @empty
