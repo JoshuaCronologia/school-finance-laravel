@@ -347,8 +347,8 @@ class TaxController extends Controller
 
     public function specialJournals(Request $request)
     {
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
+        $dateTo = $request->input('date_to') ?: now()->toDateString();
 
         $loadEntries = function (string $type) use ($dateFrom, $dateTo) {
             return JournalEntryLine::select(
@@ -368,10 +368,11 @@ class TaxController extends Controller
                 ->get();
         };
 
-        $cashReceipts = $loadEntries('CRJ');
-        $cashDisbursements = $loadEntries('CDJ');
-        $salesJournal = $loadEntries('SJ');
-        $purchasesJournal = $loadEntries('PJ');
+        // Map to actual DB journal types (CRJ/CDJ/SJ/PJ don't exist in DB constraint)
+        $cashReceipts = $loadEntries('revenue');
+        $cashDisbursements = $loadEntries('expense');
+        $salesJournal = $loadEntries('general');
+        $purchasesJournal = $loadEntries('payroll');
 
         if ($request->filled('export')) {
             $journal = $request->input('journal', 'receipts');
