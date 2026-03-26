@@ -75,6 +75,14 @@ class DisbursementRequest extends Model
         return $this->hasOne(DisbursementPayment::class, 'disbursement_id');
     }
 
+    /**
+     * Polymorphic payee — returns the Vendor (or other payee model) if payee_type is set.
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'payee_id');
+    }
+
     public function scopePendingApproval(Builder $query): Builder
     {
         return $query->where('status', 'pending_approval');

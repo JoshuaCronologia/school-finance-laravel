@@ -96,10 +96,46 @@ class TaxController extends Controller
 
         $totalWithheld = $summary->sum('tax_withheld');
 
+        // Handle Excel/CSV export
+        if ($request->input('export') === 'excel') {
+            return $this->exportBir2307Csv($summary, $quarter, $year);
+        }
+
         return view('pages.tax.bir-2307', array_merge(
             compact('vendors', 'selectedVendor', 'quarter', 'year', 'formData', 'summary', 'totalWithheld'),
             $this->schoolInfo()
         ));
+    }
+
+    private function exportBir2307Csv($summary, $quarter, $year)
+    {
+        $filename = "BIR-2307-{$quarter}-{$year}.csv";
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($summary) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['TIN', 'Vendor Name', 'ATC', 'Income Payment', 'Tax Withheld']);
+
+            foreach ($summary as $item) {
+                fputcsv($file, [
+                    $item->vendor->tin ?? '',
+                    $item->vendor->name ?? '',
+                    $item->vendor->withholding_tax_type ?? '',
+                    number_format($item->income_payment, 2, '.', ''),
+                    number_format($item->tax_withheld, 2, '.', ''),
+                ]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, ['', 'TOTAL', '', number_format($summary->sum('income_payment'), 2, '.', ''), number_format($summary->sum('tax_withheld'), 2, '.', '')]);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function generateBir2307(Request $request)
@@ -152,6 +188,13 @@ class TaxController extends Controller
                 'month' => $d->format('M Y'),
                 'amount' => (float) $total,
             ]);
+        }
+
+        if ($request->filled('export')) {
+            return $this->exportCsv("BIR-1601E-{$taxableMonth}.csv",
+                ['ATC', 'No. of Payees', 'Taxable Amount', 'Tax Withheld'],
+                $atcEntries->map(fn($e) => [$e->atc, $e->count, $e->taxable_amount, $e->tax_withheld])
+            );
         }
 
         return view('pages.tax.bir-1601e', compact(
@@ -220,6 +263,16 @@ class TaxController extends Controller
             ->orderByDesc('amount')
             ->get();
 
+        if ($request->filled('export')) {
+            return $this->exportCsv("BIR-2550M-{$taxableMonth}.csv",
+                ['Description', 'Amount'],
+                collect([
+                    ['Taxable Sales', $taxableSales], ['Exempt Sales', $exemptSales], ['Zero-Rated Sales', $zeroRatedSales],
+                    ['Output VAT', $outputVat], ['Input VAT', $inputVat], ['VAT Payable', $vatPayable],
+                ])
+            );
+        }
+
         return view('pages.tax.vat-2550m', compact(
             'taxableMonth', 'taxableSales', 'exemptSales', 'zeroRatedSales',
             'outputVat', 'inputVat', 'vatPayable', 'totalSales', 'totalPurchases', 'revenueBreakdown'
@@ -269,6 +322,13 @@ class TaxController extends Controller
         $totalIncome = $qapEntries->sum('income_payment');
         $totalTax = $qapEntries->sum('tax_withheld');
 
+        if ($request->filled('export')) {
+            return $this->exportCsv("Alphalist-{$quarter}-{$year}.csv",
+                ['TIN', 'Registered Name', 'ATC', 'Income Payment', 'Tax Withheld'],
+                $qapEntries->map(fn($e) => [$e->tin, $e->registered_name, $e->atc, $e->income_payment, $e->tax_withheld])
+            );
+        }
+
         return view('pages.tax.alphalist', compact(
             'quarter', 'year', 'qapEntries', 'sawtEntries',
             'totalPayees', 'totalIncome', 'totalTax'
@@ -277,6 +337,7 @@ class TaxController extends Controller
 
     public function exportAlphalist(Request $request)
     {
+        $request->merge(['export' => 'csv']);
         return $this->alphalist($request);
     }
 
@@ -311,6 +372,16 @@ class TaxController extends Controller
         $cashDisbursements = $loadEntries('CDJ');
         $salesJournal = $loadEntries('SJ');
         $purchasesJournal = $loadEntries('PJ');
+
+        if ($request->filled('export')) {
+            $journal = $request->input('journal', 'receipts');
+            $map = ['receipts' => $cashReceipts, 'disbursements' => $cashDisbursements, 'sales' => $salesJournal, 'purchases' => $purchasesJournal];
+            $entries = $map[$journal] ?? $cashReceipts;
+            return $this->exportCsv("Special-Journal-{$journal}-{$dateFrom}.csv",
+                ['Date', 'Entry #', 'Reference', 'Account Code', 'Account Name', 'Description', 'Debit', 'Credit'],
+                $entries->map(fn($e) => [$e->posting_date, $e->entry_number, $e->reference_number, $e->account_code, $e->account_name, $e->je_description, $e->debit, $e->credit])
+            );
+        }
 
         return view('pages.tax.special-journals', compact(
             'cashReceipts', 'cashDisbursements', 'salesJournal', 'purchasesJournal',
@@ -364,7 +435,7 @@ class TaxController extends Controller
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement')
+        $payments = DisbursementPayment::with('disbursement.vendor')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereMonth('payment_date', $month)
@@ -399,7 +470,7 @@ class TaxController extends Controller
         $startMonth = ($quarter - 1) * 3 + 1;
         $endMonth = $quarter * 3;
 
-        $payments = DisbursementPayment::with('disbursement')
+        $payments = DisbursementPayment::with('disbursement.vendor')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -496,5 +567,24 @@ class TaxController extends Controller
             })->sortBy('payee_name')->values();
 
         return view('pages.tax.alphalist-annual', compact('alphalist', 'year'));
+    }
+
+    // =================================================================
+    // Reusable CSV Export Helper
+    // =================================================================
+
+    private function exportCsv(string $filename, array $headers, $rows)
+    {
+        return response()->stream(function () use ($headers, $rows) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+            foreach ($rows as $row) {
+                fputcsv($file, is_array($row) ? $row : (array) $row);
+            }
+            fclose($file);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
     }
 }

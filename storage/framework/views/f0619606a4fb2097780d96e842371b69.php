@@ -11,9 +11,24 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
+    <!-- Turbo Drive – instant page transitions without full reload -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8/dist/turbo.es2017-esm.min.js"></script>
+
     <!-- Alpine.js – plugins must load BEFORE the core -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Re-initialize Alpine after Turbo page transitions -->
+    <script>
+        document.addEventListener('turbo:render', () => {
+            if (window.Alpine) {
+                // Destroy then re-init Alpine on the new DOM
+                document.querySelectorAll('[x-data]').forEach(el => {
+                    if (!el._x_dataStack) window.Alpine.initTree(el);
+                });
+            }
+        });
+    </script>
 
     <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
 
@@ -86,19 +101,6 @@
             </a>
 
             
-            <div x-data="{ open: <?php echo e(str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') ? 'true' : 'false'); ?> }">
-                <button @click="open = !open" class="sidebar-link w-full justify-between">
-                    <span class="flex items-center gap-3">
-                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
-                        <span>Budget Analysis</span>
-                    </span>
-                    <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-                </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    <a href="/reports/budget-vs-actual" class="sidebar-link text-xs <?php echo e($currentRoute === '/reports/budget-vs-actual' ? 'sidebar-link--active' : ''); ?>">Budget vs Actual</a>
-                    <a href="/reports/monthly-variance" class="sidebar-link text-xs <?php echo e($currentRoute === '/reports/monthly-variance' ? 'sidebar-link--active' : ''); ?>">Monthly Variance</a>
-                </div>
-            </div>
 
             
             <p class="sidebar-section-title mt-4">Accounts Payable</p>
@@ -128,7 +130,7 @@
             </a>
 
             
-            <div x-data="{ open: <?php echo e(str_starts_with($currentRoute, '/ap/payment-processing') || str_starts_with($currentRoute, '/ar/aging') ? 'true' : 'false'); ?> }">
+            <div x-data="{ open: <?php echo e(str_starts_with($currentRoute, '/ap/supplier-payments') || str_starts_with($currentRoute, '/ap/aging') ? 'true' : 'false'); ?> }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
@@ -137,8 +139,8 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-                    <a href="/ap/payment-processing" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/payment-processing' ? 'sidebar-link--active' : ''); ?>">Supplier Payments</a>
-                    <a href="/ar/aging" class="sidebar-link text-xs <?php echo e($currentRoute === '/ar/aging' ? 'sidebar-link--active' : ''); ?>">AP Aging</a>
+                    <a href="/ap/supplier-payments" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/supplier-payments' ? 'sidebar-link--active' : ''); ?>">Supplier Payments</a>
+                    <a href="/ap/aging" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/aging' ? 'sidebar-link--active' : ''); ?>">AP Aging</a>
                 </div>
             </div>
 
@@ -321,9 +323,35 @@
                     </button>
 
                     
-                    <div class="hidden sm:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 w-72">
-                        <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                        <input type="text" placeholder="Search transactions, accounts..." class="bg-transparent border-0 text-sm text-gray-700 placeholder-gray-400 focus:outline-none w-full">
+                    <div x-data="globalSearch()" class="hidden sm:block relative w-72" @click.away="open = false" @keydown.escape.window="open = false">
+                        <div class="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+                            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                            <input x-model="query" @input.debounce.300ms="search()" @focus="if(results.length) open = true"
+                                   type="text" placeholder="Search transactions, accounts..." class="bg-transparent border-0 text-sm text-gray-700 placeholder-gray-400 focus:outline-none w-full">
+                            <svg x-show="loading" class="w-4 h-4 text-gray-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        </div>
+                        
+                        <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                             class="absolute top-full left-0 mt-1 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto" style="display: none;">
+                            <template x-if="results.length === 0 && !loading && query.length >= 2">
+                                <div class="px-4 py-3 text-sm text-gray-500">No results found.</div>
+                            </template>
+                            <template x-for="item in results" :key="item.title + item.type">
+                                <a :href="item.url" class="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100 last:border-0">
+                                    <span class="mt-0.5 flex-shrink-0 w-6 h-6 rounded bg-primary-50 text-primary-600 flex items-center justify-center">
+                                        <svg x-show="item.icon === 'book'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
+                                        <svg x-show="item.icon === 'truck'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0H21M3.375 14.25h3.75M21 12.75H8.25m0 0L6.75 7.5h12.75l-1.5 5.25" /></svg>
+                                        <svg x-show="item.icon === 'users'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+                                        <svg x-show="['file-text','file'].includes(item.icon)" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                                        <svg x-show="item.icon === 'layers'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0 4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" /></svg>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-medium text-gray-900 truncate" x-text="item.title"></div>
+                                        <div class="text-xs text-gray-500 truncate"><span class="font-medium text-primary-600" x-text="item.type"></span> &middot; <span x-text="item.subtitle"></span></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
                     </div>
                 </div>
 
@@ -337,10 +365,47 @@
                     </span>
 
                     
-                    <button class="relative btn-icon">
-                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
-                        <span class="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-danger-500 rounded-full">3</span>
-                    </button>
+                    <div x-data="notificationBell()" x-init="fetchNotifications()" class="relative" @click.away="open = false">
+                        <button @click="toggle()" class="relative btn-icon">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                            <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
+                                  class="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-4 px-0.5 text-[10px] font-bold text-white bg-danger-500 rounded-full"></span>
+                        </button>
+                        
+                        <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                             class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50" style="display: none;">
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                                <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+                                <button x-show="unreadCount > 0" @click="markAllRead()" class="text-xs text-primary-600 hover:text-primary-700 font-medium">Mark all read</button>
+                            </div>
+                            <div class="max-h-72 overflow-y-auto">
+                                <template x-if="notifications.length === 0">
+                                    <div class="px-4 py-6 text-center text-sm text-gray-500">No notifications yet.</div>
+                                </template>
+                                <template x-for="n in notifications" :key="n.id">
+                                    <div @click="markRead(n)" class="flex gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                         :class="{ 'bg-primary-50/50': !n.read_at }">
+                                        <div class="flex-shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center"
+                                             :class="{
+                                                 'bg-primary-100 text-primary-600': n.type === 'info',
+                                                 'bg-green-100 text-green-600': n.type === 'success',
+                                                 'bg-amber-100 text-amber-600': n.type === 'warning',
+                                                 'bg-red-100 text-red-600': n.type === 'danger',
+                                                 'bg-gray-100 text-gray-600': !['info','success','warning','danger'].includes(n.type)
+                                             }">
+                                            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-sm font-medium text-gray-900" x-text="n.title"></div>
+                                            <div class="text-xs text-gray-500 truncate" x-text="n.message"></div>
+                                            <div class="text-[11px] text-gray-400 mt-0.5" x-text="n.time_ago"></div>
+                                        </div>
+                                        <span x-show="!n.read_at" class="mt-2 flex-shrink-0 w-2 h-2 rounded-full bg-primary-500"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
 
                     
                     <div x-data="{ userMenu: false }" class="relative">
@@ -435,6 +500,109 @@
             <p class="text-xs text-secondary-400 text-center">OrangeApps School Finance ERP &copy; <?php echo e(date('Y')); ?>. All rights reserved.</p>
         </footer>
     </div>
+
+    
+    <script>
+        function globalSearch() {
+            return {
+                query: '',
+                results: [],
+                open: false,
+                loading: false,
+                async search() {
+                    if (this.query.length < 2) { this.results = []; this.open = false; return; }
+                    this.loading = true;
+                    try {
+                        const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const data = await res.json();
+                        this.results = data.results;
+                        this.open = true;
+                    } catch (e) {
+                        console.error('Search error:', e);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            };
+        }
+
+        function notificationBell() {
+            return {
+                open: false,
+                notifications: [],
+                unreadCount: 0,
+                toggle() {
+                    this.open = !this.open;
+                    if (this.open) this.fetchNotifications();
+                },
+                async fetchNotifications() {
+                    try {
+                        const res = await fetch('/notifications', {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const data = await res.json();
+                        this.notifications = data.notifications;
+                        this.unreadCount = data.unread_count;
+                    } catch (e) {
+                        console.error('Notification fetch error:', e);
+                    }
+                },
+                async markRead(n) {
+                    if (n.read_at) return;
+                    const token = document.querySelector('meta[name="csrf-token"]').content;
+                    try {
+                        await fetch(`/notifications/${n.id}/read`, {
+                            method: 'POST',
+                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        n.read_at = new Date().toISOString();
+                        this.unreadCount = Math.max(0, this.unreadCount - 1);
+                    } catch (e) {
+                        console.error('Mark read error:', e);
+                    }
+                },
+                async markAllRead() {
+                    const token = document.querySelector('meta[name="csrf-token"]').content;
+                    try {
+                        await fetch('/notifications/mark-all-read', {
+                            method: 'POST',
+                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        this.notifications.forEach(n => n.read_at = new Date().toISOString());
+                        this.unreadCount = 0;
+                    } catch (e) {
+                        console.error('Mark all read error:', e);
+                    }
+                }
+            };
+        }
+    </script>
+
+    
+    <style>
+        .turbo-progress-bar { background: #4f46e5; height: 3px; position: fixed; top: 0; left: 0; z-index: 9999; transition: width 300ms ease; }
+    </style>
+    <script>
+        // Show progress bar during Turbo navigation
+        (function() {
+            let bar = null;
+            document.addEventListener('turbo:before-fetch-request', () => {
+                if (!bar) { bar = document.createElement('div'); bar.className = 'turbo-progress-bar'; document.body.prepend(bar); }
+                bar.style.width = '0%'; bar.style.display = 'block';
+                requestAnimationFrame(() => bar.style.width = '70%');
+            });
+            document.addEventListener('turbo:before-render', () => { if (bar) bar.style.width = '100%'; });
+            document.addEventListener('turbo:load', () => { if (bar) { bar.style.display = 'none'; bar.style.width = '0%'; } });
+        })();
+
+        // Disable Turbo on forms with file uploads and logout forms
+        document.addEventListener('turbo:before-fetch-request', (e) => {
+            const form = e.target.closest?.('form');
+            if (form?.enctype === 'multipart/form-data') { e.preventDefault(); form.submit(); }
+        });
+    </script>
 
     <?php echo $__env->yieldPushContent('scripts'); ?>
 </body>
