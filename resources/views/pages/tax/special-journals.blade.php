@@ -58,14 +58,14 @@
                     <tbody>
                         @php $runningTotal = 0; @endphp
                         @forelse($cashReceipts as $entry)
-                            @php $runningTotal += $entry->amount ?? 0; @endphp
+                            @php $runningTotal += max($entry->debit, $entry->credit); @endphp
                             <tr>
-                                <td class="text-sm">{{ isset($entry->date) ? \Carbon\Carbon::parse($entry->date)->format('M d, Y') : '' }}</td>
-                                <td class="font-mono text-sm">{{ $entry->reference ?? '' }}</td>
-                                <td>{{ $entry->received_from ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->description ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->account ?? '' }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->amount ?? 0, 2) }}</td>
+                                <td class="text-sm">{{ $entry->posting_date ? \Carbon\Carbon::parse($entry->posting_date)->format('M d, Y') : '' }}</td>
+                                <td class="font-mono text-sm">{{ $entry->entry_number }}</td>
+                                <td>{{ $entry->reference_number ?? '-' }}</td>
+                                <td class="text-sm">{{ $entry->je_description ?? $entry->description ?? '' }}</td>
+                                <td class="text-sm">{{ $entry->account_code }} - {{ $entry->account_name }}</td>
+                                <td class="text-right font-mono">₱{{ number_format(max($entry->debit, $entry->credit), 2) }}</td>
                                 <td class="text-right font-mono font-semibold">₱{{ number_format($runningTotal, 2) }}</td>
                             </tr>
                         @empty
@@ -105,15 +105,15 @@
                     <tbody>
                         @php $runningTotal = 0; @endphp
                         @forelse($cashDisbursements as $entry)
-                            @php $runningTotal += $entry->amount ?? 0; @endphp
+                            @php $runningTotal += max($entry->debit, $entry->credit); @endphp
                             <tr>
-                                <td class="text-sm">{{ isset($entry->date) ? \Carbon\Carbon::parse($entry->date)->format('M d, Y') : '' }}</td>
+                                <td class="text-sm">{{ $entry->posting_date ? \Carbon\Carbon::parse($entry->posting_date)->format('M d, Y') : '' }}</td>
                                 <td class="font-mono text-sm">{{ $entry->cv_number ?? '' }}</td>
-                                <td>{{ $entry->paid_to ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->description ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->account ?? '' }}</td>
+                                <td>{{ $entry->reference_number ?? '-' }}</td>
+                                <td class="text-sm">{{ $entry->je_description ?? $entry->description ?? '' }}</td>
+                                <td class="text-sm">{{ $entry->account_code }} - {{ $entry->account_name }}</td>
                                 <td class="font-mono text-sm">{{ $entry->check_number ?? '' }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->amount ?? 0, 2) }}</td>
+                                <td class="text-right font-mono">₱{{ number_format(max($entry->debit, $entry->credit), 2) }}</td>
                                 <td class="text-right font-mono font-semibold">₱{{ number_format($runningTotal, 2) }}</td>
                             </tr>
                         @empty
@@ -151,12 +151,12 @@
                     <tbody>
                         @forelse($salesJournal as $entry)
                             <tr>
-                                <td class="text-sm">{{ isset($entry->date) ? \Carbon\Carbon::parse($entry->date)->format('M d, Y') : '' }}</td>
+                                <td class="text-sm">{{ $entry->posting_date ? \Carbon\Carbon::parse($entry->posting_date)->format('M d, Y') : '' }}</td>
                                 <td class="font-mono text-sm">{{ $entry->invoice_number ?? '' }}</td>
-                                <td>{{ $entry->customer ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->description ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->account ?? '' }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->amount ?? 0, 2) }}</td>
+                                <td>{{ $entry->reference_number ?? '-' }}</td>
+                                <td class="text-sm">{{ $entry->je_description ?? $entry->description ?? '' }}</td>
+                                <td class="text-sm">{{ $entry->account_code }} - {{ $entry->account_name }}</td>
+                                <td class="text-right font-mono">₱{{ number_format(max($entry->debit, $entry->credit), 2) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="text-center py-8 text-secondary-400">No sales journal entries found.</td></tr>
@@ -193,12 +193,12 @@
                     <tbody>
                         @forelse($purchasesJournal as $entry)
                             <tr>
-                                <td class="text-sm">{{ isset($entry->date) ? \Carbon\Carbon::parse($entry->date)->format('M d, Y') : '' }}</td>
+                                <td class="text-sm">{{ $entry->posting_date ? \Carbon\Carbon::parse($entry->posting_date)->format('M d, Y') : '' }}</td>
                                 <td class="font-mono text-sm">{{ $entry->bill_number ?? '' }}</td>
-                                <td>{{ $entry->vendor ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->description ?? '' }}</td>
-                                <td class="text-sm">{{ $entry->account ?? '' }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->amount ?? 0, 2) }}</td>
+                                <td>{{ $entry->reference_number ?? '-' }}</td>
+                                <td class="text-sm">{{ $entry->je_description ?? $entry->description ?? '' }}</td>
+                                <td class="text-sm">{{ $entry->account_code }} - {{ $entry->account_name }}</td>
+                                <td class="text-right font-mono">₱{{ number_format(max($entry->debit, $entry->credit), 2) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="text-center py-8 text-secondary-400">No purchase journal entries found.</td></tr>

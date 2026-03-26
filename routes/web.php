@@ -137,8 +137,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/bank-reconciliation/pdf', [\App\Http\Controllers\GL\BankReconciliationController::class, 'pdf'])->name('bank-reconciliation.pdf');
         Route::get('/ledger-inquiry', [GLController::class, 'ledgerInquiry'])->name('ledger-inquiry');
         Route::get('/period-closing', [PeriodClosingController::class, 'index'])->name('period-closing');
-        Route::post('/period-closing/close', [PeriodClosingController::class, 'close'])->name('period-closing.close');
-        Route::post('/period-closing/reopen', [PeriodClosingController::class, 'reopen'])->name('period-closing.reopen');
+        Route::post('/period-closing/{period}/close', [PeriodClosingController::class, 'close'])->name('period-closing.close');
+        Route::post('/period-closing/{period}/reopen', [PeriodClosingController::class, 'reopen'])->name('period-closing.reopen');
     });
 
     // =============================================================

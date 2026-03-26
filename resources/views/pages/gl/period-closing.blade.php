@@ -161,9 +161,8 @@
         <h4 class="text-lg font-semibold text-secondary-900 mb-2">Close "{{ $period->name }}"?</h4>
         <p class="text-sm text-secondary-500">Once closed, no more transactions can be posted to this period. This action can be reversed by reopening the period.</p>
     </div>
-    <form action="{{ route('gl.period-closing.close') }}" method="POST">
+    <form action="{{ route('gl.period-closing.close', $period) }}" method="POST">
         @csrf
-        @method('PUT')
         <div class="flex justify-center gap-3">
             <button type="button" @click="$dispatch('close-modal', 'close-period-{{ $period->id }}')" class="btn-secondary">Cancel</button>
             <button type="submit" class="btn-danger">Yes, Close Period</button>
@@ -182,9 +181,8 @@
         <h4 class="text-lg font-semibold text-secondary-900 mb-2">Reopen "{{ $period->name }}"?</h4>
         <p class="text-sm text-secondary-500">Reopening this period will allow new transactions to be posted. Ensure this is authorized before proceeding.</p>
     </div>
-    <form action="{{ route('gl.period-closing.reopen') }}" method="POST">
+    <form action="{{ route('gl.period-closing.reopen', $period) }}" method="POST">
         @csrf
-        @method('PUT')
         <div class="flex justify-center gap-3">
             <button type="button" @click="$dispatch('close-modal', 'reopen-period-{{ $period->id }}')" class="btn-secondary">Cancel</button>
             <button type="submit" class="btn-primary">Yes, Reopen Period</button>
