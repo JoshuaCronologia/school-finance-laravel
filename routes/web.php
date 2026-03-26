@@ -22,6 +22,8 @@ use App\Http\Controllers\Tax\TaxController;
 use App\Http\Controllers\System\AuditTrailController;
 use App\Http\Controllers\System\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -199,4 +201,16 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/settings/fiscal-year', [SettingsController::class, 'updateFiscalYear'])->name('settings.fiscal-year.update');
 
     Route::get('/api-docs', fn () => view('system.api-docs'))->name('api-docs');
+
+    // =============================================================
+    // Global Search
+    // =============================================================
+    Route::get('/search', SearchController::class)->name('search');
+
+    // =============================================================
+    // Notifications
+    // =============================================================
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 });
