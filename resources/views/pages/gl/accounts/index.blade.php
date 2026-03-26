@@ -26,10 +26,10 @@
 <x-filter-bar action="{{ route('gl.accounts.index') }}" method="GET">
     <div>
         <label class="form-label">Account Type</label>
-        <select name="type" class="form-input w-44">
+        <select name="account_type" class="form-input w-44">
             <option value="">All Types</option>
             @foreach(['asset', 'liability', 'equity', 'revenue', 'expense'] as $t)
-                <option value="{{ $t }}" {{ request('type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
+                <option value="{{ $t }}" {{ request('account_type') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
             @endforeach
         </select>
     </div>
@@ -59,16 +59,16 @@
     <tbody>
         @forelse($accounts as $account)
         <tr>
-            <td class="font-medium text-secondary-900">{{ $account->code }}</td>
+            <td class="font-medium text-secondary-900">{{ $account->account_code }}</td>
             <td class="font-medium">
                 @if($account->parent_id)
                     <span class="text-secondary-300 mr-1">&mdash;</span>
                 @endif
-                {{ $account->name }}
+                {{ $account->account_name }}
             </td>
             <td>
                 @php
-                    $typeBadge = match($account->type ?? '') {
+                    $typeBadge = match($account->account_type ?? '') {
                         'asset' => 'badge-info',
                         'liability' => 'badge-warning',
                         'equity' => 'badge-success',
@@ -77,7 +77,7 @@
                         default => 'badge-neutral',
                     };
                 @endphp
-                <span class="badge {{ $typeBadge }}">{{ ucfirst($account->type ?? '-') }}</span>
+                <span class="badge {{ $typeBadge }}">{{ ucfirst($account->account_type ?? '-') }}</span>
             </td>
             <td>{{ ucfirst($account->normal_balance ?? '-') }}</td>
             <td>
@@ -115,15 +115,15 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="form-label">Account Code <span class="text-danger-500">*</span></label>
-                <input type="text" name="code" class="form-input" required placeholder="e.g., 1010-001">
+                <input type="text" name="account_code" class="form-input" required placeholder="e.g., 1010-001">
             </div>
             <div>
                 <label class="form-label">Account Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" required placeholder="Account name">
+                <input type="text" name="account_name" class="form-input" required placeholder="Account name">
             </div>
             <div>
                 <label class="form-label">Account Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
+                <select name="account_type" class="form-input" required>
                     <option value="">Select Type</option>
                     <option value="asset">Asset</option>
                     <option value="liability">Liability</option>
@@ -137,7 +137,7 @@
                 <select name="parent_id" class="form-input">
                     <option value="">None (Top Level)</option>
                     @foreach($parentAccounts ?? $accounts as $pa)
-                        <option value="{{ $pa->id }}">{{ $pa->code }} - {{ $pa->name }}</option>
+                        <option value="{{ $pa->id }}">{{ $pa->account_code }} - {{ $pa->account_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -170,17 +170,17 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="form-label">Account Code <span class="text-danger-500">*</span></label>
-                <input type="text" name="code" class="form-input" value="{{ $account->code }}" required>
+                <input type="text" name="account_code" class="form-input" value="{{ $account->account_code }}" required>
             </div>
             <div>
                 <label class="form-label">Account Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" value="{{ $account->name }}" required>
+                <input type="text" name="account_name" class="form-input" value="{{ $account->account_name }}" required>
             </div>
             <div>
                 <label class="form-label">Account Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
+                <select name="account_type" class="form-input" required>
                     @foreach(['asset', 'liability', 'equity', 'revenue', 'expense'] as $t)
-                        <option value="{{ $t }}" {{ ($account->type ?? '') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
+                        <option value="{{ $t }}" {{ ($account->account_type ?? '') == $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
                     @endforeach
                 </select>
             </div>
@@ -190,7 +190,7 @@
                     <option value="">None (Top Level)</option>
                     @foreach($parentAccounts ?? $accounts as $pa)
                         @if($pa->id !== $account->id)
-                            <option value="{{ $pa->id }}" {{ ($account->parent_id ?? '') == $pa->id ? 'selected' : '' }}>{{ $pa->code }} - {{ $pa->name }}</option>
+                            <option value="{{ $pa->id }}" {{ ($account->parent_id ?? '') == $pa->id ? 'selected' : '' }}>{{ $pa->account_code }} - {{ $pa->account_name }}</option>
                         @endif
                     @endforeach
                 </select>

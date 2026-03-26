@@ -305,17 +305,17 @@ class TransactionSeeder extends Seeder
 
         // ─── NOTIFICATIONS ──────────────────────────────────────────
         $notifications = [
-            ['type' => 'budget_approved', 'title' => 'Budget Approved', 'message' => 'IT Infrastructure Upgrade budget has been approved.'],
-            ['type' => 'bill_received', 'title' => 'New Bill Received', 'message' => 'Bill from TechSoft Solutions Inc. for ₱150,000.00.'],
-            ['type' => 'payment_due', 'title' => 'Payment Due Reminder', 'message' => 'Bill BILL-0003 from Green Facilities is due in 5 days.'],
-            ['type' => 'collection_received', 'title' => 'Collection Received', 'message' => 'Received ₱45,000.00 from Maria Clara Santos.'],
-            ['type' => 'period_closed', 'title' => 'Period Closed', 'message' => 'Accounting period Jul 2025 has been closed.'],
-            ['type' => 'disbursement_approved', 'title' => 'Disbursement Approved', 'message' => 'DR-0001 for ₱150,000.00 has been approved.'],
-            ['type' => 'system', 'title' => 'System Update', 'message' => 'School Finance ERP has been updated to v2.0.'],
+            ['type' => 'success', 'title' => 'Budget Approved', 'message' => 'IT Infrastructure Upgrade budget has been approved.', 'data' => json_encode(['url' => '/budget/dashboard'])],
+            ['type' => 'info', 'title' => 'New Bill Received', 'message' => 'Bill from TechSoft Solutions Inc. for ₱150,000.00.', 'data' => json_encode(['url' => '/ap/bills'])],
+            ['type' => 'warning', 'title' => 'Payment Due Reminder', 'message' => 'Bill BILL-0003 from Green Facilities is due in 5 days.', 'data' => json_encode(['url' => '/ap/payment-processing'])],
+            ['type' => 'success', 'title' => 'Collection Received', 'message' => 'Received ₱45,000.00 from Maria Clara Santos.', 'data' => json_encode(['url' => '/ar/collections'])],
+            ['type' => 'info', 'title' => 'Period Closed', 'message' => 'Accounting period Jul 2025 has been closed.', 'data' => json_encode(['url' => '/gl/period-closing'])],
+            ['type' => 'success', 'title' => 'Disbursement Approved', 'message' => 'DR-0001 for ₱150,000.00 has been approved.', 'data' => json_encode(['url' => '/ap/disbursements'])],
+            ['type' => 'info', 'title' => 'System Update', 'message' => 'School Finance ERP has been updated to v2.0.', 'data' => json_encode(['url' => '/'])],
         ];
         foreach ($notifications as $i => $n) {
             DB::table('notifications')->insert(array_merge($n, [
-                'user_id' => 1, 'data' => null,
+                'user_id' => 1,
                 'read_at' => $i < 3 ? $now : null,
                 'created_at' => $now->copy()->subDays(7 - $i), 'updated_at' => $now,
             ]));
