@@ -142,7 +142,7 @@
                                     <select x-model="line.account_id" :name="'lines['+index+'][account_id]'" class="form-input text-sm" required>
                                         <option value="">Select Account</option>
                                         @foreach($accounts ?? [] as $acct)
-                                            <option value="{{ $acct->id }}">{{ $acct->code }} - {{ $acct->name }}</option>
+                                            <option value="{{ $acct->id }}">{{ $acct->account_code }} - {{ $acct->account_name }}</option>
                                         @endforeach
                                     </select>
                                 </td>
