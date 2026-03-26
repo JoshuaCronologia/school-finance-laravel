@@ -34,7 +34,7 @@
     <tbody>
         @forelse($templates ?? [] as $template)
         <tr>
-            <td class="font-medium text-secondary-900">{{ $template->name }}</td>
+            <td class="font-medium text-secondary-900">{{ $template->template_name }}</td>
             <td>
                 @php
                     $freqBadge = match($template->frequency ?? '') {
@@ -178,14 +178,14 @@
 
 {{-- Edit Template Modals --}}
 @foreach($templates ?? [] as $template)
-<x-modal name="edit-template-{{ $template->id }}" title="Edit Template: {{ $template->name }}" maxWidth="4xl">
+<x-modal name="edit-template-{{ $template->id }}" title="Edit Template: {{ $template->template_name }}" maxWidth="4xl">
     <form action="{{ route('gl.recurring.update', $template) }}" method="POST">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
                 <label class="form-label">Template Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" value="{{ $template->name }}" required>
+                <input type="text" name="template_name" class="form-input" value="{{ $template->template_name }}" required>
             </div>
             <div>
                 <label class="form-label">Frequency <span class="text-danger-500">*</span></label>

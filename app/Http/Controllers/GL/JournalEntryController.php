@@ -432,9 +432,10 @@ class JournalEntryController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            foreach ($template->lines as $line) {
+            foreach ($template->lines as $i => $line) {
                 JournalEntryLine::create([
                     'journal_entry_id' => $je->id,
+                    'line_number' => $i + 1,
                     'account_id' => $line->account_id,
                     'description' => $line->description,
                     'debit' => $line->debit,
