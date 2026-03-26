@@ -313,7 +313,7 @@ class BudgetController extends Controller
         $departmentId = $request->input('department_id');
         $department = $departmentId ? Department::find($departmentId) : null;
 
-        $query = Budget::with('department', 'category')->where('status', 'active');
+        $query = Budget::with('department', 'category')->whereNotIn('status', ['cancelled']);
 
         if ($departmentId) {
             $query->where('department_id', $departmentId);
