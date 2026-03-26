@@ -260,6 +260,7 @@ class JournalEntryController extends Controller
         ]);
 
         app(AuditService::class)->log('post', 'journal_entry', $journalEntry, null, 'Journal entry posted');
+        \App\Services\NotificationService::journalEntryPosted($journalEntry);
 
         return back()->with('success', "Journal entry {$journalEntry->entry_number} posted successfully.");
     }

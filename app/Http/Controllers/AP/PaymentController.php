@@ -113,6 +113,7 @@ class PaymentController extends Controller
 
                 app(AuditService::class)->log('payment', 'disbursement', $disbursement, null,
                     "Payment processed: {$payment->voucher_number}");
+                \App\Services\NotificationService::paymentProcessed($payment);
 
                 return $payment;
             });

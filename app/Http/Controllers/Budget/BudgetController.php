@@ -10,6 +10,7 @@ use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\FundSource;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -126,6 +127,7 @@ class BudgetController extends Controller
         $budget = Budget::create($validated);
 
         app(AuditService::class)->log('create', 'budget', $budget, null, 'Budget created');
+        NotificationService::budgetCreated($budget);
 
         return redirect()->route('budget.planning')->with('success', 'Budget created successfully.');
     }

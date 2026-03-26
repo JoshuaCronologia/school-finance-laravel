@@ -127,6 +127,7 @@ class CollectionController extends Controller
                 app(PostingService::class)->postCollection($collection);
 
                 app(AuditService::class)->log('create', 'ar_collection', $collection, null, 'Collection recorded');
+                \App\Services\NotificationService::collectionReceived($collection->load('customer'));
 
                 return $collection;
             });

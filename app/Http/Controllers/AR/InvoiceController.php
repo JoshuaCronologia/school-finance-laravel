@@ -158,6 +158,7 @@ class InvoiceController extends Controller
                 }
 
                 app(AuditService::class)->log('create', 'ar_invoice', $invoice, null, 'Invoice created');
+                \App\Services\NotificationService::invoiceCreated($invoice->load('customer'));
 
                 return $invoice;
             });

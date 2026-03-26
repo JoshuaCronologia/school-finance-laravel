@@ -112,11 +112,12 @@
             </div>
             <div>
                 <label class="form-label">Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
+                <select name="customer_type" class="form-input" required>
                     <option value="">Select Type</option>
                     <option value="student">Student</option>
                     <option value="parent">Parent</option>
-                    <option value="corporate">Corporate</option>
+                    <option value="organization">Organization</option>
+                    <option value="government">Government</option>
                     <option value="other">Other</option>
                 </select>
             </div>
@@ -126,7 +127,12 @@
             </div>
             <div>
                 <label class="form-label">Campus</label>
-                <input type="text" name="campus" class="form-input" placeholder="e.g., Main Campus">
+                <select name="campus_id" class="form-input">
+                    <option value="">Select Campus</option>
+                    @foreach($campuses ?? [] as $campus)
+                        <option value="{{ $campus->id }}">{{ $campus->name }}</option>
+                    @endforeach
+                </select>
             </div>
             <div>
                 <label class="form-label">Grade Level</label>
@@ -173,11 +179,12 @@
             </div>
             <div>
                 <label class="form-label">Type <span class="text-danger-500">*</span></label>
-                <select name="type" class="form-input" required>
-                    <option value="student" {{ ($customer->type ?? '') == 'student' ? 'selected' : '' }}>Student</option>
-                    <option value="parent" {{ ($customer->type ?? '') == 'parent' ? 'selected' : '' }}>Parent</option>
-                    <option value="corporate" {{ ($customer->type ?? '') == 'corporate' ? 'selected' : '' }}>Corporate</option>
-                    <option value="other" {{ ($customer->type ?? '') == 'other' ? 'selected' : '' }}>Other</option>
+                <select name="customer_type" class="form-input" required>
+                    <option value="student" {{ $customer->customer_type == 'student' ? 'selected' : '' }}>Student</option>
+                    <option value="parent" {{ $customer->customer_type == 'parent' ? 'selected' : '' }}>Parent</option>
+                    <option value="organization" {{ $customer->customer_type == 'organization' ? 'selected' : '' }}>Organization</option>
+                    <option value="government" {{ $customer->customer_type == 'government' ? 'selected' : '' }}>Government</option>
+                    <option value="other" {{ $customer->customer_type == 'other' ? 'selected' : '' }}>Other</option>
                 </select>
             </div>
             <div>
@@ -186,7 +193,12 @@
             </div>
             <div>
                 <label class="form-label">Campus</label>
-                <input type="text" name="campus" class="form-input" value="{{ $customer->campus ?? '' }}">
+                <select name="campus_id" class="form-input">
+                    <option value="">Select Campus</option>
+                    @foreach($campuses ?? [] as $campus)
+                        <option value="{{ $campus->id }}" {{ $customer->campus_id == $campus->id ? 'selected' : '' }}>{{ $campus->name }}</option>
+                    @endforeach
+                </select>
             </div>
             <div>
                 <label class="form-label">Grade Level</label>

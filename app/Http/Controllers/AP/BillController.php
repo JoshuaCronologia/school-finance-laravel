@@ -152,6 +152,7 @@ class BillController extends Controller
                 }
 
                 app(AuditService::class)->log('create', 'ap_bill', $bill, null, 'Bill created');
+                \App\Services\NotificationService::billCreated($bill);
 
                 return $bill;
             });

@@ -8,6 +8,7 @@ use App\Models\DisbursementApproval;
 use App\Models\DisbursementRequest;
 use App\Services\AuditService;
 use App\Services\BudgetService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -70,6 +71,7 @@ class ApprovalController extends Controller
             ]);
 
             app(AuditService::class)->log('approve', 'disbursement', $disbursement, null, 'Disbursement approved');
+            NotificationService::disbursementApproved($disbursement);
         });
 
         return back()->with('success', "Disbursement {$disbursement->request_number} approved.");
@@ -103,6 +105,7 @@ class ApprovalController extends Controller
             }
 
             app(AuditService::class)->log('reject', 'disbursement', $disbursement, null, "Rejected: {$validated['comments']}");
+            NotificationService::disbursementRejected($disbursement, $validated['comments']);
         });
 
         return back()->with('success', "Disbursement {$disbursement->request_number} rejected.");

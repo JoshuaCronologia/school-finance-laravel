@@ -528,18 +528,20 @@
                     }
                 },
                 async markRead(n) {
-                    if (n.read_at) return;
-                    const token = document.querySelector('meta[name="csrf-token"]').content;
-                    try {
-                        await fetch(`/notifications/${n.id}/read`, {
-                            method: 'POST',
-                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-                        n.read_at = new Date().toISOString();
-                        this.unreadCount = Math.max(0, this.unreadCount - 1);
-                    } catch (e) {
-                        console.error('Mark read error:', e);
+                    if (!n.read_at) {
+                        const token = document.querySelector('meta[name="csrf-token"]').content;
+                        try {
+                            await fetch(`/notifications/${n.id}/read`, {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+                            });
+                            n.read_at = new Date().toISOString();
+                            this.unreadCount = Math.max(0, this.unreadCount - 1);
+                        } catch (e) {
+                            console.error('Mark read error:', e);
+                        }
                     }
+                    if (n.url) { this.open = false; window.location.href = n.url; }
                 },
                 async markAllRead() {
                     const token = document.querySelector('meta[name="csrf-token"]').content;

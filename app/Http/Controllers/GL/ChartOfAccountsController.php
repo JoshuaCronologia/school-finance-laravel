@@ -71,6 +71,11 @@ class ChartOfAccountsController extends Controller
         return redirect()->route('gl.accounts.index')->with('success', 'Account created successfully.');
     }
 
+    public function show(ChartOfAccount $account)
+    {
+        return redirect()->route('gl.accounts.index', ['search' => $account->account_code]);
+    }
+
     public function update(Request $request, ChartOfAccount $account)
     {
         $validated = $request->validate([

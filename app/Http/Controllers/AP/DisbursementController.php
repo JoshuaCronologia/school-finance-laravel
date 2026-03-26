@@ -271,6 +271,7 @@ class DisbursementController extends Controller
         $disbursement->update(['status' => 'pending_approval']);
 
         app(AuditService::class)->log('submit', 'disbursement', $disbursement, null, 'Submitted for approval');
+        \App\Services\NotificationService::disbursementSubmitted($disbursement);
 
         return back()->with('success', 'Disbursement request submitted for approval.');
     }
