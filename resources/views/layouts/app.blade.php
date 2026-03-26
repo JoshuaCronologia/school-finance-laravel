@@ -116,7 +116,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/reports/budget-vs-actual" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-vs-actual' ? 'sidebar-link--active' : '' }}">Budget vs Actual</a>
                     <a href="/reports/monthly-variance" class="sidebar-link text-xs {{ $currentRoute === '/reports/monthly-variance' ? 'sidebar-link--active' : '' }}">Monthly Variance</a>
                 </div>
@@ -134,7 +134,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ap/bills" class="sidebar-link text-xs {{ $currentRoute === '/ap/bills' ? 'sidebar-link--active' : '' }}">Supplier Bills</a>
                     <a href="/ap/disbursements" class="sidebar-link text-xs {{ $currentRoute === '/ap/disbursements' ? 'sidebar-link--active' : '' }}">Disbursement Requests</a>
                     <a href="/ap/disbursements/create" class="sidebar-link text-xs {{ $currentRoute === '/ap/disbursements/create' ? 'sidebar-link--active' : '' }}">Create Request</a>
@@ -158,7 +158,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ap/supplier-payments" class="sidebar-link text-xs {{ $currentRoute === '/ap/supplier-payments' ? 'sidebar-link--active' : '' }}">Supplier Payments</a>
                     <a href="/ap/aging" class="sidebar-link text-xs {{ $currentRoute === '/ap/aging' ? 'sidebar-link--active' : '' }}">AP Aging</a>
                 </div>
@@ -176,7 +176,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ar/invoices" class="sidebar-link text-xs {{ $currentRoute === '/ar/invoices' ? 'sidebar-link--active' : '' }}">Invoices / Charges</a>
                     <a href="/ar/collections" class="sidebar-link text-xs {{ $currentRoute === '/ar/collections' ? 'sidebar-link--active' : '' }}">Collections / Receipts</a>
                 </div>
@@ -234,7 +234,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <p class="text-xs text-white/40 font-semibold uppercase mt-1 mb-1 pl-1">Financial Statements</p>
                     <a href="/reports/trial-balance" class="sidebar-link text-xs {{ $currentRoute === '/reports/trial-balance' ? 'sidebar-link--active' : '' }}">Trial Balance</a>
                     <a href="/reports/balance-sheet" class="sidebar-link text-xs {{ $currentRoute === '/reports/balance-sheet' ? 'sidebar-link--active' : '' }}">Balance Sheet</a>
@@ -260,7 +260,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/reports/budget-vs-actual" class="sidebar-link text-xs">Budget vs Actual</a>
                     <a href="/reports/monthly-variance" class="sidebar-link text-xs">Monthly Variance</a>
                 </div>
@@ -275,7 +275,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Monthly</p>
                     <a href="/tax/bir-0619e" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-0619e' ? 'sidebar-link--active' : '' }}">0619-E (EWT)</a>
                     <a href="/tax/bir-0619f" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-0619f' ? 'sidebar-link--active' : '' }}">0619-F (Final WT)</a>

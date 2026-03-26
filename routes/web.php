@@ -84,6 +84,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/approval-queue', [ApprovalController::class, 'index'])->name('approval-queue');
         Route::post('/approval-queue/{disbursement}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval-queue/{disbursement}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
+        Route::post('/approval-queue/{disbursement}/return', [ApprovalController::class, 'returnForRevision'])->name('approval.return');
         // Supplier / disbursement payments
         Route::get('/payment-processing', [PaymentController::class, 'index'])->name('payment-processing');
         Route::get('/supplier-payments', [PaymentController::class, 'payments'])->name('supplier-payments');
@@ -202,6 +203,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::get('/settings/fiscal-year', [SettingsController::class, 'fiscalYear'])->name('settings.fiscal-year');
     Route::put('/settings/fiscal-year', [SettingsController::class, 'updateFiscalYear'])->name('settings.fiscal-year.update');
+    Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');
+    Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
+    Route::delete('/settings/users/{user}', [SettingsController::class, 'deleteUser'])->name('settings.users.delete');
 
     Route::get('/api-docs', fn () => view('system.api-docs'))->name('api-docs');
 

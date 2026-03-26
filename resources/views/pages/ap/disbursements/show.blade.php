@@ -32,11 +32,7 @@
                 @csrf
                 <button type="submit" class="btn-primary bg-success-600 hover:bg-success-700">Approve</button>
             </form>
-            <form action="{{ route('ap.approval.reject', $disbursement) }}" method="POST" class="inline">
-                @csrf
-                <input type="hidden" name="comments" value="Rejected from disbursement detail page">
-                <button type="submit" class="btn-secondary text-danger-600 border-danger-300 hover:bg-danger-50">Reject</button>
-            </form>
+            <button @click="$dispatch('open-modal', 'reject-dr-{{ $disbursement->id }}')" class="btn-secondary text-danger-600 border-danger-300 hover:bg-danger-50">Reject</button>
         @endif
     </x-slot:actions>
 </x-page-header>
@@ -278,4 +274,26 @@
         </div>
     </div>
 </div>
+{{-- Reject Modal --}}
+@if($disbursement->status === 'pending_approval')
+<x-modal name="reject-dr-{{ $disbursement->id }}" title="Reject Disbursement" maxWidth="md">
+    <div class="text-center mb-4">
+        <div class="mx-auto w-12 h-12 rounded-full bg-danger-100 flex items-center justify-center mb-3">
+            <svg class="w-6 h-6 text-danger-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+        </div>
+        <p class="text-sm text-secondary-600">Reject <strong>{{ $disbursement->request_number }}</strong> ({{ '₱' . number_format($disbursement->amount, 2) }})?</p>
+    </div>
+    <form action="{{ route('ap.approval.reject', $disbursement) }}" method="POST">
+        @csrf
+        <div class="mb-4">
+            <label class="form-label">Reason for Rejection <span class="text-danger-500">*</span></label>
+            <textarea name="comments" class="form-input" rows="3" required placeholder="e.g., Over budget, not authorized, insufficient documentation..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3">
+            <button type="button" @click="$dispatch('close-modal', 'reject-dr-{{ $disbursement->id }}')" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary bg-danger-600 hover:bg-danger-700">Reject</button>
+        </div>
+    </form>
+</x-modal>
+@endif
 @endsection
