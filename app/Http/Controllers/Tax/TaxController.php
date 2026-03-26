@@ -8,48 +8,98 @@ use App\Models\ApPayment;
 use App\Models\ArCollection;
 use App\Models\ArInvoice;
 use App\Models\DisbursementPayment;
+use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
+use App\Models\Setting;
 use App\Models\Vendor;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TaxController extends Controller
 {
     /**
-     * BIR 2307 - Certificate of Creditable Tax Withheld at Source.
+     * School info used by BIR forms.
      */
+    private function schoolInfo(): array
+    {
+        return [
+            'schoolTin' => Setting::where('key', 'school_tin')->value('value') ?? '000-000-000-000',
+            'schoolName' => Setting::where('key', 'school_name')->value('value') ?? config('app.name'),
+            'schoolAddress' => Setting::where('key', 'school_address')->value('value') ?? 'Manila, Philippines',
+        ];
+    }
+
+    // =================================================================
+    // BIR 2307 - Certificate of Creditable Tax Withheld at Source
+    // =================================================================
+
     public function bir2307(Request $request)
     {
         $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
+        $selectedVendor = $request->filled('vendor_id') ? Vendor::find($request->vendor_id) : null;
+        $quarter = $request->input('quarter', 'Q' . ceil(now()->month / 3));
+        $year = $request->input('year', now()->year);
 
-        $query = ApPayment::with('vendor')
+        $formData = null;
+        $summary = collect();
+
+        if ($selectedVendor) {
+            $q = (int) str_replace('Q', '', $quarter);
+            $startMonth = ($q - 1) * 3 + 1;
+            $endMonth = $q * 3;
+
+            $payments = ApPayment::with('vendor')
+                ->where('status', 'posted')
+                ->where('withholding_tax', '>', 0)
+                ->where('vendor_id', $selectedVendor->id)
+                ->whereYear('payment_date', $year)
+                ->whereMonth('payment_date', '>=', $startMonth)
+                ->whereMonth('payment_date', '<=', $endMonth)
+                ->orderBy('payment_date')
+                ->get();
+
+            // Monthly breakdown for the form
+            $monthly = [];
+            for ($m = $startMonth; $m <= $endMonth; $m++) {
+                $monthPayments = $payments->filter(fn($p) => (int) $p->payment_date->format('m') === $m);
+                $monthly[$m] = (object) [
+                    'month' => $m,
+                    'income_payment' => $monthPayments->sum('gross_amount'),
+                    'tax_withheld' => $monthPayments->sum('withholding_tax'),
+                ];
+            }
+
+            $formData = (object) [
+                'vendor' => $selectedVendor,
+                'monthly' => collect($monthly),
+                'total_income' => $payments->sum('gross_amount'),
+                'total_tax' => $payments->sum('withholding_tax'),
+                'payments' => $payments,
+            ];
+        }
+
+        // Summary of all vendors with withholding for the period
+        $summaryQuery = ApPayment::with('vendor')
+            ->select('vendor_id', DB::raw('SUM(gross_amount) as total_income'), DB::raw('SUM(withholding_tax) as total_tax'))
             ->where('status', 'posted')
-            ->where('withholding_tax', '>', 0);
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->groupBy('vendor_id')
+            ->get();
 
-        if ($request->filled('vendor_id')) {
-            $query->where('vendor_id', $request->vendor_id);
-        }
-        if ($request->filled('quarter')) {
-            $quarter = (int) $request->quarter;
-            $startMonth = ($quarter - 1) * 3 + 1;
-            $endMonth = $quarter * 3;
-            $year = $request->input('year', now()->year);
-            $query->whereYear('payment_date', $year)
-                  ->whereMonth('payment_date', '>=', $startMonth)
-                  ->whereMonth('payment_date', '<=', $endMonth);
-        }
-        if ($request->filled('date_from')) {
-            $query->whereDate('payment_date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('payment_date', '<=', $request->date_to);
-        }
+        $summary = $summaryQuery->map(fn($p) => (object) [
+            'vendor' => $p->vendor,
+            'income_payment' => (float) $p->total_income,
+            'tax_withheld' => (float) $p->total_tax,
+        ]);
 
-        $payments = $query->orderBy('payment_date')->get();
+        $totalWithheld = $summary->sum('tax_withheld');
 
-        $totalWithheld = $payments->sum('withholding_tax');
-
-        return view('pages.tax.bir-2307', compact('payments', 'vendors', 'totalWithheld'));
+        return view('pages.tax.bir-2307', array_merge(
+            compact('vendors', 'selectedVendor', 'quarter', 'year', 'formData', 'summary', 'totalWithheld'),
+            $this->schoolInfo()
+        ));
     }
 
     public function generateBir2307(Request $request)
@@ -57,13 +107,15 @@ class TaxController extends Controller
         return $this->bir2307($request);
     }
 
-    /**
-     * BIR 1601-E - Monthly Expanded Withholding Tax Remittance.
-     */
+    // =================================================================
+    // BIR 1601-E - Monthly Expanded Withholding Tax Remittance
+    // =================================================================
+
     public function bir1601e(Request $request)
     {
-        $month = $request->input('month', now()->month);
-        $year = $request->input('year', now()->year);
+        $taxableMonth = $request->input('month', now()->format('Y-m'));
+        $month = (int) date('m', strtotime($taxableMonth . '-01'));
+        $year = (int) date('Y', strtotime($taxableMonth . '-01'));
 
         $payments = ApPayment::with('vendor')
             ->where('status', 'posted')
@@ -73,20 +125,38 @@ class TaxController extends Controller
             ->orderBy('payment_date')
             ->get();
 
-        // Group by tax type
-        $byTaxType = $payments->groupBy(fn($p) => $p->vendor?->withholding_tax_type ?? 'EWT')
+        // Group by ATC (tax type)
+        $atcEntries = $payments->groupBy(fn($p) => $p->vendor?->withholding_tax_type ?? 'EWT')
             ->map(function ($group, $type) {
-                return [
-                    'type' => $type,
+                return (object) [
+                    'atc' => $type,
                     'count' => $group->count(),
                     'taxable_amount' => $group->sum('gross_amount'),
                     'tax_withheld' => $group->sum('withholding_tax'),
                 ];
-            });
+            })->values();
 
         $totalTaxWithheld = $payments->sum('withholding_tax');
+        $atcCodesUsed = $atcEntries->count();
 
-        return view('pages.tax.bir-1601e', compact('payments', 'byTaxType', 'totalTaxWithheld', 'month', 'year'));
+        // Monthly trend (last 6 months)
+        $monthlyTrend = collect();
+        for ($i = 5; $i >= 0; $i--) {
+            $d = now()->subMonths($i);
+            $total = ApPayment::where('status', 'posted')
+                ->where('withholding_tax', '>', 0)
+                ->whereMonth('payment_date', $d->month)
+                ->whereYear('payment_date', $d->year)
+                ->sum('withholding_tax');
+            $monthlyTrend->push((object) [
+                'month' => $d->format('M Y'),
+                'amount' => (float) $total,
+            ]);
+        }
+
+        return view('pages.tax.bir-1601e', compact(
+            'taxableMonth', 'totalTaxWithheld', 'atcEntries', 'atcCodesUsed', 'monthlyTrend', 'payments'
+        ));
     }
 
     public function generateBir1601e(Request $request)
@@ -94,49 +164,65 @@ class TaxController extends Controller
         return $this->bir1601e($request);
     }
 
-    /**
-     * BIR 2550-M - Monthly VAT Declaration.
-     */
+    // =================================================================
+    // BIR 2550-M - Monthly VAT Declaration
+    // =================================================================
+
     public function vat2550m(Request $request)
     {
-        $month = $request->input('month', now()->month);
-        $year = $request->input('year', now()->year);
+        $taxableMonth = $request->input('month', now()->format('Y-m'));
+        $month = (int) date('m', strtotime($taxableMonth . '-01'));
+        $year = (int) date('Y', strtotime($taxableMonth . '-01'));
 
-        // Output VAT from sales/invoices
-        $outputVat = JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+        // Sales breakdown
+        $taxableSales = (float) ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
+            ->where('tax_amount', '>', 0)->sum('gross_amount');
+
+        $exemptSales = (float) ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
+            ->whereMonth('invoice_date', $month)->whereYear('invoice_date', $year)
+            ->where('tax_amount', 0)->sum('gross_amount');
+
+        $zeroRatedSales = 0;
+
+        // VAT from GL
+        $outputVat = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
             ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
             ->where('je.status', 'posted')
-            ->whereMonth('je.posting_date', $month)
-            ->whereYear('je.posting_date', $year)
+            ->whereMonth('je.posting_date', $month)->whereYear('je.posting_date', $year)
             ->where('coa.account_code', 'like', '2050%')
             ->sum(DB::raw('journal_entry_lines.credit - journal_entry_lines.debit'));
 
-        // Input VAT from purchases/bills
-        $inputVat = JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+        $inputVat = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
             ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
             ->where('je.status', 'posted')
-            ->whereMonth('je.posting_date', $month)
-            ->whereYear('je.posting_date', $year)
+            ->whereMonth('je.posting_date', $month)->whereYear('je.posting_date', $year)
             ->where('coa.account_code', 'like', '1150%')
             ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
 
         $vatPayable = $outputVat - $inputVat;
 
-        // Sales summary
-        $totalSales = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
-            ->whereMonth('invoice_date', $month)
-            ->whereYear('invoice_date', $year)
-            ->sum('gross_amount');
+        $totalSales = $taxableSales + $exemptSales + $zeroRatedSales;
+        $totalPurchases = (float) ApBill::whereNotIn('status', ['cancelled', 'voided'])
+            ->whereMonth('bill_date', $month)->whereYear('bill_date', $year)->sum('gross_amount');
 
-        // Purchase summary
-        $totalPurchases = ApBill::whereNotIn('status', ['cancelled', 'voided'])
-            ->whereMonth('bill_date', $month)
-            ->whereYear('bill_date', $year)
-            ->sum('gross_amount');
+        // Revenue breakdown by account
+        $revenueBreakdown = JournalEntryLine::select(
+                'coa.account_name',
+                DB::raw('SUM(journal_entry_lines.credit - journal_entry_lines.debit) as amount')
+            )
+            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
+            ->where('coa.account_type', 'revenue')
+            ->where('je.status', 'posted')
+            ->whereMonth('je.posting_date', $month)->whereYear('je.posting_date', $year)
+            ->groupBy('coa.account_name')
+            ->orderByDesc('amount')
+            ->get();
 
         return view('pages.tax.vat-2550m', compact(
-            'outputVat', 'inputVat', 'vatPayable',
-            'totalSales', 'totalPurchases', 'month', 'year'
+            'taxableMonth', 'taxableSales', 'exemptSales', 'zeroRatedSales',
+            'outputVat', 'inputVat', 'vatPayable', 'totalSales', 'totalPurchases', 'revenueBreakdown'
         ));
     }
 
@@ -145,36 +231,48 @@ class TaxController extends Controller
         return $this->vat2550m($request);
     }
 
-    /**
-     * Alphalist - Quarterly Alphabetical List of Payees.
-     */
+    // =================================================================
+    // Alphalist of Payees (QAP & SAWT)
+    // =================================================================
+
     public function alphalist(Request $request)
     {
-        $quarter = $request->input('quarter', ceil(now()->month / 3));
+        $quarter = $request->input('quarter', 'Q' . ceil(now()->month / 3));
         $year = $request->input('year', now()->year);
 
-        $startMonth = ($quarter - 1) * 3 + 1;
-        $endMonth = $quarter * 3;
+        $q = (int) str_replace('Q', '', $quarter);
+        $startMonth = ($q - 1) * 3 + 1;
+        $endMonth = $q * 3;
 
-        $payees = ApPayment::with('vendor')
-            ->select(
-                'vendor_id',
-                DB::raw('SUM(gross_amount) as total_amount'),
-                DB::raw('SUM(withholding_tax) as total_tax')
-            )
+        $payments = ApPayment::with('vendor')
             ->where('status', 'posted')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
             ->whereMonth('payment_date', '>=', $startMonth)
             ->whereMonth('payment_date', '<=', $endMonth)
-            ->groupBy('vendor_id')
-            ->get()
-            ->sortBy(fn($p) => $p->vendor?->name);
+            ->get();
 
-        $totalAmount = $payees->sum('total_amount');
-        $totalTax = $payees->sum('total_tax');
+        $qapEntries = $payments->groupBy('vendor_id')->map(function ($group) {
+            $vendor = $group->first()->vendor;
+            return (object) [
+                'tin' => $vendor->tin ?? '',
+                'registered_name' => $vendor->name ?? '',
+                'atc' => $vendor->withholding_tax_type ?? 'WE',
+                'income_payment' => $group->sum('gross_amount'),
+                'tax_withheld' => $group->sum('withholding_tax'),
+            ];
+        })->sortBy('registered_name')->values();
 
-        return view('pages.tax.alphalist', compact('payees', 'totalAmount', 'totalTax', 'quarter', 'year'));
+        $sawtEntries = collect(); // SAWT not yet implemented
+
+        $totalPayees = $qapEntries->count();
+        $totalIncome = $qapEntries->sum('income_payment');
+        $totalTax = $qapEntries->sum('tax_withheld');
+
+        return view('pages.tax.alphalist', compact(
+            'quarter', 'year', 'qapEntries', 'sawtEntries',
+            'totalPayees', 'totalIncome', 'totalTax'
+        ));
     }
 
     public function exportAlphalist(Request $request)
@@ -182,61 +280,68 @@ class TaxController extends Controller
         return $this->alphalist($request);
     }
 
-    /**
-     * Special Journals - Cash Receipts, Cash Disbursements, Sales, Purchases.
-     */
+    // =================================================================
+    // Special Journals (BIR Books of Accounts)
+    // =================================================================
+
     public function specialJournals(Request $request)
     {
-        $journalType = $request->input('type', 'CRJ');
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
         $dateTo = $request->input('date_to', now()->toDateString());
 
-        $entries = JournalEntryLine::select(
-                'journal_entry_lines.*',
-                'je.entry_number', 'je.entry_date', 'je.posting_date',
-                'je.reference_number', 'je.description as je_description',
-                'coa.account_code', 'coa.account_name'
-            )
-            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-            ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
-            ->where('je.status', 'posted')
-            ->where('je.journal_type', $journalType)
-            ->whereDate('je.posting_date', '>=', $dateFrom)
-            ->whereDate('je.posting_date', '<=', $dateTo)
-            ->orderBy('je.posting_date')
-            ->orderBy('je.entry_number')
-            ->get()
-            ->groupBy('journal_entry_id');
+        $loadEntries = function (string $type) use ($dateFrom, $dateTo) {
+            return JournalEntryLine::select(
+                    'journal_entry_lines.*',
+                    'je.entry_number', 'je.entry_date', 'je.posting_date',
+                    'je.reference_number', 'je.description as je_description',
+                    'coa.account_code', 'coa.account_name'
+                )
+                ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
+                ->where('je.status', 'posted')
+                ->where('je.journal_type', $type)
+                ->whereDate('je.posting_date', '>=', $dateFrom)
+                ->whereDate('je.posting_date', '<=', $dateTo)
+                ->orderBy('je.posting_date')
+                ->orderBy('je.entry_number')
+                ->get();
+        };
 
-        $totalDebit = $entries->flatten()->sum('debit');
-        $totalCredit = $entries->flatten()->sum('credit');
-
-        $journalTypes = [
-            'CRJ' => 'Cash Receipts Journal',
-            'CDJ' => 'Cash Disbursements Journal',
-            'SJ' => 'Sales Journal',
-            'PJ' => 'Purchases Journal',
-            'GJ' => 'General Journal',
-        ];
+        $cashReceipts = $loadEntries('CRJ');
+        $cashDisbursements = $loadEntries('CDJ');
+        $salesJournal = $loadEntries('SJ');
+        $purchasesJournal = $loadEntries('PJ');
 
         return view('pages.tax.special-journals', compact(
-            'entries', 'journalType', 'journalTypes',
-            'totalDebit', 'totalCredit', 'dateFrom', 'dateTo'
+            'cashReceipts', 'cashDisbursements', 'salesJournal', 'purchasesJournal',
+            'dateFrom', 'dateTo'
         ));
     }
 
-    /**
-     * Check Writer utility.
-     */
+    // =================================================================
+    // Check Writer
+    // =================================================================
+
     public function checkWriter(Request $request)
     {
-        $payments = DisbursementPayment::with('disbursement')
+        $checkPayments = DisbursementPayment::with('disbursement')
             ->where('payment_method', 'check')
             ->where('status', 'completed')
             ->latest('payment_date')
             ->paginate(20);
 
-        return view('pages.tax.check-writer', compact('payments'));
+        $pendingChecks = DisbursementPayment::where('payment_method', 'check')
+            ->where('status', 'completed')
+            ->whereNull('check_number')
+            ->count();
+
+        $totalAmount = DisbursementPayment::where('payment_method', 'check')
+            ->where('status', 'completed')
+            ->sum('net_amount');
+
+        $printHistory = collect(); // Print tracking not yet implemented
+
+        return view('pages.tax.check-writer', compact('checkPayments', 'pendingChecks', 'totalAmount', 'printHistory'));
     }
 
     public function printCheck(Request $request)
@@ -245,14 +350,15 @@ class TaxController extends Controller
             'payment_id' => 'required|exists:disbursement_payments,id',
         ]);
 
-        $payment = DisbursementPayment::with('disbursement')->findOrFail($validated['payment_id']);
+        $payment = DisbursementPayment::with('disbursement.department')->findOrFail($validated['payment_id']);
 
         return view('pages.tax.print-check', compact('payment'));
     }
 
-    /**
-     * BIR 0619-E - Monthly Remittance of Creditable Income Taxes Withheld (Expanded).
-     */
+    // =================================================================
+    // Other BIR Forms
+    // =================================================================
+
     public function bir0619e(Request $request)
     {
         $month = $request->input('month', now()->month);
@@ -271,31 +377,20 @@ class TaxController extends Controller
         return view('pages.tax.bir-0619e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'month', 'year'));
     }
 
-    /**
-     * BIR 0619-F - Monthly Remittance of Final Income Taxes Withheld.
-     */
     public function bir0619f(Request $request)
     {
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
-
         return view('pages.tax.bir-0619f', compact('month', 'year'));
     }
 
-    /**
-     * BIR 1601-C - Monthly Remittance of Income Taxes Withheld on Compensation.
-     */
     public function bir1601c(Request $request)
     {
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
-
         return view('pages.tax.bir-1601c', compact('month', 'year'));
     }
 
-    /**
-     * BIR 1601-EQ - Quarterly Remittance of Creditable Income Taxes Withheld (Expanded).
-     */
     public function bir1601eq(Request $request)
     {
         $quarter = $request->input('quarter', ceil(now()->month / 3));
@@ -318,14 +413,11 @@ class TaxController extends Controller
         return view('pages.tax.bir-1601eq', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'quarter', 'year'));
     }
 
-    /**
-     * BIR 1604-E - Annual Information Return of Creditable Income Taxes Withheld (Expanded).
-     */
     public function bir1604e(Request $request)
     {
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement')
+        $payments = DisbursementPayment::with('disbursement.vendor')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -338,19 +430,16 @@ class TaxController extends Controller
         return view('pages.tax.bir-1604e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'payeeCount', 'year'));
     }
 
-    /**
-     * BIR 1604-CF - Annual Information Return of Income Tax Withheld on Compensation and Final.
-     */
     public function bir1604cf(Request $request)
     {
         $year = $request->input('year', now()->year);
-
         return view('pages.tax.bir-1604cf', compact('year'));
     }
 
-    /**
-     * Alphalist - Quarterly (QAP).
-     */
+    // =================================================================
+    // Alphalist - Quarterly & Annual
+    // =================================================================
+
     public function alphalistQuarterly(Request $request)
     {
         $quarter = $request->input('quarter', ceil(now()->month / 3));
@@ -383,9 +472,6 @@ class TaxController extends Controller
         return view('pages.tax.alphalist-quarterly', compact('alphalist', 'quarter', 'year'));
     }
 
-    /**
-     * Alphalist - Annual.
-     */
     public function alphalistAnnual(Request $request)
     {
         $year = $request->input('year', now()->year);
