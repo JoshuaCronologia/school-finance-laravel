@@ -22,7 +22,7 @@
      <?php $__env->slot('actions', null, []); ?> 
         <button @click="$dispatch('open-modal', 'new-invoice')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            + New Invoice
+            New Invoice
         </button>
      <?php $__env->endSlot(); ?>
  <?php echo $__env->renderComponent(); ?>
@@ -361,14 +361,15 @@
                             <tr class="border-b border-gray-100">
                                 <td class="py-1 px-2"><input type="text" x-model="line.fee_code" :name="'lines['+index+'][fee_code]'" class="form-input text-sm" placeholder="FEE-001"></td>
                                 <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm" placeholder="Description"></td>
-                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][qty]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
+                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][quantity]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.unit_amount" :name="'lines['+index+'][unit_amount]'" @input="updateAmount(index)" class="form-input text-sm text-right" step="0.01" min="0"></td>
-                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly></td>
+                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly>
+                                    <input type="hidden" :name="'lines['+index+'][amount]'" :value="line.amount"></td>
                                 <td class="py-1 px-2">
-                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account]'" class="form-input text-sm">
+                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account_id]'" class="form-input text-sm">
                                         <option value="">Select</option>
                                         <?php $__currentLoopData = $revenueAccounts ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $acct): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                            <option value="<?php echo e($acct->id); ?>"><?php echo e($acct->code); ?> - <?php echo e($acct->name); ?></option>
+                                            <option value="<?php echo e($acct->id); ?>"><?php echo e($acct->account_code); ?> - <?php echo e($acct->account_name); ?></option>
                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
                                 </td>
@@ -499,14 +500,15 @@
                             <tr class="border-b border-gray-100">
                                 <td class="py-1 px-2"><input type="text" x-model="line.fee_code" :name="'lines['+index+'][fee_code]'" class="form-input text-sm"></td>
                                 <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm"></td>
-                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][qty]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
+                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][quantity]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.unit_amount" :name="'lines['+index+'][unit_amount]'" @input="updateAmount(index)" class="form-input text-sm text-right" step="0.01" min="0"></td>
-                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly></td>
+                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly>
+                                    <input type="hidden" :name="'lines['+index+'][amount]'" :value="line.amount"></td>
                                 <td class="py-1 px-2">
-                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account]'" class="form-input text-sm">
+                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account_id]'" class="form-input text-sm">
                                         <option value="">Select</option>
                                         <?php $__currentLoopData = $revenueAccounts ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $acct): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                            <option value="<?php echo e($acct->id); ?>"><?php echo e($acct->code); ?> - <?php echo e($acct->name); ?></option>
+                                            <option value="<?php echo e($acct->id); ?>"><?php echo e($acct->account_code); ?> - <?php echo e($acct->account_name); ?></option>
                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
                                 </td>

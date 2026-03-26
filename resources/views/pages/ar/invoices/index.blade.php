@@ -185,14 +185,15 @@
                             <tr class="border-b border-gray-100">
                                 <td class="py-1 px-2"><input type="text" x-model="line.fee_code" :name="'lines['+index+'][fee_code]'" class="form-input text-sm" placeholder="FEE-001"></td>
                                 <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm" placeholder="Description"></td>
-                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][qty]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
+                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][quantity]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.unit_amount" :name="'lines['+index+'][unit_amount]'" @input="updateAmount(index)" class="form-input text-sm text-right" step="0.01" min="0"></td>
-                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly></td>
+                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly>
+                                    <input type="hidden" :name="'lines['+index+'][amount]'" :value="line.amount"></td>
                                 <td class="py-1 px-2">
-                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account]'" class="form-input text-sm">
+                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account_id]'" class="form-input text-sm">
                                         <option value="">Select</option>
                                         @foreach($revenueAccounts ?? [] as $acct)
-                                            <option value="{{ $acct->id }}">{{ $acct->code }} - {{ $acct->name }}</option>
+                                            <option value="{{ $acct->id }}">{{ $acct->account_code }} - {{ $acct->account_name }}</option>
                                         @endforeach
                                     </select>
                                 </td>
@@ -305,14 +306,15 @@
                             <tr class="border-b border-gray-100">
                                 <td class="py-1 px-2"><input type="text" x-model="line.fee_code" :name="'lines['+index+'][fee_code]'" class="form-input text-sm"></td>
                                 <td class="py-1 px-2"><input type="text" x-model="line.description" :name="'lines['+index+'][description]'" class="form-input text-sm"></td>
-                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][qty]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
+                                <td class="py-1 px-2"><input type="number" x-model="line.qty" :name="'lines['+index+'][quantity]'" @input="updateAmount(index)" class="form-input text-sm text-right" min="1"></td>
                                 <td class="py-1 px-2"><input type="number" x-model="line.unit_amount" :name="'lines['+index+'][unit_amount]'" @input="updateAmount(index)" class="form-input text-sm text-right" step="0.01" min="0"></td>
-                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly></td>
+                                <td class="py-1 px-2"><input type="text" :value="parseFloat(line.amount).toFixed(2)" class="form-input text-sm text-right bg-gray-50" readonly>
+                                    <input type="hidden" :name="'lines['+index+'][amount]'" :value="line.amount"></td>
                                 <td class="py-1 px-2">
-                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account]'" class="form-input text-sm">
+                                    <select x-model="line.revenue_account" :name="'lines['+index+'][revenue_account_id]'" class="form-input text-sm">
                                         <option value="">Select</option>
                                         @foreach($revenueAccounts ?? [] as $acct)
-                                            <option value="{{ $acct->id }}">{{ $acct->code }} - {{ $acct->name }}</option>
+                                            <option value="{{ $acct->id }}">{{ $acct->account_code }} - {{ $acct->account_name }}</option>
                                         @endforeach
                                     </select>
                                 </td>
