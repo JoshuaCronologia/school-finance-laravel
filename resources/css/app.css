@@ -154,6 +154,14 @@
         @apply px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400;
     }
 
+    /* Collapsed sidebar: hide text, center icons */
+    .sidebar-mini .sidebar-section-title { @apply hidden; }
+    .sidebar-mini .sidebar-link span { @apply hidden; }
+    .sidebar-mini .sidebar-link { @apply justify-center px-2; }
+    .sidebar-mini .sidebar-link svg:first-child ~ svg { @apply hidden; } /* hide chevrons */
+    .sidebar-mini > div[x-data] { @apply hidden; } /* hide collapsible sub-menus */
+    .sidebar-mini .sidebar-link.text-xs { @apply hidden; } /* hide sub-links */
+
     /* ---------- Data Table ---------- */
     .data-table {
         @apply w-full text-sm text-left;
