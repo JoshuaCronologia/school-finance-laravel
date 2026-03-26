@@ -15,6 +15,7 @@ use App\Services\AuditService;
 use App\Services\BudgetService;
 use App\Services\NumberingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -49,8 +50,12 @@ class DisbursementController extends Controller
 
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        $totalPending = DisbursementRequest::where('status', 'pending_approval')->sum('amount');
-        $totalApproved = DisbursementRequest::where('status', 'approved')->sum('amount');
+        $drStats = DisbursementRequest::selectRaw("
+            COALESCE(SUM(CASE WHEN status = 'pending_approval' THEN amount END), 0) as total_pending,
+            COALESCE(SUM(CASE WHEN status = 'approved' THEN amount END), 0) as total_approved
+        ")->first();
+        $totalPending = (float) $drStats->total_pending;
+        $totalApproved = (float) $drStats->total_approved;
 
         return view('pages.ap.disbursements.index', compact(
             'disbursements', 'departments', 'totalPending', 'totalApproved'
@@ -79,21 +84,23 @@ class DisbursementController extends Controller
 
     private function formData(): array
     {
-        $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $categories = ExpenseCategory::where('is_active', true)->orderBy('name')->get();
-        $costCenters = CostCenter::where('is_active', true)->get();
-        $accounts = ChartOfAccount::active()->postable()->where('account_type', 'expense')
-            ->orderBy('account_code')->get();
-        $budgets = Budget::with('department', 'category')
-            ->where('status', 'active')
-            ->get()
-            ->map(function ($b) {
-                $b->remaining = $b->annual_budget - $b->committed - $b->actual;
-                return $b;
-            });
+        return Cache::remember('disbursement:form_data', 300, function () {
+            $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
+            $departments = Department::where('is_active', true)->orderBy('name')->get();
+            $categories = ExpenseCategory::where('is_active', true)->orderBy('name')->get();
+            $costCenters = CostCenter::where('is_active', true)->get();
+            $accounts = ChartOfAccount::active()->postable()->where('account_type', 'expense')
+                ->orderBy('account_code')->get();
+            $budgets = Budget::with('department', 'category')
+                ->where('status', 'active')
+                ->get()
+                ->map(function ($b) {
+                    $b->remaining = $b->annual_budget - $b->committed - $b->actual;
+                    return $b;
+                });
 
-        return compact('vendors', 'departments', 'categories', 'costCenters', 'accounts', 'budgets');
+            return compact('vendors', 'departments', 'categories', 'costCenters', 'accounts', 'budgets');
+        });
     }
 
     public function store(Request $request)

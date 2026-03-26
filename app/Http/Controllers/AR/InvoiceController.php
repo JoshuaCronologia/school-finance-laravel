@@ -45,13 +45,19 @@ class InvoiceController extends Controller
 
         $invoices = $query->latest('invoice_date')->paginate(20);
 
-        // Stats
-        $totalInvoiced = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])->sum('net_receivable');
-        $totalCollected = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])->sum('amount_paid');
-        $totalOutstanding = ArInvoice::whereNotIn('status', ['cancelled', 'voided', 'paid'])->sum('balance');
-        $totalOverdue = ArInvoice::whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->where('due_date', '<', now())->sum('balance');
-        $invoiceCount = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])->count();
+        // Stats — 1 query instead of 5
+        $stats = ArInvoice::selectRaw("
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided') THEN net_receivable END), 0) as total_invoiced,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided') THEN amount_paid END), 0) as total_collected,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided','paid') THEN balance END), 0) as total_outstanding,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided','paid') AND due_date < CURRENT_DATE THEN balance END), 0) as total_overdue,
+            COUNT(CASE WHEN status NOT IN ('cancelled','voided') THEN 1 END) as invoice_count
+        ")->first();
+        $totalInvoiced = (float) $stats->total_invoiced;
+        $totalCollected = (float) $stats->total_collected;
+        $totalOutstanding = (float) $stats->total_outstanding;
+        $totalOverdue = (float) $stats->total_overdue;
+        $invoiceCount = (int) $stats->invoice_count;
 
         $customers = Customer::where('is_active', true)->orderBy('name')->get();
         $campuses = Campus::all();

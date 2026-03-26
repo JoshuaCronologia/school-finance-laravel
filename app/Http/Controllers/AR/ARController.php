@@ -7,6 +7,7 @@ use App\Models\ArCollection;
 use App\Models\ArInvoice;
 use App\Models\Customer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ARController extends Controller
@@ -16,58 +17,59 @@ class ARController extends Controller
      */
     public function aging(Request $request)
     {
-        $invoices = ArInvoice::with('customer')
-            ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->where('balance', '>', 0)
-            ->get();
+        $result = Cache::remember('ar:aging', 300, function () {
+            // Single SQL query for customer aging buckets instead of loading all invoices
+            $rows = DB::select("
+                SELECT c.id as customer_id, c.name as customer_name, c.customer_code,
+                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date <= 0 THEN i.balance END), 0) as current,
+                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 1 AND 30 THEN i.balance END), 0) as days_1_30,
+                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 31 AND 60 THEN i.balance END), 0) as days_31_60,
+                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 61 AND 90 THEN i.balance END), 0) as days_61_90,
+                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date > 90 THEN i.balance END), 0) as over_90,
+                    COALESCE(SUM(i.balance), 0) as total
+                FROM customers c
+                JOIN ar_invoices i ON i.customer_id = c.id
+                WHERE i.status NOT IN ('cancelled', 'voided', 'paid') AND i.balance > 0
+                GROUP BY c.id, c.name, c.customer_code
+                ORDER BY total DESC
+            ");
 
-        $today = now();
+            $agingBuckets = [
+                'current' => ['label' => 'Current', 'items' => collect(), 'total' => 0],
+                '1_30' => ['label' => '1-30 Days', 'items' => collect(), 'total' => 0],
+                '31_60' => ['label' => '31-60 Days', 'items' => collect(), 'total' => 0],
+                '61_90' => ['label' => '61-90 Days', 'items' => collect(), 'total' => 0],
+                'over_90' => ['label' => 'Over 90 Days', 'items' => collect(), 'total' => 0],
+            ];
 
-        $agingBuckets = [
-            'current' => ['label' => 'Current', 'items' => collect(), 'total' => 0],
-            '1_30' => ['label' => '1-30 Days', 'items' => collect(), 'total' => 0],
-            '31_60' => ['label' => '31-60 Days', 'items' => collect(), 'total' => 0],
-            '61_90' => ['label' => '61-90 Days', 'items' => collect(), 'total' => 0],
-            'over_90' => ['label' => 'Over 90 Days', 'items' => collect(), 'total' => 0],
-        ];
+            $customerAging = [];
+            $grandTotal = 0;
 
-        // Customer breakdown
-        $customerAging = [];
-
-        foreach ($invoices as $invoice) {
-            $daysOverdue = $today->diffInDays($invoice->due_date, false);
-
-            if ($daysOverdue >= 0) {
-                $bucket = 'current';
-            } elseif ($daysOverdue >= -30) {
-                $bucket = '1_30';
-            } elseif ($daysOverdue >= -60) {
-                $bucket = '31_60';
-            } elseif ($daysOverdue >= -90) {
-                $bucket = '61_90';
-            } else {
-                $bucket = 'over_90';
-            }
-
-            $agingBuckets[$bucket]['items']->push($invoice);
-            $agingBuckets[$bucket]['total'] += (float) $invoice->balance;
-
-            // Customer breakdown
-            $custId = $invoice->customer_id;
-            if (!isset($customerAging[$custId])) {
-                $customerAging[$custId] = [
-                    'customer' => $invoice->customer,
-                    'current' => 0, '1_30' => 0, '31_60' => 0, '61_90' => 0, 'over_90' => 0, 'total' => 0,
+            foreach ($rows as $row) {
+                $customer = (object) ['id' => $row->customer_id, 'name' => $row->customer_name, 'customer_code' => $row->customer_code];
+                $customerAging[] = [
+                    'customer' => $customer,
+                    'current' => (float) $row->current,
+                    '1_30' => (float) $row->days_1_30,
+                    '31_60' => (float) $row->days_31_60,
+                    '61_90' => (float) $row->days_61_90,
+                    'over_90' => (float) $row->over_90,
+                    'total' => (float) $row->total,
                 ];
+                $agingBuckets['current']['total'] += (float) $row->current;
+                $agingBuckets['1_30']['total'] += (float) $row->days_1_30;
+                $agingBuckets['31_60']['total'] += (float) $row->days_31_60;
+                $agingBuckets['61_90']['total'] += (float) $row->days_61_90;
+                $agingBuckets['over_90']['total'] += (float) $row->over_90;
+                $grandTotal += (float) $row->total;
             }
-            $customerAging[$custId][$bucket] += (float) $invoice->balance;
-            $customerAging[$custId]['total'] += (float) $invoice->balance;
-        }
 
-        $customerAging = collect($customerAging)->sortByDesc('total')->values();
-        $grandTotal = $invoices->sum('balance');
+            $customerAging = collect($customerAging)->values();
 
-        return view('pages.ar.aging', compact('agingBuckets', 'customerAging', 'grandTotal'));
+            return compact('agingBuckets', 'customerAging', 'grandTotal');
+        });
+
+        return view('pages.ar.aging', $result);
     }
 
     /**

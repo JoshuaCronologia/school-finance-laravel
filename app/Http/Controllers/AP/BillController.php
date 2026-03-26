@@ -49,9 +49,12 @@ class BillController extends Controller
 
         $bills = $query->latest('bill_date')->paginate(20);
 
-        $totalOutstanding = ApBill::whereNotIn('status', ['cancelled', 'voided', 'paid'])->sum('balance');
-        $totalOverdue = ApBill::whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->where('due_date', '<', now())->sum('balance');
+        $billStats = ApBill::selectRaw("
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided','paid') THEN balance END), 0) as total_outstanding,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided','paid') AND due_date < CURRENT_DATE THEN balance END), 0) as total_overdue
+        ")->first();
+        $totalOutstanding = (float) $billStats->total_outstanding;
+        $totalOverdue = (float) $billStats->total_overdue;
 
         $vendors = Vendor::where('is_active', true)->orderBy('name')->get();
 

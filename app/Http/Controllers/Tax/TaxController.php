@@ -359,7 +359,7 @@ class TaxController extends Controller
         $startMonth = ($quarter - 1) * 3 + 1;
         $endMonth = $quarter * 3;
 
-        $payments = DisbursementPayment::with('disbursement')
+        $payments = DisbursementPayment::with('disbursement.vendor')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -390,7 +390,7 @@ class TaxController extends Controller
     {
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement')
+        $payments = DisbursementPayment::with('disbursement.vendor')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)

@@ -33,15 +33,12 @@ class CustomerController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $customers = $query->orderBy('name')->paginate(25);
+        $query->addSelect(['outstanding_balance' => ArInvoice::selectRaw('COALESCE(SUM(balance), 0)')
+            ->whereColumn('customer_id', 'customers.id')
+            ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
+        ]);
 
-        // Attach outstanding balance
-        $customers->getCollection()->transform(function ($customer) {
-            $customer->outstanding_balance = ArInvoice::where('customer_id', $customer->id)
-                ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-                ->sum('balance');
-            return $customer;
-        });
+        $customers = $query->orderBy('name')->paginate(25);
 
         $campuses = Campus::all();
         $arAccounts = ChartOfAccount::active()->where('account_type', 'asset')
@@ -85,17 +82,17 @@ class CustomerController extends Controller
             ->latest('invoice_date')
             ->paginate(15, ['*'], 'invoices_page');
 
-        $outstandingBalance = ArInvoice::where('customer_id', $customer->id)
-            ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->sum('balance');
+        $stats = ArInvoice::selectRaw("
+                COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided','paid') THEN balance END), 0) as outstanding_balance,
+                COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided') THEN net_receivable END), 0) as total_invoiced,
+                COALESCE(SUM(CASE WHEN status NOT IN ('cancelled','voided') THEN amount_paid END), 0) as total_paid
+            ")
+            ->where('customer_id', $customer->id)
+            ->first();
 
-        $totalInvoiced = ArInvoice::where('customer_id', $customer->id)
-            ->whereNotIn('status', ['cancelled', 'voided'])
-            ->sum('net_receivable');
-
-        $totalPaid = ArInvoice::where('customer_id', $customer->id)
-            ->whereNotIn('status', ['cancelled', 'voided'])
-            ->sum('amount_paid');
+        $outstandingBalance = (float) $stats->outstanding_balance;
+        $totalInvoiced = (float) $stats->total_invoiced;
+        $totalPaid = (float) $stats->total_paid;
 
         return view('pages.ar.customers.show', compact(
             'customer', 'invoices', 'outstandingBalance', 'totalInvoiced', 'totalPaid'

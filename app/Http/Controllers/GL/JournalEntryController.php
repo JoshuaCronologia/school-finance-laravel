@@ -49,9 +49,14 @@ class JournalEntryController extends Controller
 
         $journalEntries = $query->latest('entry_date')->paginate(20);
 
-        $unpostedCount = JournalEntry::where('status', 'draft')->count();
-        $pendingApprovalCount = JournalEntry::where('status', 'pending_approval')->count();
-        $totalEntries = JournalEntry::count();
+        $jeCounts = JournalEntry::selectRaw("
+            COUNT(*) as total_entries,
+            COUNT(CASE WHEN status = 'draft' THEN 1 END) as unposted,
+            COUNT(CASE WHEN status = 'pending_approval' THEN 1 END) as pending_approval
+        ")->first();
+        $unpostedCount = (int) $jeCounts->unposted;
+        $pendingApprovalCount = (int) $jeCounts->pending_approval;
+        $totalEntries = (int) $jeCounts->total_entries;
 
         $accounts = ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
 

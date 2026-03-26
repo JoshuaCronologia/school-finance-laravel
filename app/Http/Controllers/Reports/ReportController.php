@@ -414,24 +414,29 @@ class ReportController extends Controller
             ->where('status', 'active')
             ->get();
 
+        // 1 query for ALL 12 months instead of 12 separate queries
+        $monthlyActuals = collect(DB::select("
+            SELECT EXTRACT(MONTH FROM je.posting_date)::int as month,
+                   COALESCE(SUM(jel.debit - jel.credit), 0) as total
+            FROM journal_entry_lines jel
+            JOIN journal_entries je ON jel.journal_entry_id = je.id
+            JOIN chart_of_accounts coa ON jel.account_id = coa.id
+            WHERE coa.account_type = 'expense'
+              AND je.status = 'posted'
+              AND EXTRACT(YEAR FROM je.posting_date) = ?
+            GROUP BY EXTRACT(MONTH FROM je.posting_date)
+        ", [now()->year]))->keyBy('month');
+
         $monthlyData = [];
         for ($m = 1; $m <= 12; $m++) {
             $budgetedForMonth = 0;
-            $actualForMonth = 0;
 
             foreach ($budgets as $budget) {
                 $alloc = $budget->allocations->firstWhere('month', $m);
                 $budgetedForMonth += $alloc ? (float) $alloc->amount : ($budget->annual_budget / 12);
             }
 
-            // Actual expenses from JE lines for this month
-            $actualForMonth = JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-                ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
-                ->where('coa.account_type', 'expense')
-                ->where('je.status', 'posted')
-                ->whereMonth('je.posting_date', $m)
-                ->whereYear('je.posting_date', now()->year)
-                ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+            $actualForMonth = (float) ($monthlyActuals->get($m)->total ?? 0);
 
             $variance = $budgetedForMonth - $actualForMonth;
             $variancePct = $budgetedForMonth > 0 ? ($variance / $budgetedForMonth) * 100 : 0;

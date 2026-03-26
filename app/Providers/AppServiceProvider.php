@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Database\PostgresConnection;
+use App\Services\CacheService;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
@@ -62,5 +63,24 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('status', function ($expression) {
             return "<?php echo ucfirst(str_replace('_', ' ', $expression)); ?>";
         });
+
+        // Auto-clear financial caches when key models change
+        $clearCaches = function () {
+            CacheService::clearFinancialCaches();
+        };
+
+        foreach ([
+            \App\Models\Budget::class,
+            \App\Models\ApBill::class,
+            \App\Models\ArInvoice::class,
+            \App\Models\JournalEntry::class,
+            \App\Models\DisbursementRequest::class,
+            \App\Models\DisbursementPayment::class,
+            \App\Models\ArCollection::class,
+            \App\Models\ApPayment::class,
+        ] as $model) {
+            $model::saved($clearCaches);
+            $model::deleted($clearCaches);
+        }
     }
 }
