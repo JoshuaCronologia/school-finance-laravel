@@ -16,7 +16,9 @@ class DisbursementItem extends Model
         'quantity',
         'unit_cost',
         'amount',
+        'account_id',
         'account_code',
+        'tax_code_id',
         'tax_code',
         'remarks',
     ];
@@ -30,5 +32,15 @@ class DisbursementItem extends Model
     public function disbursement(): BelongsTo
     {
         return $this->belongsTo(DisbursementRequest::class, 'disbursement_id');
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'account_id');
+    }
+
+    public function taxCode(): BelongsTo
+    {
+        return $this->belongsTo(TaxCode::class, 'tax_code_id');
     }
 }

@@ -33,4 +33,9 @@ class RecurringJournalLine extends Model
     {
         return $this->belongsTo(ChartOfAccount::class, 'account_id');
     }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
 }
