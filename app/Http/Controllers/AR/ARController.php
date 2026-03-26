@@ -86,7 +86,7 @@ class ARController extends Controller
         $asOfDate = $request->input('as_of_date', now()->toDateString());
 
         if ($request->filled('customer_id')) {
-            $selectedCustomer = Customer::find($request->customer_id);
+            $selectedCustomer = Customer::with('campus')->find($request->customer_id);
 
             if ($selectedCustomer) {
                 $invoices = ArInvoice::where('customer_id', $selectedCustomer->id)

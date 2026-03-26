@@ -48,7 +48,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-secondary-500 uppercase tracking-wider">Campus</p>
-                    <p class="font-semibold text-secondary-900">{{ $selectedCustomer->campus ?? '-' }}</p>
+                    <p class="font-semibold text-secondary-900">{{ optional($selectedCustomer->campus)->name ?? '-' }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-secondary-500 uppercase tracking-wider">Email</p>
@@ -76,18 +76,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php $runningBalance = 0; @endphp
                     @forelse($transactions ?? [] as $txn)
-                    @php
-                        $runningBalance += ($txn->charges ?? 0) - ($txn->payments ?? 0);
-                    @endphp
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($txn->date)->format('M d, Y') }}</td>
                         <td class="font-medium text-primary-600">{{ $txn->reference ?? '-' }}</td>
                         <td>{{ $txn->description ?? '-' }}</td>
-                        <td class="text-right">{{ ($txn->charges ?? 0) > 0 ? '₱' . number_format($txn->charges, 2) : '-' }}</td>
-                        <td class="text-right text-success-600">{{ ($txn->payments ?? 0) > 0 ? '₱' . number_format($txn->payments, 2) : '-' }}</td>
-                        <td class="text-right font-medium {{ $runningBalance > 0 ? 'text-danger-500' : '' }}">{{ '₱' . number_format($runningBalance, 2) }}</td>
+                        <td class="text-right">{{ ($txn->debit ?? 0) > 0 ? '₱' . number_format($txn->debit, 2) : '-' }}</td>
+                        <td class="text-right text-success-600">{{ ($txn->credit ?? 0) > 0 ? '₱' . number_format($txn->credit, 2) : '-' }}</td>
+                        <td class="text-right font-medium {{ ($txn->balance ?? 0) > 0 ? 'text-danger-500' : '' }}">{{ '₱' . number_format($txn->balance ?? 0, 2) }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -101,9 +97,9 @@
 
     {{-- Account Summary --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <x-stat-card label="Total Charges" :value="'₱' . number_format($totalCharges ?? 0, 2)" color="blue" />
-        <x-stat-card label="Total Payments" :value="'₱' . number_format($totalPayments ?? 0, 2)" color="green" />
-        <x-stat-card label="Outstanding Balance" :value="'₱' . number_format(($totalCharges ?? 0) - ($totalPayments ?? 0), 2)" color="red" />
+        <x-stat-card label="Total Charges" :value="'₱' . number_format($totalInvoiced ?? 0, 2)" color="blue" />
+        <x-stat-card label="Total Payments" :value="'₱' . number_format($totalCollected ?? 0, 2)" color="green" />
+        <x-stat-card label="Outstanding Balance" :value="'₱' . number_format($balance ?? 0, 2)" color="red" />
     </div>
 
     {{-- Actions --}}
