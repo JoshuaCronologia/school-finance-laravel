@@ -90,15 +90,13 @@ class VendorController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $vendors = $query->orderBy('name')->paginate(25);
+        // Use a subquery to get outstanding balance in 1 query instead of N+1
+        $query->addSelect(['outstanding_balance' => ApBill::selectRaw('COALESCE(SUM(balance), 0)')
+            ->whereColumn('vendor_id', 'vendors.id')
+            ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
+        ]);
 
-        // Attach outstanding balance per vendor
-        $vendors->getCollection()->transform(function ($vendor) {
-            $vendor->outstanding_balance = ApBill::where('vendor_id', $vendor->id)
-                ->whereNotIn('status', ['cancelled', 'voided', 'paid'])
-                ->sum('balance');
-            return $vendor;
-        });
+        $vendors = $query->orderBy('name')->paginate(25);
 
         $paymentTerms = PaymentTerm::where('is_active', true)->get();
 

@@ -198,17 +198,32 @@ class ReportController extends Controller
             ->get()
             ->groupBy('account_id');
 
+        // Batch-fetch all opening balances in 1 query instead of N queries
+        $accountIds = $entries->keys()->all();
+        $openingBalances = [];
+        if (!empty($accountIds)) {
+            $rows = JournalEntryLine::select(
+                    'journal_entry_lines.account_id',
+                    DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as balance')
+                )
+                ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                ->where('je.status', 'posted')
+                ->whereDate('je.posting_date', '<', $dateFrom)
+                ->whereIn('journal_entry_lines.account_id', $accountIds)
+                ->groupBy('journal_entry_lines.account_id')
+                ->get();
+
+            foreach ($rows as $row) {
+                $openingBalances[$row->account_id] = (float) $row->balance;
+            }
+        }
+
         // Build structured account data with opening balance and transactions
         $accounts = collect();
         foreach ($entries as $acctId => $transactions) {
             $first = $transactions->first();
 
-            // Opening balance: sum of all posted entries before dateFrom
-            $openingBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-                ->where('je.status', 'posted')
-                ->whereDate('je.posting_date', '<', $dateFrom)
-                ->where('journal_entry_lines.account_id', $acctId)
-                ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+            $openingBalance = $openingBalances[$acctId] ?? 0.0;
 
             // For credit-normal accounts, flip the sign
             if ($first->normal_balance === 'credit') {

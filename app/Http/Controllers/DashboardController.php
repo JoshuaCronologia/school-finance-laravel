@@ -11,6 +11,7 @@ use App\Models\DisbursementRequest;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -20,76 +21,91 @@ class DashboardController extends Controller
      */
     public function finance()
     {
-        $totalBudget = Budget::sum('annual_budget');
-        $committed = Budget::sum('committed');
-        $actual = Budget::sum('actual');
-        $remaining = $totalBudget - $committed - $actual;
+        // Cache heavy aggregations for 5 minutes — each Supabase query has
+        // ~50-200ms network latency, caching cuts page load dramatically.
+        $data = Cache::remember('dashboard:finance', 300, function () {
+            // 1 query instead of 3 for budget totals
+            $summary = Budget::selectRaw('
+                COALESCE(SUM(annual_budget), 0) as total_budget,
+                COALESCE(SUM(committed), 0) as committed,
+                COALESCE(SUM(actual), 0) as actual
+            ')->first();
 
-        $topDepartments = Budget::with('department')
-            ->select('department_id', DB::raw('SUM(actual) as total_actual'), DB::raw('SUM(annual_budget) as total_budget'))
-            ->groupBy('department_id')
-            ->orderByDesc('total_actual')
-            ->take(5)
-            ->get();
+            $totalBudget = (float) $summary->total_budget;
+            $committed = (float) $summary->committed;
+            $actual = (float) $summary->actual;
+            $remaining = $totalBudget - $committed - $actual;
 
-        $monthlyExpenses = JournalEntryLine::select(
-                DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date) as month'),
-                DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
-            )
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-            ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
-            ->where('chart_of_accounts.account_type', 'expense')
-            ->where('journal_entries.status', 'posted')
-            ->whereYear('journal_entries.posting_date', now()->year)
-            ->groupBy(DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date)'))
-            ->orderBy('month')
-            ->get();
+            $topDepartments = Budget::with('department')
+                ->select('department_id', DB::raw('SUM(actual) as total_actual'), DB::raw('SUM(annual_budget) as total_budget'))
+                ->groupBy('department_id')
+                ->orderByDesc('total_actual')
+                ->take(5)
+                ->get();
 
-        $recentDisbursements = DisbursementRequest::with('department', 'category')
-            ->latest('request_date')
-            ->take(5)
-            ->get();
+            $monthlyExpenses = JournalEntryLine::select(
+                    DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date) as month'),
+                    DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
+                )
+                ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
+                ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
+                ->where('chart_of_accounts.account_type', 'expense')
+                ->where('journal_entries.status', 'posted')
+                ->whereYear('journal_entries.posting_date', now()->year)
+                ->groupBy(DB::raw('EXTRACT(MONTH FROM journal_entries.posting_date)'))
+                ->orderBy('month')
+                ->get();
 
-        $categoryRows = Budget::with('category')
-            ->select('category_id', DB::raw('SUM(actual) as total'))
-            ->groupBy('category_id')
-            ->orderByDesc('total')
-            ->take(5)
-            ->get();
+            $categoryRows = Budget::with('category')
+                ->select('category_id', DB::raw('SUM(actual) as total'))
+                ->groupBy('category_id')
+                ->orderByDesc('total')
+                ->take(5)
+                ->get();
 
-        $categoryLabels = $categoryRows->map(fn ($r) => $r->category->name ?? 'Uncategorized')->values();
-        $categoryValues = $categoryRows->pluck('total')->map(fn ($v) => (float) $v)->values();
+            $categoryLabels = $categoryRows->map(fn ($r) => $r->category->name ?? 'Uncategorized')->values();
+            $categoryValues = $categoryRows->pluck('total')->map(fn ($v) => (float) $v)->values();
 
-        $departmentRows = Budget::with('department')
-            ->select(
-                'department_id',
-                DB::raw('SUM(annual_budget) as budget'),
-                DB::raw('SUM(actual) as actual'),
-                DB::raw('SUM(committed) as committed')
-            )
-            ->groupBy('department_id')
-            ->get();
+            $departmentRows = Budget::with('department')
+                ->select(
+                    'department_id',
+                    DB::raw('SUM(annual_budget) as budget'),
+                    DB::raw('SUM(actual) as actual'),
+                    DB::raw('SUM(committed) as committed')
+                )
+                ->groupBy('department_id')
+                ->get();
 
-        $departmentLabels = $departmentRows->map(fn ($r) => $r->department->name ?? 'Unknown')->values();
-        $departmentDatasets = [
-            ['label' => 'Budget',    'data' => $departmentRows->pluck('budget')->map(fn ($v) => (float) $v)->values()],
-            ['label' => 'Actual',    'data' => $departmentRows->pluck('actual')->map(fn ($v) => (float) $v)->values()],
-            ['label' => 'Committed', 'data' => $departmentRows->pluck('committed')->map(fn ($v) => (float) $v)->values()],
-        ];
+            $departmentLabels = $departmentRows->map(fn ($r) => $r->department->name ?? 'Unknown')->values();
+            $departmentDatasets = [
+                ['label' => 'Budget',    'data' => $departmentRows->pluck('budget')->map(fn ($v) => (float) $v)->values()],
+                ['label' => 'Actual',    'data' => $departmentRows->pluck('actual')->map(fn ($v) => (float) $v)->values()],
+                ['label' => 'Committed', 'data' => $departmentRows->pluck('committed')->map(fn ($v) => (float) $v)->values()],
+            ];
 
-        $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        $monthlyLabels = $monthlyExpenses->map(fn ($r) => $months[$r->month - 1] ?? $r->month)->values();
-        $monthlyDatasets = [
-            ['label' => 'Expenses', 'data' => $monthlyExpenses->pluck('total')->map(fn ($v) => (float) $v)->values()],
-        ];
+            $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            $monthlyLabels = $monthlyExpenses->map(fn ($r) => $months[$r->month - 1] ?? $r->month)->values();
+            $monthlyDatasets = [
+                ['label' => 'Expenses', 'data' => $monthlyExpenses->pluck('total')->map(fn ($v) => (float) $v)->values()],
+            ];
 
-        return view('pages.dashboard.finance', compact(
-            'totalBudget', 'committed', 'actual', 'remaining',
-            'topDepartments', 'recentDisbursements',
-            'departmentLabels', 'departmentDatasets',
-            'monthlyLabels', 'monthlyDatasets',
-            'categoryLabels', 'categoryValues'
-        ));
+            return compact(
+                'totalBudget', 'committed', 'actual', 'remaining',
+                'topDepartments',
+                'departmentLabels', 'departmentDatasets',
+                'monthlyLabels', 'monthlyDatasets',
+                'categoryLabels', 'categoryValues'
+            );
+        });
+
+        $recentDisbursements = Cache::remember('dashboard:finance:disbursements', 120, function () {
+            return DisbursementRequest::with('department', 'category')
+                ->latest('request_date')
+                ->take(5)
+                ->get();
+        });
+
+        return view('pages.dashboard.finance', array_merge($data, compact('recentDisbursements')));
     }
 
     /**
@@ -97,144 +113,122 @@ class DashboardController extends Controller
      */
     public function accounting()
     {
-        $totalReceivables = ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
-            ->sum('balance');
+        $data = Cache::remember('dashboard:accounting', 300, function () {
+            $totalReceivables = (float) ArInvoice::whereNotIn('status', ['cancelled', 'voided'])
+                ->sum('balance');
 
-        $totalPayables = ApBill::whereNotIn('status', ['cancelled', 'voided'])
-            ->sum('balance');
+            $totalPayables = (float) ApBill::whereNotIn('status', ['cancelled', 'voided'])
+                ->sum('balance');
 
-        $cashBalance = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as balance'))
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-            ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
-            ->where('journal_entries.status', 'posted')
-            ->where('chart_of_accounts.account_code', '>=', '1010')
-            ->where('chart_of_accounts.account_code', '<=', '1050')
-            ->value('balance') ?? 0;
+            // 1 query instead of 3: cash balance + revenue + expenses
+            $financials = DB::selectOne("
+                SELECT
+                    COALESCE(SUM(CASE WHEN coa.account_code >= '1010' AND coa.account_code <= '1050'
+                        THEN jel.debit - jel.credit END), 0) as cash_balance,
+                    COALESCE(SUM(CASE WHEN coa.account_type = 'revenue'
+                        AND EXTRACT(MONTH FROM je.posting_date) = ?
+                        AND EXTRACT(YEAR FROM je.posting_date) = ?
+                        THEN jel.credit - jel.debit END), 0) as total_revenue,
+                    COALESCE(SUM(CASE WHEN coa.account_type = 'expense'
+                        AND EXTRACT(MONTH FROM je.posting_date) = ?
+                        AND EXTRACT(YEAR FROM je.posting_date) = ?
+                        THEN jel.debit - jel.credit END), 0) as total_expenses
+                FROM journal_entry_lines jel
+                JOIN journal_entries je ON jel.journal_entry_id = je.id
+                JOIN chart_of_accounts coa ON jel.account_id = coa.id
+                WHERE je.status = 'posted'
+            ", [now()->month, now()->year, now()->month, now()->year]);
 
-        $totalRevenue = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.credit - journal_entry_lines.debit) as total'))
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-            ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
-            ->where('chart_of_accounts.account_type', 'revenue')
-            ->where('journal_entries.status', 'posted')
-            ->whereMonth('journal_entries.posting_date', now()->month)
-            ->whereYear('journal_entries.posting_date', now()->year)
-            ->value('total') ?? 0;
+            $cashBalance = (float) $financials->cash_balance;
+            $totalRevenue = (float) $financials->total_revenue;
+            $totalExpenses = (float) $financials->total_expenses;
+            $netIncome = $totalRevenue - $totalExpenses;
 
-        $totalExpenses = JournalEntryLine::select(DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total'))
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-            ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
-            ->where('chart_of_accounts.account_type', 'expense')
-            ->where('journal_entries.status', 'posted')
-            ->whereMonth('journal_entries.posting_date', now()->month)
-            ->whereYear('journal_entries.posting_date', now()->year)
-            ->value('total') ?? 0;
+            // 1 query instead of 2 for JE counts
+            $jeCounts = JournalEntry::selectRaw("
+                COUNT(CASE WHEN status = 'draft' THEN 1 END) as unposted,
+                COUNT(CASE WHEN status = 'pending_approval' THEN 1 END) as pending_approval
+            ")->first();
+            $unpostedCount = (int) $jeCounts->unposted;
+            $pendingApprovalCount = (int) $jeCounts->pending_approval;
 
-        $netIncome = $totalRevenue - $totalExpenses;
+            // 1 SQL query each instead of loading all rows into PHP loops
+            $arAging = self::calculateAgingSQL('ar_invoices');
+            $apAging = self::calculateAgingSQL('ap_bills');
 
-        $recentJEs = JournalEntry::with('lines.account')
-            ->latest('entry_date')
-            ->take(10)
-            ->get();
+            $overdueAR = $arAging->days_30 + $arAging->days_60 + $arAging->days_90 + $arAging->days_over_90;
+            $overdueAP = $apAging->days_30 + $apAging->days_60 + $apAging->days_90 + $apAging->days_over_90;
 
-        $unpostedCount = JournalEntry::whereIn('status', ['draft'])->count();
-        $pendingApprovalCount = JournalEntry::where('status', 'pending_approval')->count();
+            $topExpenseCategories = JournalEntryLine::select(
+                    'chart_of_accounts.account_name',
+                    DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
+                )
+                ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
+                ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
+                ->where('chart_of_accounts.account_type', 'expense')
+                ->where('journal_entries.status', 'posted')
+                ->whereYear('journal_entries.posting_date', now()->year)
+                ->groupBy('chart_of_accounts.id', 'chart_of_accounts.account_name')
+                ->orderByDesc('total')
+                ->take(5)
+                ->get();
 
-        $arAgingArray = $this->calculateArAging();
-        $apAgingArray = $this->calculateApAging();
+            $topVendors = ApPayment::select(
+                    'vendors.name',
+                    DB::raw('SUM(ap_payments.net_amount) as total_paid')
+                )
+                ->join('vendors', 'ap_payments.vendor_id', '=', 'vendors.id')
+                ->where('ap_payments.status', 'posted')
+                ->whereYear('ap_payments.payment_date', now()->year)
+                ->groupBy('vendors.id', 'vendors.name')
+                ->orderByDesc('total_paid')
+                ->take(5)
+                ->get();
 
-        $arAging = (object) [
-            'current'      => $arAgingArray['current'],
-            'days_30'      => $arAgingArray['1_30'],
-            'days_60'      => $arAgingArray['31_60'],
-            'days_90'      => $arAgingArray['61_90'],
-            'days_over_90' => $arAgingArray['over_90'],
-            'total'        => array_sum($arAgingArray),
-        ];
+            return compact(
+                'totalReceivables', 'totalPayables', 'cashBalance',
+                'netIncome', 'totalRevenue', 'totalExpenses',
+                'unpostedCount', 'pendingApprovalCount',
+                'arAging', 'apAging', 'overdueAR', 'overdueAP',
+                'topExpenseCategories', 'topVendors'
+            );
+        });
 
-        $apAging = (object) [
-            'current'      => $apAgingArray['current'],
-            'days_30'      => $apAgingArray['1_30'],
-            'days_60'      => $apAgingArray['31_60'],
-            'days_90'      => $apAgingArray['61_90'],
-            'days_over_90' => $apAgingArray['over_90'],
-            'total'        => array_sum($apAgingArray),
-        ];
+        $recentJEs = Cache::remember('dashboard:accounting:recent_jes', 120, function () {
+            return JournalEntry::with('lines.account')
+                ->latest('entry_date')
+                ->take(10)
+                ->get();
+        });
 
-        $overdueAR = $arAging->days_30 + $arAging->days_60 + $arAging->days_90 + $arAging->days_over_90;
-        $overdueAP = $apAging->days_30 + $apAging->days_60 + $apAging->days_90 + $apAging->days_over_90;
-
-        $topExpenseCategories = JournalEntryLine::select(
-                'chart_of_accounts.account_name',
-                DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
-            )
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-            ->join('chart_of_accounts', 'journal_entry_lines.account_id', '=', 'chart_of_accounts.id')
-            ->where('chart_of_accounts.account_type', 'expense')
-            ->where('journal_entries.status', 'posted')
-            ->whereYear('journal_entries.posting_date', now()->year)
-            ->groupBy('chart_of_accounts.id', 'chart_of_accounts.account_name')
-            ->orderByDesc('total')
-            ->take(5)
-            ->get();
-
-        $topVendors = ApPayment::select(
-                'vendors.name',
-                DB::raw('SUM(ap_payments.net_amount) as total_paid')
-            )
-            ->join('vendors', 'ap_payments.vendor_id', '=', 'vendors.id')
-            ->where('ap_payments.status', 'posted')
-            ->whereYear('ap_payments.payment_date', now()->year)
-            ->groupBy('vendors.id', 'vendors.name')
-            ->orderByDesc('total_paid')
-            ->take(5)
-            ->get();
-
-        return view('pages.dashboard.accounting', compact(
-            'totalReceivables', 'totalPayables', 'cashBalance',
-            'netIncome', 'totalRevenue', 'totalExpenses',
-            'recentJEs', 'unpostedCount', 'pendingApprovalCount',
-            'arAging', 'apAging', 'overdueAR', 'overdueAP',
-            'topExpenseCategories', 'topVendors'
-        ));
+        return view('pages.dashboard.accounting', array_merge($data, compact('recentJEs')));
     }
 
-    private function calculateArAging(): array
+    /**
+     * Calculate aging buckets in a single SQL query instead of loading all rows into PHP.
+     */
+    private static function calculateAgingSQL(string $table): object
     {
-        $invoices = ArInvoice::whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->where('balance', '>', 0)->get();
+        $row = DB::selectOne("
+            SELECT
+                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date <= 0 THEN balance END), 0) as current,
+                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN balance END), 0) as days_30,
+                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN balance END), 0) as days_60,
+                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN balance END), 0) as days_90,
+                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date > 90 THEN balance END), 0) as days_over_90,
+                COALESCE(SUM(balance), 0) as total
+            FROM {$table}
+            WHERE status NOT IN ('cancelled', 'voided', 'paid')
+              AND balance > 0
+        ");
 
-        $buckets = ['current' => 0, '1_30' => 0, '31_60' => 0, '61_90' => 0, 'over_90' => 0];
-        $today = now();
-
-        foreach ($invoices as $invoice) {
-            $daysOverdue = $today->diffInDays($invoice->due_date, false);
-            if ($daysOverdue >= 0) $buckets['current'] += (float) $invoice->balance;
-            elseif ($daysOverdue >= -30) $buckets['1_30'] += (float) $invoice->balance;
-            elseif ($daysOverdue >= -60) $buckets['31_60'] += (float) $invoice->balance;
-            elseif ($daysOverdue >= -90) $buckets['61_90'] += (float) $invoice->balance;
-            else $buckets['over_90'] += (float) $invoice->balance;
-        }
-
-        return $buckets;
-    }
-
-    private function calculateApAging(): array
-    {
-        $bills = ApBill::whereNotIn('status', ['cancelled', 'voided', 'paid'])
-            ->where('balance', '>', 0)->get();
-
-        $buckets = ['current' => 0, '1_30' => 0, '31_60' => 0, '61_90' => 0, 'over_90' => 0];
-        $today = now();
-
-        foreach ($bills as $bill) {
-            $daysOverdue = $today->diffInDays($bill->due_date, false);
-            if ($daysOverdue >= 0) $buckets['current'] += (float) $bill->balance;
-            elseif ($daysOverdue >= -30) $buckets['1_30'] += (float) $bill->balance;
-            elseif ($daysOverdue >= -60) $buckets['31_60'] += (float) $bill->balance;
-            elseif ($daysOverdue >= -90) $buckets['61_90'] += (float) $bill->balance;
-            else $buckets['over_90'] += (float) $bill->balance;
-        }
-
-        return $buckets;
+        return (object) [
+            'current'      => (float) $row->current,
+            'days_30'      => (float) $row->days_30,
+            'days_60'      => (float) $row->days_60,
+            'days_90'      => (float) $row->days_90,
+            'days_over_90' => (float) $row->days_over_90,
+            'total'        => (float) $row->total,
+        ];
     }
 }

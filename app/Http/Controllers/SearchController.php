@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ApBill;
-use App\Models\ArInvoice;
-use App\Models\ChartOfAccount;
-use App\Models\Customer;
-use App\Models\JournalEntry;
-use App\Models\Vendor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SearchController extends Controller
 {
     /**
      * Global search across transactions, accounts, vendors, and customers.
+     * Uses a single UNION query instead of 6 separate queries.
      */
     public function __invoke(Request $request): JsonResponse
     {
@@ -25,100 +21,59 @@ class SearchController extends Controller
         }
 
         $like = "%{$q}%";
-        $results = collect();
 
-        // Chart of Accounts
-        ChartOfAccount::where('account_name', 'ilike', $like)
-            ->orWhere('account_code', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($a) use ($results) {
-                $results->push([
-                    'type' => 'Account',
-                    'icon' => 'book',
-                    'title' => "{$a->account_code} — {$a->account_name}",
-                    'subtitle' => ucfirst($a->account_type),
-                    'url' => route('gl.accounts.show', $a),
-                ]);
-            });
+        // 1 UNION query instead of 6 separate roundtrips to Supabase
+        $rows = DB::select("
+            (SELECT 'Account' as type, 'book' as icon,
+                    account_code || ' — ' || account_name as title,
+                    INITCAP(account_type) as subtitle,
+                    id, 'gl.accounts.show' as route_name
+             FROM chart_of_accounts
+             WHERE account_name ILIKE ? OR account_code ILIKE ?
+             LIMIT 5)
+            UNION ALL
+            (SELECT 'Vendor', 'truck', name, vendor_code, id, 'vendors.show'
+             FROM vendors
+             WHERE name ILIKE ? OR vendor_code ILIKE ?
+             LIMIT 5)
+            UNION ALL
+            (SELECT 'Customer', 'users', name, customer_code, id, 'ar.customers.show'
+             FROM customers
+             WHERE name ILIKE ? OR customer_code ILIKE ?
+             LIMIT 5)
+            UNION ALL
+            (SELECT 'Bill', 'file-text', bill_number, COALESCE(description, 'AP Bill'), id, 'ap.bills.show'
+             FROM ap_bills
+             WHERE bill_number ILIKE ? OR description ILIKE ? OR reference_number ILIKE ?
+             LIMIT 5)
+            UNION ALL
+            (SELECT 'Invoice', 'file', invoice_number, COALESCE(description, 'AR Invoice'), id, 'ar.invoices.show'
+             FROM ar_invoices
+             WHERE invoice_number ILIKE ? OR description ILIKE ?
+             LIMIT 5)
+            UNION ALL
+            (SELECT 'Journal Entry', 'layers', entry_number, COALESCE(description, 'Journal Entry'), id, 'gl.journal-entries.show'
+             FROM journal_entries
+             WHERE entry_number ILIKE ? OR description ILIKE ? OR reference_number ILIKE ?
+             LIMIT 5)
+            LIMIT 15
+        ", [
+            $like, $like,           // accounts
+            $like, $like,           // vendors
+            $like, $like,           // customers
+            $like, $like, $like,    // bills
+            $like, $like,           // invoices
+            $like, $like, $like,    // journal entries
+        ]);
 
-        // Vendors
-        Vendor::where('name', 'ilike', $like)
-            ->orWhere('vendor_code', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($v) use ($results) {
-                $results->push([
-                    'type' => 'Vendor',
-                    'icon' => 'truck',
-                    'title' => $v->name,
-                    'subtitle' => $v->vendor_code,
-                    'url' => route('vendors.show', $v),
-                ]);
-            });
+        $results = collect($rows)->map(fn ($row) => [
+            'type' => $row->type,
+            'icon' => $row->icon,
+            'title' => $row->title,
+            'subtitle' => $row->subtitle,
+            'url' => route($row->route_name, $row->id),
+        ]);
 
-        // Customers
-        Customer::where('name', 'ilike', $like)
-            ->orWhere('customer_code', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($c) use ($results) {
-                $results->push([
-                    'type' => 'Customer',
-                    'icon' => 'users',
-                    'title' => $c->name,
-                    'subtitle' => $c->customer_code,
-                    'url' => route('ar.customers.show', $c),
-                ]);
-            });
-
-        // AP Bills
-        ApBill::where('bill_number', 'ilike', $like)
-            ->orWhere('description', 'ilike', $like)
-            ->orWhere('reference_number', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($b) use ($results) {
-                $results->push([
-                    'type' => 'Bill',
-                    'icon' => 'file-text',
-                    'title' => $b->bill_number,
-                    'subtitle' => $b->description ?: 'AP Bill',
-                    'url' => route('ap.bills.show', $b),
-                ]);
-            });
-
-        // AR Invoices
-        ArInvoice::where('invoice_number', 'ilike', $like)
-            ->orWhere('description', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($inv) use ($results) {
-                $results->push([
-                    'type' => 'Invoice',
-                    'icon' => 'file',
-                    'title' => $inv->invoice_number,
-                    'subtitle' => $inv->description ?: 'AR Invoice',
-                    'url' => route('ar.invoices.show', $inv),
-                ]);
-            });
-
-        // Journal Entries
-        JournalEntry::where('entry_number', 'ilike', $like)
-            ->orWhere('description', 'ilike', $like)
-            ->orWhere('reference_number', 'ilike', $like)
-            ->limit(5)
-            ->get()
-            ->each(function ($je) use ($results) {
-                $results->push([
-                    'type' => 'Journal Entry',
-                    'icon' => 'layers',
-                    'title' => $je->entry_number,
-                    'subtitle' => $je->description ?: 'Journal Entry',
-                    'url' => route('gl.journal-entries.show', $je),
-                ]);
-            });
-
-        return response()->json(['results' => $results->take(15)->values()]);
+        return response()->json(['results' => $results]);
     }
 }
