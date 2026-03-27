@@ -62,11 +62,47 @@ class BudgetController extends Controller
             $utilizationLabels = ['Actual Spent', 'Committed', 'Remaining'];
             $utilizationValues = [(float) $totalActual, (float) $totalCommitted, (float) max($totalRemaining, 0)];
 
+            // Income YTD by account (for variance table)
+            $incomeAccounts = DB::select("
+                SELECT coa.account_name,
+                    COALESCE(SUM(jel.credit - jel.debit), 0) as actual
+                FROM chart_of_accounts coa
+                LEFT JOIN journal_entry_lines jel ON jel.account_id = coa.id
+                LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id AND je.status = 'posted'
+                WHERE coa.account_type = 'revenue'
+                GROUP BY coa.id, coa.account_name
+                HAVING COALESCE(SUM(jel.credit - jel.debit), 0) != 0
+                ORDER BY actual DESC
+            ");
+
+            // Expense YTD by account
+            $expenseAccounts = DB::select("
+                SELECT coa.account_name,
+                    COALESCE(SUM(jel.debit - jel.credit), 0) as actual
+                FROM chart_of_accounts coa
+                LEFT JOIN journal_entry_lines jel ON jel.account_id = coa.id
+                LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id AND je.status = 'posted'
+                WHERE coa.account_type = 'expense'
+                GROUP BY coa.id, coa.account_name
+                HAVING COALESCE(SUM(jel.debit - jel.credit), 0) != 0
+                ORDER BY actual DESC
+            ");
+
+            $totalIncome = collect($incomeAccounts)->sum('actual');
+            $totalExpenses = collect($expenseAccounts)->sum('actual');
+            $grossProfit = $totalIncome;
+            $netIncome = $totalIncome - $totalExpenses;
+
+            // Income budget total (revenue categories)
+            $incomeBudget = (float) $totalBudget; // simplified: total budget = income target
+
             return compact(
                 'totalBudget', 'totalCommitted', 'totalActual', 'totalRemaining',
                 'utilizationRate', 'budgetsByDepartment', 'budgets',
                 'deptLabels', 'deptDatasets',
-                'utilizationLabels', 'utilizationValues'
+                'utilizationLabels', 'utilizationValues',
+                'incomeAccounts', 'expenseAccounts',
+                'totalIncome', 'totalExpenses', 'grossProfit', 'netIncome', 'incomeBudget'
             );
         });
 
