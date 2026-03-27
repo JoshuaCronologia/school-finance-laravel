@@ -111,7 +111,7 @@
             </div>
             @if($journalEntry->description)
             <div class="mt-4 pt-4 border-t border-gray-100">
-                <span class="text-sm text-secondary-500">Memo</span>
+                <span class="text-sm text-secondary-500">Description</span>
                 <p class="text-sm font-medium text-secondary-900 mt-1">{{ $journalEntry->description }}</p>
             </div>
             @endif
