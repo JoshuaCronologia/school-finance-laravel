@@ -440,12 +440,13 @@
                     </div>
 
                     
+                    <?php if(auth()->guard()->check()): ?>
                     <div x-data="{ userMenu: false }" class="relative">
                         <button @click="userMenu = !userMenu" class="flex items-center gap-2">
                             <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                                <span class="text-xs font-semibold text-white">RT</span>
+                                <span class="text-xs font-semibold text-white"><?php echo e(strtoupper(substr(auth()->user()->name, 0, 1))); ?><?php echo e(strtoupper(substr(explode(' ', auth()->user()->name)[1] ?? '', 0, 1))); ?></span>
                             </div>
-                            <span class="hidden md:block text-sm font-medium text-secondary-700">Roberto Tan</span>
+                            <span class="hidden md:block text-sm font-medium text-secondary-700"><?php echo e(auth()->user()->name); ?></span>
                             <svg class="hidden md:block w-4 h-4 text-secondary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                         </button>
                         <div x-show="userMenu" @click.away="userMenu = false"
@@ -455,17 +456,34 @@
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="transform opacity-100 scale-100"
                              x-transition:leave-end="transform opacity-0 scale-95"
-                             class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                             class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
                              style="display: none;">
-                            <a href="/settings" class="block px-4 py-2 text-sm text-secondary-700 hover:bg-gray-50">Settings</a>
-                            <a href="/audit-trail" class="block px-4 py-2 text-sm text-secondary-700 hover:bg-gray-50">Audit Trail</a>
-                            <hr class="my-1 border-gray-100">
-                            <form method="POST" action="/logout">
-                                <?php echo csrf_field(); ?>
-                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-danger-500 hover:bg-gray-50">Sign Out</button>
-                            </form>
+                            
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <p class="text-sm font-semibold text-secondary-900"><?php echo e(auth()->user()->name); ?></p>
+                                <p class="text-xs text-secondary-500 truncate"><?php echo e(auth()->user()->email); ?></p>
+                                <p class="text-xs text-primary-600 font-medium mt-0.5"><?php echo e(ucwords(str_replace('_', ' ', auth()->user()->roles->first()->name ?? 'User'))); ?></p>
+                            </div>
+                            
+                            <div class="py-1">
+                                <a href="/profile" class="flex items-center gap-2 px-4 py-2 text-sm text-secondary-700 hover:bg-gray-50">
+                                    <svg class="w-4 h-4 text-secondary-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                                    My Profile
+                                </a>
+                            </div>
+                            <hr class="border-gray-100">
+                            <div class="py-1">
+                                <form method="POST" action="/logout">
+                                    <?php echo csrf_field(); ?>
+                                    <button type="submit" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-danger-500 hover:bg-gray-50">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>
+                                        Sign Out
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </header>

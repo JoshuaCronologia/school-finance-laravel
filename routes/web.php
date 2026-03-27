@@ -196,6 +196,10 @@ Route::middleware(['auth'])->group(function () {
     // =============================================================
     // System
     // =============================================================
+    Route::get('/profile', [\App\Http\Controllers\System\ProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [\App\Http\Controllers\System\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [\App\Http\Controllers\System\ProfileController::class, 'password'])->name('profile.password');
+
     Route::get('/user-access', [\App\Http\Controllers\System\UserAccessController::class, 'index'])->name('user-access');
     Route::post('/user-access', [\App\Http\Controllers\System\UserAccessController::class, 'storeUser'])->name('user-access.store');
     Route::put('/user-access/{user}', [\App\Http\Controllers\System\UserAccessController::class, 'updateUser'])->name('user-access.update');
