@@ -118,8 +118,9 @@
                 </select>
             </div>
             <div>
-                <label class="form-label">Reference / Check Number <span class="text-danger-500">*</span></label>
-                <input type="text" name="reference_number" class="form-input" required placeholder="e.g., CHK-00123">
+                <label class="form-label">Reference / Check Number</label>
+                <input type="text" name="reference_number" class="form-input" placeholder="Auto-generated if blank">
+                <p class="text-xs text-secondary-400 mt-1">Leave blank to auto-generate. Fill in for manual check numbers.</p>
             </div>
         </div>
 

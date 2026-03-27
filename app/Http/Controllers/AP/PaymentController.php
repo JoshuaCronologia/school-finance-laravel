@@ -86,14 +86,26 @@ class PaymentController extends Controller
                 $wht = $validated['withholding_tax'] ?? 0;
                 $netAmount = (float) $disbursement->amount - $wht;
 
+                $voucherNumber = NumberingService::generate('PV');
+
+                // Auto-generate check/reference number if not provided
+                $refNumber = $validated['reference_number'] ?? null;
+                $checkNumber = $validated['check_number'] ?? null;
+                if (empty($refNumber)) {
+                    $refNumber = $voucherNumber;
+                }
+                if ($validated['payment_method'] === 'check' && empty($checkNumber)) {
+                    $checkNumber = 'CHK-' . str_pad(DisbursementPayment::where('payment_method', 'check')->count() + 1, 5, '0', STR_PAD_LEFT);
+                }
+
                 $payment = DisbursementPayment::create([
                     'disbursement_id' => $disbursement->id,
-                    'voucher_number' => NumberingService::generate('PV'),
+                    'voucher_number' => $voucherNumber,
                     'payment_date' => $validated['payment_date'],
                     'payment_method' => $validated['payment_method'],
                     'bank_account' => $validated['bank_account'] ?? null,
-                    'check_number' => $validated['check_number'] ?? null,
-                    'reference_number' => $validated['reference_number'] ?? null,
+                    'check_number' => $checkNumber,
+                    'reference_number' => $refNumber,
                     'gross_amount' => $disbursement->amount,
                     'withholding_tax' => $wht,
                     'net_amount' => $netAmount,

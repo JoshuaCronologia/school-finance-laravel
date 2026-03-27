@@ -99,6 +99,7 @@
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Actual</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Budget</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Variance</th>
+                        <th class="text-right px-3 py-2 font-medium text-secondary-600">%</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,9 +109,10 @@
                         <td class="text-right px-3 py-2 font-mono">{{ number_format($exp->actual, 2) }}</td>
                         <td class="text-right px-3 py-2 font-mono text-secondary-400">0.00</td>
                         <td class="text-right px-3 py-2 font-mono {{ $exp->actual > 0 ? 'text-success-600' : 'text-danger-600' }}">{{ number_format($exp->actual, 2) }}</td>
+                        <td class="text-right px-3 py-2 font-mono">-</td>
                     </tr>
                     @empty
-                    <tr><td colspan="4" class="text-center py-4 text-secondary-400">No expenses recorded.</td></tr>
+                    <tr><td colspan="5" class="text-center py-4 text-secondary-400">No expenses recorded.</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="bg-gray-50 font-semibold border-t">
@@ -119,6 +121,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($totalExpenses ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono">0.00</td>
                         <td class="text-right px-3 py-2.5 font-mono text-success-600">{{ number_format($totalExpenses ?? 0, 2) }}</td>
+                        <td class="text-right px-3 py-2.5 font-mono">-</td>
                     </tr>
                 </tfoot>
             </table>
@@ -138,6 +141,7 @@
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Actual</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Budget</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Variance</th>
+                        <th class="text-right px-3 py-2 font-medium text-secondary-600">%</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -147,9 +151,10 @@
                         <td class="text-right px-3 py-2 font-mono">{{ number_format($inc->actual, 2) }}</td>
                         <td class="text-right px-3 py-2 font-mono text-secondary-400">0.00</td>
                         <td class="text-right px-3 py-2 font-mono {{ $inc->actual > 0 ? 'text-success-600' : 'text-danger-600' }}">{{ number_format($inc->actual, 2) }}</td>
+                        <td class="text-right px-3 py-2 font-mono">-</td>
                     </tr>
                     @empty
-                    <tr><td colspan="4" class="text-center py-4 text-secondary-400">No income recorded.</td></tr>
+                    <tr><td colspan="5" class="text-center py-4 text-secondary-400">No income recorded.</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="bg-gray-50 font-semibold border-t">
@@ -158,6 +163,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($totalIncome ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($incomeBudget ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">{{ number_format($incomeVariance, 2) }}</td>
+                        <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariancePct < 0 ? 'text-danger-600' : '' }}">{{ $incomeVariancePct }}</td>
                     </tr>
                 </tfoot>
             </table>
