@@ -196,6 +196,12 @@ Route::middleware(['auth'])->group(function () {
     // =============================================================
     // System
     // =============================================================
+    Route::get('/user-access', [\App\Http\Controllers\System\UserAccessController::class, 'index'])->name('user-access');
+    Route::post('/user-access', [\App\Http\Controllers\System\UserAccessController::class, 'storeUser'])->name('user-access.store');
+    Route::put('/user-access/{user}', [\App\Http\Controllers\System\UserAccessController::class, 'updateUser'])->name('user-access.update');
+    Route::put('/user-access/{user}/permissions', [\App\Http\Controllers\System\UserAccessController::class, 'updatePermissions'])->name('user-access.permissions');
+    Route::delete('/user-access/{user}', [\App\Http\Controllers\System\UserAccessController::class, 'deleteUser'])->name('user-access.delete');
+
     Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
     Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
 

@@ -34,7 +34,7 @@
 
     <?php echo $__env->yieldPushContent('styles'); ?>
 </head>
-<body class="bg-gray-50 antialiased" x-data="{ sidebarOpen: false }">
+<body class="bg-gray-50 antialiased" x-data="{ sidebarOpen: false, sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true' }" x-init="$watch('sidebarCollapsed', val => localStorage.setItem('sidebarCollapsed', val))">
 
     
     
@@ -49,21 +49,26 @@
          class="fixed inset-0 z-20 bg-black/50 lg:hidden"
          style="display: none;"></div>
 
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-           class="sidebar bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 scrollbar-thin">
+    <aside :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', sidebarCollapsed ? 'lg:w-20' : 'lg:w-64']"
+           class="sidebar bg-white border-r border-gray-200 transform transition-all duration-200 ease-in-out lg:translate-x-0 scrollbar-thin">
 
         
-        <div class="flex items-center gap-3 px-5 py-5 border-b border-gray-200">
-            <div class="flex items-center justify-center w-9 h-9 bg-primary-600 rounded-lg">
-                
-                <svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15v-3.75m0 0 5.25 3 5.25-3" />
-                </svg>
+        <div class="flex items-center justify-between px-5 py-5 border-b border-gray-200">
+            <div class="flex items-center gap-3">
+                <div class="flex-shrink-0 flex items-center justify-center w-9 h-9 bg-primary-600 rounded-lg">
+                    <svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15v-3.75m0 0 5.25 3 5.25-3" />
+                    </svg>
+                </div>
+                <div x-show="!sidebarCollapsed" x-transition>
+                    <span class="text-base font-bold text-gray-900 tracking-tight">ORANGEAPPS</span>
+                    <span class="block text-[10px] font-medium text-gray-500 uppercase tracking-widest">School Finance ERP</span>
+                </div>
             </div>
-            <div>
-                <span class="text-base font-bold text-gray-900 tracking-tight">ORANGEAPPS</span>
-                <span class="block text-[10px] font-medium text-gray-500 uppercase tracking-widest">School Finance ERP</span>
-            </div>
+            
+            <button @click="sidebarCollapsed = !sidebarCollapsed" class="hidden lg:flex items-center justify-center w-7 h-7 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Toggle sidebar">
+                <svg :class="sidebarCollapsed ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+            </button>
         </div>
 
         
@@ -72,7 +77,7 @@
             $currentRoute = '/' . ltrim($currentRoute, '/');
         ?>
 
-        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto" :class="sidebarCollapsed ? 'sidebar-mini' : ''">
 
             
             <p class="sidebar-section-title mt-0">Overview</p>
@@ -86,6 +91,7 @@
             </a>
 
             
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('budget.view')): ?>
             <p class="sidebar-section-title mt-4">Budget Management</p>
             <a href="/budget/dashboard" class="sidebar-link <?php echo e($currentRoute === '/budget/dashboard' ? 'sidebar-link--active' : ''); ?>">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
@@ -102,7 +108,10 @@
 
             
 
+            <?php endif; ?>
+
             
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['bill.view', 'disbursement.view'])): ?>
             <p class="sidebar-section-title mt-4">Accounts Payable</p>
 
             
@@ -114,7 +123,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ap/bills" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/bills' ? 'sidebar-link--active' : ''); ?>">Supplier Bills</a>
                     <a href="/ap/disbursements" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/disbursements' ? 'sidebar-link--active' : ''); ?>">Disbursement Requests</a>
                     <a href="/ap/disbursements/create" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/disbursements/create' ? 'sidebar-link--active' : ''); ?>">Create Request</a>
@@ -138,13 +147,16 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ap/supplier-payments" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/supplier-payments' ? 'sidebar-link--active' : ''); ?>">Supplier Payments</a>
                     <a href="/ap/aging" class="sidebar-link text-xs <?php echo e($currentRoute === '/ap/aging' ? 'sidebar-link--active' : ''); ?>">AP Aging</a>
                 </div>
             </div>
 
+            <?php endif; ?>
+
             
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['invoice.view', 'collection.view'])): ?>
             <p class="sidebar-section-title mt-4">Accounts Receivable</p>
 
             
@@ -156,7 +168,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/ar/invoices" class="sidebar-link text-xs <?php echo e($currentRoute === '/ar/invoices' ? 'sidebar-link--active' : ''); ?>">Invoices / Charges</a>
                     <a href="/ar/collections" class="sidebar-link text-xs <?php echo e($currentRoute === '/ar/collections' ? 'sidebar-link--active' : ''); ?>">Collections / Receipts</a>
                 </div>
@@ -175,7 +187,10 @@
                 <span>Statement of Account</span>
             </a>
 
+            <?php endif; ?>
+
             
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('je.view')): ?>
             <p class="sidebar-section-title mt-4">General Ledger</p>
             <a href="/gl/accounts" class="sidebar-link <?php echo e($currentRoute === '/gl/accounts' ? 'sidebar-link--active' : ''); ?>">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" /></svg>
@@ -202,7 +217,10 @@
                 <span>Period Closing</span>
             </a>
 
+            <?php endif; ?>
+
             
+            <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('report.view')): ?>
             <p class="sidebar-section-title mt-4">Reports</p>
 
             
@@ -214,7 +232,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <p class="text-xs text-white/40 font-semibold uppercase mt-1 mb-1 pl-1">Financial Statements</p>
                     <a href="/reports/trial-balance" class="sidebar-link text-xs <?php echo e($currentRoute === '/reports/trial-balance' ? 'sidebar-link--active' : ''); ?>">Trial Balance</a>
                     <a href="/reports/balance-sheet" class="sidebar-link text-xs <?php echo e($currentRoute === '/reports/balance-sheet' ? 'sidebar-link--active' : ''); ?>">Balance Sheet</a>
@@ -240,7 +258,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="/reports/budget-vs-actual" class="sidebar-link text-xs">Budget vs Actual</a>
                     <a href="/reports/monthly-variance" class="sidebar-link text-xs">Monthly Variance</a>
                 </div>
@@ -255,7 +273,7 @@
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
-                <div x-show="open" x-collapse class="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
+                <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Monthly</p>
                     <a href="/tax/bir-0619e" class="sidebar-link text-xs <?php echo e($currentRoute === '/tax/bir-0619e' ? 'sidebar-link--active' : ''); ?>">0619-E (EWT)</a>
                     <a href="/tax/bir-0619f" class="sidebar-link text-xs <?php echo e($currentRoute === '/tax/bir-0619f' ? 'sidebar-link--active' : ''); ?>">0619-F (Final WT)</a>
@@ -275,41 +293,53 @@
                 </div>
             </div>
 
+            <?php endif; ?>
+
             
             <p class="sidebar-section-title mt-4">System</p>
+            <?php if(auth()->user()?->can('settings.manage')): ?>
+            <a href="/user-access" class="sidebar-link <?php echo e($currentRoute === '/user-access' ? 'sidebar-link--active' : ''); ?>">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+                <span>User Access</span>
+            </a>
+            <?php endif; ?>
+            <?php if(auth()->user()?->can('audit.view')): ?>
             <a href="/audit-trail" class="sidebar-link <?php echo e($currentRoute === '/audit-trail' ? 'sidebar-link--active' : ''); ?>">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
                 <span>Audit Trail</span>
             </a>
+            <?php endif; ?>
             <a href="/settings" class="sidebar-link <?php echo e($currentRoute === '/settings' ? 'sidebar-link--active' : ''); ?>">
                 <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                 <span>Settings</span>
             </a>
-            <a href="/api-docs" class="sidebar-link <?php echo e($currentRoute === '/api-docs' ? 'sidebar-link--active' : ''); ?>">
-                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-                <span>API Docs</span>
-            </a>
+            
         </nav>
 
         
-        <div class="border-t border-white/10 px-4 py-4">
-            <div class="flex items-center gap-3">
-                <div class="flex-shrink-0 w-9 h-9 bg-primary-600 rounded-full flex items-center justify-center">
-                    <span class="text-sm font-semibold text-white">RT</span>
+        <?php if(auth()->guard()->check()): ?>
+        <div class="border-t border-gray-200 px-4 py-4">
+            <div class="flex items-center gap-3" :class="sidebarCollapsed ? 'justify-center' : ''">
+                <div class="flex-shrink-0 w-9 h-9 bg-primary-600 rounded-full flex items-center justify-center" title="<?php echo e(auth()->user()->name); ?>">
+                    <span class="text-sm font-semibold text-white"><?php echo e(strtoupper(substr(auth()->user()->name ?? 'U', 0, 1))); ?><?php echo e(strtoupper(substr(explode(' ', auth()->user()->name ?? '')[1] ?? '', 0, 1))); ?></span>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium text-white truncate">Roberto Tan</p>
-                    <p class="text-xs text-slate-400 truncate">Finance Manager</p>
+                <div class="min-w-0" x-show="!sidebarCollapsed" x-transition>
+                    <p class="text-sm font-medium text-gray-900 truncate"><?php echo e(auth()->user()->name); ?></p>
+                    <p class="text-xs text-gray-500 truncate"><?php echo e(auth()->user()->roles->first()->name ?? 'User'); ?></p>
                 </div>
-                <button class="ml-auto text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>
-                </button>
+                <form method="POST" action="/logout" class="ml-auto" x-show="!sidebarCollapsed">
+                    <?php echo csrf_field(); ?>
+                    <button type="submit" class="text-gray-400 hover:text-danger-500 transition-colors" title="Sign Out">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>
+                    </button>
+                </form>
             </div>
         </div>
+        <?php endif; ?>
     </aside>
 
     
-    <div class="lg:ml-64 min-h-screen flex flex-col">
+    <div :class="sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'" class="min-h-screen flex flex-col transition-all duration-200">
 
         
         <header class="sticky top-0 z-10 bg-white border-b border-gray-200">
@@ -344,6 +374,8 @@
                                         <svg x-show="item.icon === 'users'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
                                         <svg x-show="['file-text','file'].includes(item.icon)" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
                                         <svg x-show="item.icon === 'layers'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0 4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" /></svg>
+                                        <svg x-show="['banknotes','credit-card','receipt','calculator','building'].includes(item.icon)" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                        <svg x-show="item.icon === 'page'" class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
                                     </span>
                                     <div class="min-w-0">
                                         <div class="text-sm font-medium text-gray-900 truncate" x-text="item.title"></div>
@@ -504,25 +536,77 @@
     
     <script>
         function globalSearch() {
+            const pages = [
+                { type: 'Page', icon: 'page', title: 'Finance Dashboard', subtitle: 'Overview', url: '/' },
+                { type: 'Page', icon: 'page', title: 'Accounting Home', subtitle: 'Overview', url: '/accounting/dashboard' },
+                { type: 'Page', icon: 'page', title: 'Budget Dashboard', subtitle: 'Budget Management', url: '/budget/dashboard' },
+                { type: 'Page', icon: 'page', title: 'Budget Planning', subtitle: 'Budget Management', url: '/budget/planning' },
+                { type: 'Page', icon: 'page', title: 'Budget Allocation', subtitle: 'Budget Management', url: '/budget/allocation' },
+                { type: 'Page', icon: 'page', title: 'Supplier Bills', subtitle: 'Accounts Payable', url: '/ap/bills' },
+                { type: 'Page', icon: 'page', title: 'Create Bill', subtitle: 'Accounts Payable', url: '/ap/bills/create' },
+                { type: 'Page', icon: 'page', title: 'Disbursement Requests', subtitle: 'Accounts Payable', url: '/ap/disbursements' },
+                { type: 'Page', icon: 'page', title: 'Create Disbursement', subtitle: 'Accounts Payable', url: '/ap/disbursements/create' },
+                { type: 'Page', icon: 'page', title: 'Approval Queue', subtitle: 'Accounts Payable', url: '/ap/approval-queue' },
+                { type: 'Page', icon: 'page', title: 'Payment Processing', subtitle: 'Accounts Payable', url: '/ap/payment-processing' },
+                { type: 'Page', icon: 'page', title: 'Supplier Payments', subtitle: 'AP Payments', url: '/ap/supplier-payments' },
+                { type: 'Page', icon: 'page', title: 'Check Writer', subtitle: 'AP Payments', url: '/tax/check-writer' },
+                { type: 'Page', icon: 'page', title: 'Vendors / Payees', subtitle: 'Accounts Payable', url: '/vendors' },
+                { type: 'Page', icon: 'page', title: 'AP Aging', subtitle: 'Accounts Payable', url: '/ap/aging' },
+                { type: 'Page', icon: 'page', title: 'Invoices / Charges', subtitle: 'Accounts Receivable', url: '/ar/invoices' },
+                { type: 'Page', icon: 'page', title: 'Collections / Receipts', subtitle: 'Accounts Receivable', url: '/ar/collections' },
+                { type: 'Page', icon: 'page', title: 'Customers / Students', subtitle: 'Accounts Receivable', url: '/ar/customers' },
+                { type: 'Page', icon: 'page', title: 'AR Aging', subtitle: 'Accounts Receivable', url: '/ar/aging' },
+                { type: 'Page', icon: 'page', title: 'Statement of Account', subtitle: 'Accounts Receivable', url: '/ar/soa' },
+                { type: 'Page', icon: 'page', title: 'Chart of Accounts', subtitle: 'General Ledger', url: '/gl/accounts' },
+                { type: 'Page', icon: 'page', title: 'Journal Entries', subtitle: 'General Ledger', url: '/gl/journal-entries' },
+                { type: 'Page', icon: 'page', title: 'Recurring Journals', subtitle: 'General Ledger', url: '/gl/recurring' },
+                { type: 'Page', icon: 'page', title: 'Ledger Inquiry', subtitle: 'General Ledger', url: '/gl/ledger-inquiry' },
+                { type: 'Page', icon: 'page', title: 'Bank Reconciliation', subtitle: 'General Ledger', url: '/gl/bank-reconciliation' },
+                { type: 'Page', icon: 'page', title: 'Period Closing', subtitle: 'General Ledger', url: '/gl/period-closing' },
+                { type: 'Page', icon: 'page', title: 'Trial Balance', subtitle: 'Reports', url: '/reports/trial-balance' },
+                { type: 'Page', icon: 'page', title: 'Balance Sheet', subtitle: 'Reports', url: '/reports/balance-sheet' },
+                { type: 'Page', icon: 'page', title: 'Income Statement', subtitle: 'Reports', url: '/reports/income-statement' },
+                { type: 'Page', icon: 'page', title: 'Cash Flow Statement', subtitle: 'Reports', url: '/reports/cash-flow' },
+                { type: 'Page', icon: 'page', title: 'General Ledger Report', subtitle: 'Reports', url: '/reports/general-ledger' },
+                { type: 'Page', icon: 'page', title: 'Budget vs Actual', subtitle: 'Reports', url: '/reports/budget-vs-actual' },
+                { type: 'Page', icon: 'page', title: 'Monthly Variance', subtitle: 'Reports', url: '/reports/monthly-variance' },
+                { type: 'Page', icon: 'page', title: 'BIR 2307', subtitle: 'Tax & Compliance', url: '/tax/bir-2307' },
+                { type: 'Page', icon: 'page', title: 'BIR 1601-E', subtitle: 'Tax & Compliance', url: '/tax/bir-1601e' },
+                { type: 'Page', icon: 'page', title: 'VAT 2550M', subtitle: 'Tax & Compliance', url: '/tax/vat-2550m' },
+                { type: 'Page', icon: 'page', title: 'Alphalist', subtitle: 'Tax & Compliance', url: '/tax/alphalist' },
+                { type: 'Page', icon: 'page', title: 'Special Journals', subtitle: 'Tax & Compliance', url: '/tax/special-journals' },
+                { type: 'Page', icon: 'page', title: 'Audit Trail', subtitle: 'System', url: '/audit-trail' },
+                { type: 'Page', icon: 'page', title: 'Settings', subtitle: 'System', url: '/settings' },
+            ];
             return {
                 query: '',
                 results: [],
                 open: false,
                 loading: false,
                 async search() {
-                    if (this.query.length < 2) { this.results = []; this.open = false; return; }
-                    this.loading = true;
-                    try {
-                        const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`, {
-                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-                        const data = await res.json();
-                        this.results = data.results;
-                        this.open = true;
-                    } catch (e) {
-                        console.error('Search error:', e);
-                    } finally {
-                        this.loading = false;
+                    if (this.query.length < 1) { this.results = []; this.open = false; return; }
+                    const q = this.query.toLowerCase();
+                    // Instant: filter pages client-side
+                    const pageResults = pages.filter(p =>
+                        p.title.toLowerCase().includes(q) || p.subtitle.toLowerCase().includes(q)
+                    ).slice(0, 5);
+                    this.results = pageResults;
+                    this.open = true;
+                    // Then fetch DB results if 2+ chars
+                    if (this.query.length >= 2) {
+                        this.loading = true;
+                        try {
+                            const res = await fetch(`/search?q=${encodeURIComponent(this.query)}`, {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                            });
+                            const data = await res.json();
+                            // Merge: pages first, then DB results
+                            this.results = [...pageResults, ...data.results].slice(0, 20);
+                        } catch (e) {
+                            console.error('Search error:', e);
+                        } finally {
+                            this.loading = false;
+                        }
                     }
                 }
             };
@@ -550,18 +634,20 @@
                     }
                 },
                 async markRead(n) {
-                    if (n.read_at) return;
-                    const token = document.querySelector('meta[name="csrf-token"]').content;
-                    try {
-                        await fetch(`/notifications/${n.id}/read`, {
-                            method: 'POST',
-                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-                        n.read_at = new Date().toISOString();
-                        this.unreadCount = Math.max(0, this.unreadCount - 1);
-                    } catch (e) {
-                        console.error('Mark read error:', e);
+                    if (!n.read_at) {
+                        const token = document.querySelector('meta[name="csrf-token"]').content;
+                        try {
+                            await fetch(`/notifications/${n.id}/read`, {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }
+                            });
+                            n.read_at = new Date().toISOString();
+                            this.unreadCount = Math.max(0, this.unreadCount - 1);
+                        } catch (e) {
+                            console.error('Mark read error:', e);
+                        }
                     }
+                    if (n.url) { this.open = false; window.location.href = n.url; }
                 },
                 async markAllRead() {
                     const token = document.querySelector('meta[name="csrf-token"]').content;

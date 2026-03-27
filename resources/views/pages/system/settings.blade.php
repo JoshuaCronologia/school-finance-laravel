@@ -15,7 +15,7 @@
     {{-- Tab Navigation --}}
     <div class="border-b border-gray-200 mb-6">
         <nav class="flex gap-6 -mb-px">
-            @foreach(['general' => 'General', 'approval' => 'Approval', 'budget' => 'Budget', 'tax' => 'Tax', 'numbering' => 'Numbering', 'users' => 'Users Access'] as $tab => $label)
+            @foreach(['general' => 'General', 'approval' => 'Approval', 'budget' => 'Budget', 'tax' => 'Tax', 'numbering' => 'Numbering'] as $tab => $label)
             <button @click="activeTab = '{{ $tab }}'"
                     :class="activeTab === '{{ $tab }}' ? 'border-primary-500 text-primary-600' : 'border-transparent text-secondary-500 hover:text-secondary-700 hover:border-gray-300'"
                     class="py-3 px-1 border-b-2 font-medium text-sm transition-colors">
