@@ -204,6 +204,47 @@
 </div>
 @endif
 
+{{-- Activity Log --}}
+@php
+    $auditLogs = \App\Models\AuditLog::where('record_type', get_class($journalEntry))
+        ->where('record_id', $journalEntry->id)
+        ->latest()
+        ->limit(10)
+        ->get();
+@endphp
+@if($auditLogs->isNotEmpty())
+<div class="card mb-6">
+    <div class="card-header"><h3 class="card-title">Activity Log</h3></div>
+    <div class="card-body">
+        <div class="space-y-3">
+            @foreach($auditLogs as $log)
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
+                    {{ in_array($log->action, ['approved','posted']) ? 'bg-success-100 text-success-600' : ($log->action === 'rejected' ? 'bg-danger-100 text-danger-600' : 'bg-gray-100 text-gray-600') }}">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        @if($log->action === 'rejected')
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        @elseif(in_array($log->action, ['approved','posted']))
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        @else
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        @endif
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm"><strong>{{ $log->user_name }}</strong> {{ $log->action }} this entry</p>
+                    @if($log->remarks)
+                        <p class="text-sm text-secondary-600 mt-0.5">{{ $log->remarks }}</p>
+                    @endif
+                    <p class="text-xs text-secondary-400">{{ $log->created_at->diffForHumans() }}</p>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- Reject Modal --}}
 @if($journalEntry->status === 'pending_approval')
 <x-modal name="reject-je" title="Reject Journal Entry">

@@ -212,6 +212,10 @@ class JournalEntryController extends Controller
      */
     public function reject(Request $request, JournalEntry $journalEntry)
     {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
         if ($journalEntry->status !== 'pending_approval') {
             return back()->with('error', 'Only entries pending approval can be rejected.');
         }
@@ -221,10 +225,18 @@ class JournalEntryController extends Controller
             'approved_by' => null,
         ]);
 
-        $reason = $request->input('reason', 'Rejected');
-        app(AuditService::class)->log('reject', 'journal_entry', $journalEntry, null, "Journal entry rejected: {$reason}");
+        app(AuditService::class)->log('reject', 'journal_entry', $journalEntry, null, "Rejected: {$validated['reason']}");
 
-        return back()->with('success', "Journal entry {$journalEntry->entry_number} rejected and returned to draft.");
+        // Notify the maker
+        if ($journalEntry->created_by) {
+            \App\Services\NotificationService::send(
+                $journalEntry->created_by, 'danger', 'Journal Entry Returned',
+                "{$journalEntry->entry_number} was returned to draft. Reason: {$validated['reason']}",
+                route('gl.journal-entries.show', $journalEntry)
+            );
+        }
+
+        return back()->with('success', "Journal entry {$journalEntry->entry_number} rejected and returned to maker.");
     }
 
     /**
