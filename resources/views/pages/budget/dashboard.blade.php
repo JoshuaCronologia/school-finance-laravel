@@ -52,6 +52,7 @@
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Budget</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Variance</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">%</th>
+                        <th class="px-3 py-2 w-24"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -61,6 +62,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($incomeBudget ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">{{ number_format($incomeVariance, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariancePct < 0 ? 'text-danger-600' : '' }}">{{ $incomeVariancePct }}</td>
+                        <td class="px-3 py-2.5">@include('partials.variance-bar', ['pct' => $incomeVariancePct])</td>
                     </tr>
                     <tr class="border-b">
                         <td class="px-4 py-2.5">- Expenses</td>
@@ -68,6 +70,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">0.00</td>
                         <td class="text-right px-3 py-2.5 font-mono text-success-600">{{ number_format($totalExpenses ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5">-</td>
+                        <td class="px-3 py-2.5"></td>
                     </tr>
                     <tr class="border-b bg-gray-50 font-semibold">
                         <td class="px-4 py-2.5">Gross Profit</td>
@@ -75,6 +78,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($incomeBudget ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">{{ number_format($incomeVariance, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariancePct < 0 ? 'text-danger-600' : '' }}">{{ $incomeVariancePct }}</td>
+                        <td class="px-3 py-2.5">@include('partials.variance-bar', ['pct' => $incomeVariancePct])</td>
                     </tr>
                     <tr class="border-b font-bold text-lg bg-white">
                         <td class="px-4 py-3">Net Income</td>
@@ -82,6 +86,7 @@
                         <td class="text-right px-3 py-3 font-mono">{{ number_format($incomeBudget ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-3 font-mono {{ $netVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">{{ number_format($netVariance, 2) }}</td>
                         <td class="text-right px-3 py-3 font-mono {{ $netVariancePct < 0 ? 'text-danger-600' : '' }}">{{ $netVariancePct }}</td>
+                        <td class="px-3 py-3">@include('partials.variance-bar', ['pct' => $netVariancePct])</td>
                     </tr>
                 </tbody>
             </table>
@@ -100,6 +105,7 @@
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Budget</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Variance</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">%</th>
+                        <th class="px-3 py-2 w-24"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,9 +116,13 @@
                         <td class="text-right px-3 py-2 font-mono text-secondary-400">0.00</td>
                         <td class="text-right px-3 py-2 font-mono {{ $exp->actual > 0 ? 'text-success-600' : 'text-danger-600' }}">{{ number_format($exp->actual, 2) }}</td>
                         <td class="text-right px-3 py-2 font-mono">-</td>
+                        <td class="px-3 py-2">
+                            @php $expPct = ($totalExpenses ?? 0) > 0 ? round(($exp->actual / $totalExpenses) * 100, 1) : 0; @endphp
+                            @include('partials.variance-bar', ['pct' => $exp->actual > 0 ? $expPct : -$expPct])
+                        </td>
                     </tr>
                     @empty
-                    <tr><td colspan="5" class="text-center py-4 text-secondary-400">No expenses recorded.</td></tr>
+                    <tr><td colspan="6" class="text-center py-4 text-secondary-400">No expenses recorded.</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="bg-gray-50 font-semibold border-t">
@@ -122,6 +132,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">0.00</td>
                         <td class="text-right px-3 py-2.5 font-mono text-success-600">{{ number_format($totalExpenses ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono">-</td>
+                        <td class="px-3 py-2.5"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -142,6 +153,7 @@
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Budget</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">Variance</th>
                         <th class="text-right px-3 py-2 font-medium text-secondary-600">%</th>
+                        <th class="px-3 py-2 w-24"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -152,9 +164,13 @@
                         <td class="text-right px-3 py-2 font-mono text-secondary-400">0.00</td>
                         <td class="text-right px-3 py-2 font-mono {{ $inc->actual > 0 ? 'text-success-600' : 'text-danger-600' }}">{{ number_format($inc->actual, 2) }}</td>
                         <td class="text-right px-3 py-2 font-mono">-</td>
+                        <td class="px-3 py-2">
+                            @php $incPct = ($totalIncome ?? 0) > 0 ? round(($inc->actual / $totalIncome) * 100, 1) : 0; @endphp
+                            @include('partials.variance-bar', ['pct' => $inc->actual >= 0 ? $incPct : -abs($incPct)])
+                        </td>
                     </tr>
                     @empty
-                    <tr><td colspan="5" class="text-center py-4 text-secondary-400">No income recorded.</td></tr>
+                    <tr><td colspan="6" class="text-center py-4 text-secondary-400">No income recorded.</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="bg-gray-50 font-semibold border-t">
@@ -164,6 +180,7 @@
                         <td class="text-right px-3 py-2.5 font-mono">{{ number_format($incomeBudget ?? 0, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">{{ number_format($incomeVariance, 2) }}</td>
                         <td class="text-right px-3 py-2.5 font-mono {{ $incomeVariancePct < 0 ? 'text-danger-600' : '' }}">{{ $incomeVariancePct }}</td>
+                        <td class="px-3 py-2.5">@include('partials.variance-bar', ['pct' => $incomeVariancePct])</td>
                     </tr>
                 </tfoot>
             </table>
