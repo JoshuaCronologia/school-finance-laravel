@@ -157,40 +157,110 @@
 </div>
 
 
+<?php
+    $menuAccess = [
+        'Budget Management' => [
+            'budget.view' => 'View Budgets',
+            'budget.create' => 'Create Budget',
+            'budget.edit' => 'Edit Budget',
+            'budget.approve' => 'Approve Budget',
+        ],
+        'Accounts Payable' => [
+            'bill.view' => 'View Bills',
+            'bill.create' => 'Create Bill',
+            'bill.approve' => 'Approve Bill',
+            'bill.post' => 'Post Bill',
+            'disbursement.view' => 'View Disbursements',
+            'disbursement.create' => 'Create Disbursement',
+            'disbursement.approve' => 'Approve Disbursement',
+            'disbursement.pay' => 'Process Payment',
+        ],
+        'Accounts Receivable' => [
+            'invoice.view' => 'View Invoices',
+            'invoice.create' => 'Create Invoice',
+            'collection.view' => 'View Collections',
+            'collection.create' => 'Create Collection',
+        ],
+        'General Ledger' => [
+            'je.view' => 'View Journal Entries',
+            'je.create' => 'Create JE',
+            'je.post' => 'Post JE',
+            'je.reverse' => 'Reverse JE',
+            'period.close' => 'Close Period',
+        ],
+        'Reports & System' => [
+            'report.view' => 'View Reports',
+            'report.export' => 'Export Reports',
+            'audit.view' => 'Audit Trail',
+            'settings.manage' => 'System Settings & User Access',
+        ],
+    ];
+?>
 <?php if (isset($component)) { $__componentOriginal9f64f32e90b9102968f2bc548315018c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal9f64f32e90b9102968f2bc548315018c = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.modal','data' => ['name' => 'add-user','title' => 'Add User','maxWidth' => 'lg']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.modal','data' => ['name' => 'add-user','title' => 'Add User','maxWidth' => '4xl']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('modal'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['name' => 'add-user','title' => 'Add User','maxWidth' => 'lg']); ?>
-    <form action="<?php echo e(route('user-access.store')); ?>" method="POST">
+<?php $component->withAttributes(['name' => 'add-user','title' => 'Add User','maxWidth' => '4xl']); ?>
+    <form action="<?php echo e(route('user-access.store')); ?>" method="POST" x-data="{
+        role: '',
+        rolePermissions: <?php echo \Illuminate\Support\Js::from($roles->mapWithKeys(fn($r) => [$r->name => $r->permissions->pluck('name')]))->toHtml() ?>,
+        get currentPerms() { return this.rolePermissions[this.role] || []; },
+        isChecked(perm) { return this.currentPerms.includes(perm); }
+    }">
         <?php echo csrf_field(); ?>
-        <div class="space-y-4">
-            <div>
-                <label class="form-label">Full Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" required placeholder="Juan Dela Cruz">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="form-label">Full Name <span class="text-danger-500">*</span></label>
+                    <input type="text" name="name" class="form-input" required placeholder="Juan Dela Cruz">
+                </div>
+                <div>
+                    <label class="form-label">Email <span class="text-danger-500">*</span></label>
+                    <input type="email" name="email" class="form-input" required placeholder="user@orangeapps.edu.ph">
+                </div>
+                <div>
+                    <label class="form-label">Password <span class="text-danger-500">*</span></label>
+                    <input type="password" name="password" class="form-input" required minlength="8" placeholder="Min. 8 characters">
+                </div>
+                <div>
+                    <label class="form-label">Role <span class="text-danger-500">*</span></label>
+                    <select name="role" class="form-input" required x-model="role">
+                        <option value="">Select Role</option>
+                        <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($role->name); ?>"><?php echo e(ucwords(str_replace('_', ' ', $role->name))); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </select>
+                </div>
             </div>
+
+            
             <div>
-                <label class="form-label">Email <span class="text-danger-500">*</span></label>
-                <input type="email" name="email" class="form-input" required placeholder="user@orangeapps.edu.ph">
-            </div>
-            <div>
-                <label class="form-label">Password <span class="text-danger-500">*</span></label>
-                <input type="password" name="password" class="form-input" required minlength="8" placeholder="Min. 8 characters">
-            </div>
-            <div>
-                <label class="form-label">Role <span class="text-danger-500">*</span></label>
-                <select name="role" class="form-input" required>
-                    <option value="">Select Role</option>
-                    <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <option value="<?php echo e($role->name); ?>"><?php echo e(ucwords(str_replace('_', ' ', $role->name))); ?></option>
+                <label class="form-label mb-2">Menu Access</label>
+                <div class="border border-gray-200 rounded-lg max-h-80 overflow-y-auto">
+                    <?php $__currentLoopData = $menuAccess; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $section => $perms): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="border-b border-gray-100 last:border-0">
+                        <div class="px-3 py-2 bg-gray-50 text-xs font-bold text-secondary-600 uppercase"><?php echo e($section); ?></div>
+                        <div class="px-3 py-2 space-y-1.5">
+                            <?php $__currentLoopData = $perms; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $permKey => $permLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="permissions[]" value="<?php echo e($permKey); ?>"
+                                       :checked="isChecked('<?php echo e($permKey); ?>')"
+                                       class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                <span class="text-sm text-secondary-700"><?php echo e($permLabel); ?></span>
+                                <span x-show="isChecked('<?php echo e($permKey); ?>')" class="text-[10px] text-secondary-400 ml-auto">(from role)</span>
+                            </label>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        </div>
+                    </div>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                </select>
-                <p class="text-xs text-secondary-400 mt-1">Role determines the default menu access. You can customize permissions after creating the user.</p>
+                </div>
+                <p class="text-xs text-secondary-400 mt-1">Checkboxes auto-fill based on role. You can customize further.</p>
             </div>
         </div>
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">

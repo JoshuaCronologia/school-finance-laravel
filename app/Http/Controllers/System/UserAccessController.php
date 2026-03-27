@@ -32,6 +32,8 @@ class UserAccessController extends Controller
             'email' => 'required|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role' => 'required|string|exists:roles,name',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,name',
         ]);
 
         $user = User::create([
@@ -41,6 +43,11 @@ class UserAccessController extends Controller
         ]);
 
         $user->assignRole($validated['role']);
+
+        // Sync custom permissions if provided
+        if (!empty($validated['permissions'])) {
+            $user->syncPermissions($validated['permissions']);
+        }
 
         return redirect()->route('user-access')->with('success', "User {$user->name} created.");
     }

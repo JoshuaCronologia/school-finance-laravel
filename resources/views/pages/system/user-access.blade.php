@@ -102,31 +102,101 @@
 </div>
 
 {{-- Add User Modal --}}
-<x-modal name="add-user" title="Add User" maxWidth="lg">
-    <form action="{{ route('user-access.store') }}" method="POST">
+@php
+    $menuAccess = [
+        'Budget Management' => [
+            'budget.view' => 'View Budgets',
+            'budget.create' => 'Create Budget',
+            'budget.edit' => 'Edit Budget',
+            'budget.approve' => 'Approve Budget',
+        ],
+        'Accounts Payable' => [
+            'bill.view' => 'View Bills',
+            'bill.create' => 'Create Bill',
+            'bill.approve' => 'Approve Bill',
+            'bill.post' => 'Post Bill',
+            'disbursement.view' => 'View Disbursements',
+            'disbursement.create' => 'Create Disbursement',
+            'disbursement.approve' => 'Approve Disbursement',
+            'disbursement.pay' => 'Process Payment',
+        ],
+        'Accounts Receivable' => [
+            'invoice.view' => 'View Invoices',
+            'invoice.create' => 'Create Invoice',
+            'collection.view' => 'View Collections',
+            'collection.create' => 'Create Collection',
+        ],
+        'General Ledger' => [
+            'je.view' => 'View Journal Entries',
+            'je.create' => 'Create JE',
+            'je.post' => 'Post JE',
+            'je.reverse' => 'Reverse JE',
+            'period.close' => 'Close Period',
+        ],
+        'Reports & System' => [
+            'report.view' => 'View Reports',
+            'report.export' => 'Export Reports',
+            'audit.view' => 'Audit Trail',
+            'settings.manage' => 'System Settings & User Access',
+        ],
+    ];
+@endphp
+<x-modal name="add-user" title="Add User" maxWidth="4xl">
+    <form action="{{ route('user-access.store') }}" method="POST" x-data="{
+        role: '',
+        rolePermissions: @js($roles->mapWithKeys(fn($r) => [$r->name => $r->permissions->pluck('name')])),
+        get currentPerms() { return this.rolePermissions[this.role] || []; },
+        isChecked(perm) { return this.currentPerms.includes(perm); }
+    }">
         @csrf
-        <div class="space-y-4">
-            <div>
-                <label class="form-label">Full Name <span class="text-danger-500">*</span></label>
-                <input type="text" name="name" class="form-input" required placeholder="Juan Dela Cruz">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Left: Account Info --}}
+            <div class="space-y-4">
+                <div>
+                    <label class="form-label">Full Name <span class="text-danger-500">*</span></label>
+                    <input type="text" name="name" class="form-input" required placeholder="Juan Dela Cruz">
+                </div>
+                <div>
+                    <label class="form-label">Email <span class="text-danger-500">*</span></label>
+                    <input type="email" name="email" class="form-input" required placeholder="user@orangeapps.edu.ph">
+                </div>
+                <div>
+                    <label class="form-label">Password <span class="text-danger-500">*</span></label>
+                    <input type="password" name="password" class="form-input" required minlength="8" placeholder="Min. 8 characters">
+                </div>
+                <div>
+                    <label class="form-label">Role <span class="text-danger-500">*</span></label>
+                    <select name="role" class="form-input" required x-model="role">
+                        <option value="">Select Role</option>
+                        @foreach($roles as $role)
+                            <option value="{{ $role->name }}">{{ ucwords(str_replace('_', ' ', $role->name)) }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
+
+            {{-- Right: Menu Access --}}
             <div>
-                <label class="form-label">Email <span class="text-danger-500">*</span></label>
-                <input type="email" name="email" class="form-input" required placeholder="user@orangeapps.edu.ph">
-            </div>
-            <div>
-                <label class="form-label">Password <span class="text-danger-500">*</span></label>
-                <input type="password" name="password" class="form-input" required minlength="8" placeholder="Min. 8 characters">
-            </div>
-            <div>
-                <label class="form-label">Role <span class="text-danger-500">*</span></label>
-                <select name="role" class="form-input" required>
-                    <option value="">Select Role</option>
-                    @foreach($roles as $role)
-                        <option value="{{ $role->name }}">{{ ucwords(str_replace('_', ' ', $role->name)) }}</option>
+                <label class="form-label mb-2">Menu Access</label>
+                <div class="border border-gray-200 rounded-lg max-h-80 overflow-y-auto">
+                    @foreach($menuAccess as $section => $perms)
+                    <div class="border-b border-gray-100 last:border-0">
+                        <div class="px-3 py-2 bg-gray-50 text-xs font-bold text-secondary-600 uppercase">{{ $section }}</div>
+                        <div class="px-3 py-2 space-y-1.5">
+                            @foreach($perms as $permKey => $permLabel)
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="permissions[]" value="{{ $permKey }}"
+                                       :checked="isChecked('{{ $permKey }}')"
+                                       class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                <span class="text-sm text-secondary-700">{{ $permLabel }}</span>
+                                <span x-show="isChecked('{{ $permKey }}')" class="text-[10px] text-secondary-400 ml-auto">(from role)</span>
+                            </label>
+                            @endforeach
+                        </div>
+                    </div>
                     @endforeach
-                </select>
-                <p class="text-xs text-secondary-400 mt-1">Role determines the default menu access. You can customize permissions after creating the user.</p>
+                </div>
+                <p class="text-xs text-secondary-400 mt-1">Checkboxes auto-fill based on role. You can customize further.</p>
             </div>
         </div>
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
