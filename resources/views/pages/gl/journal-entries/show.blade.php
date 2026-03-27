@@ -111,7 +111,7 @@
             </div>
             @if($journalEntry->description)
             <div class="mt-4 pt-4 border-t border-gray-100">
-                <span class="text-sm text-secondary-500">Description</span>
+                <span class="text-sm text-secondary-500">Memo</span>
                 <p class="text-sm font-medium text-secondary-900 mt-1">{{ $journalEntry->description }}</p>
             </div>
             @endif
@@ -157,7 +157,7 @@
                     <th class="w-10">#</th>
                     <th>Account Code</th>
                     <th>Account Name</th>
-                    <th>Description</th>
+                    <th>Memo</th>
                     <th>Department</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>

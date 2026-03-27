@@ -68,7 +68,7 @@
                     <th class="w-8"></th>
                     <th>Journal #</th>
                     <th>Date</th>
-                    <th>Description</th>
+                    <th>Memo</th>
                     <th>Type</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>
@@ -104,7 +104,7 @@
                                     <tr class="text-secondary-500">
                                         <th class="text-left py-1 font-medium">Account Code</th>
                                         <th class="text-left py-1 font-medium">Account Name</th>
-                                        <th class="text-left py-1 font-medium">Description</th>
+                                        <th class="text-left py-1 font-medium">Memo</th>
                                         <th class="text-right py-1 font-medium">Debit</th>
                                         <th class="text-right py-1 font-medium">Credit</th>
                                     </tr>
@@ -211,7 +211,7 @@
                     <thead>
                         <tr class="border-b border-gray-200">
                             <th class="text-left py-2 px-2 font-medium text-secondary-600">Account</th>
-                            <th class="text-left py-2 px-2 font-medium text-secondary-600">Description</th>
+                            <th class="text-left py-2 px-2 font-medium text-secondary-600">Memo</th>
                             <th class="text-right py-2 px-2 font-medium text-secondary-600 w-36">Debit</th>
                             <th class="text-right py-2 px-2 font-medium text-secondary-600 w-36">Credit</th>
                             <th class="w-10"></th>

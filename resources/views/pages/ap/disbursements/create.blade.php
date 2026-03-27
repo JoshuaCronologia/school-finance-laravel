@@ -129,7 +129,7 @@
                     </select>
                 </div>
                 <div class="md:col-span-3">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">Memo</label>
                     <textarea name="description" class="form-input" rows="2" placeholder="Purpose of this disbursement request...">{{ old('description', $disbursement->description ?? '') }}</textarea>
                 </div>
             </div>
@@ -187,7 +187,7 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Description</th>
+                        <th>Memo</th>
                         <th class="w-20 text-right">Qty</th>
                         <th class="w-28 text-right">Unit Cost</th>
                         <th class="w-28 text-right">Amount</th>

@@ -170,8 +170,8 @@ class DisbursementController extends Controller
                     ]);
                 }
 
-                // Store attachments
-                if (isset($validated['attachments'])) {
+                // Store attachments (skip on Vercel — read-only filesystem)
+                if (isset($validated['attachments']) && is_writable(storage_path('app/public'))) {
                     $attachmentPaths = [];
                     foreach ($validated['attachments'] as $file) {
                         $path = $file->store("disbursements/{$disbursement->id}", 'public');

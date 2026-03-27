@@ -65,7 +65,7 @@
                         <thead>
                             <tr class="border-b border-gray-200">
                                 <th class="text-left py-2 px-2 font-medium text-secondary-600">Account</th>
-                                <th class="text-left py-2 px-2 font-medium text-secondary-600">Description</th>
+                                <th class="text-left py-2 px-2 font-medium text-secondary-600">Memo</th>
                                 <th class="text-right py-2 px-2 font-medium text-secondary-600 w-36">Debit</th>
                                 <th class="text-right py-2 px-2 font-medium text-secondary-600 w-36">Credit</th>
                                 <th class="w-10"></th>

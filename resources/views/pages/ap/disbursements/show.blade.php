@@ -98,7 +98,7 @@
                         <dd class="text-lg font-bold text-primary-700">{{ '₱' . number_format($disbursement->amount, 2) }}</dd>
                     </div>
                     <div class="md:col-span-2">
-                        <dt class="text-xs text-secondary-500">Description</dt>
+                        <dt class="text-xs text-secondary-500">Memo</dt>
                         <dd class="text-sm text-secondary-900">{{ $disbursement->description ?? '-' }}</dd>
                     </div>
                     <div>
@@ -119,7 +119,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Description</th>
+                            <th>Memo</th>
                             <th class="text-right">Qty</th>
                             <th class="text-right">Unit Cost</th>
                             <th class="text-right">Amount</th>

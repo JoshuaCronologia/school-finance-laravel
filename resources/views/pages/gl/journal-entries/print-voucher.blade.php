@@ -83,7 +83,7 @@
                 <th style="width: 5%;">#</th>
                 <th style="width: 12%;">Account Code</th>
                 <th style="width: 25%;">Account Name</th>
-                <th style="width: 25%;">Description</th>
+                <th style="width: 25%;">Memo</th>
                 <th style="width: 10%;">Department</th>
                 <th class="text-right" style="width: 11.5%;">Debit</th>
                 <th class="text-right" style="width: 11.5%;">Credit</th>
