@@ -24,7 +24,7 @@
                     <th>Entry #</th>
                     <th>Date</th>
                     <th>Type</th>
-                    <th>Memo</th>
+                    <th>Description</th>
                     <th>Department</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>
@@ -88,7 +88,7 @@
                     <th>Entry #</th>
                     <th>Date</th>
                     <th>Type</th>
-                    <th>Memo</th>
+                    <th>Description</th>
                     <th>Department</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>

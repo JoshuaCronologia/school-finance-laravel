@@ -68,7 +68,7 @@
                     <th class="w-8"></th>
                     <th>Journal #</th>
                     <th>Date</th>
-                    <th>Memo</th>
+                    <th>Description</th>
                     <th>Type</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>

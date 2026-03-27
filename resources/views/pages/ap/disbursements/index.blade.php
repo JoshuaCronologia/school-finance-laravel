@@ -56,7 +56,7 @@
             <th>Request #</th>
             <th>Date</th>
             <th>Payee</th>
-            <th>Memo</th>
+            <th>Description</th>
             <th>Department</th>
             <th>Category</th>
             <th class="text-right">Amount</th>
