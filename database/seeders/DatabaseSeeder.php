@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,5 +20,32 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             TransactionSeeder::class,
         ]);
+
+        // Reset all PostgreSQL sequences after seeding with explicit IDs
+        $this->resetSequences();
+    }
+
+    /**
+     * Reset PostgreSQL auto-increment sequences to match max ID in each table.
+     * Prevents "duplicate key" errors after seeding with explicit IDs.
+     */
+    private function resetSequences(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $tables = DB::select("
+            SELECT t.relname AS table_name, a.attname AS column_name, s.relname AS sequence_name
+            FROM pg_class s
+            JOIN pg_depend d ON d.objid = s.oid
+            JOIN pg_class t ON d.refobjid = t.oid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+            WHERE s.relkind = 'S'
+        ");
+
+        foreach ($tables as $row) {
+            DB::statement("SELECT setval('{$row->sequence_name}', COALESCE((SELECT MAX({$row->column_name}) FROM {$row->table_name}), 0) + 1, false)");
+        }
     }
 }
