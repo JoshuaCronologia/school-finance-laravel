@@ -33,9 +33,9 @@
                     <th>Voucher #</th>
                     <th>Request #</th>
                     <th>Payee</th>
+                    <th>Bank</th>
                     <th>Method</th>
                     <th>Check #</th>
-                    <th>Reference #</th>
                     <th class="text-right">Gross</th>
                     <th class="text-right">WHT (2%)</th>
                     <th class="text-right">Net Amount</th>
@@ -47,9 +47,9 @@
                     <td class="font-medium text-primary-700">{{ $result['voucher_number'] }}</td>
                     <td>{{ $result['request_number'] }}</td>
                     <td>{{ $result['payee_name'] }}</td>
+                    <td>{{ $result['bank_account'] ?? '-' }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $result['payment_method'])) }}</td>
-                    <td class="font-medium">{{ $result['check_number'] ?? '-' }}</td>
-                    <td>{{ $result['reference_number'] }}</td>
+                    <td class="font-medium font-mono">{{ $result['check_number'] ?? '-' }}</td>
                     <td class="text-right">{{ '₱' . number_format($result['gross_amount'], 2) }}</td>
                     <td class="text-right text-danger-600">{{ '₱' . number_format($result['withholding_tax'], 2) }}</td>
                     <td class="text-right font-semibold">{{ '₱' . number_format($result['net_amount'], 2) }}</td>
@@ -108,25 +108,61 @@
     </div>
 
     {{-- Batch Action Bar --}}
-    <div class="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3" x-show="selectedIds.length > 0" x-cloak>
+    <div class="p-4 border-b border-gray-100 space-y-4" x-show="selectedIds.length > 0" x-cloak>
         <div class="text-sm text-secondary-700">
             <span class="font-semibold text-primary-700" x-text="selectedIds.length"></span> item(s) selected
             — Total: <span class="font-semibold" x-text="'₱' + selectedTotal()"></span>
         </div>
+
+        {{-- Last Check Series Info --}}
+        @if($lastCheckUsed)
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+            <div class="flex items-center gap-2 text-blue-800 font-medium mb-1">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+                Last Check Used
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-blue-700">
+                <div>Check #: <span class="font-semibold">{{ $lastCheckUsed->check_number ?? '-' }}</span></div>
+                <div>Bank: <span class="font-semibold">{{ $lastCheckUsed->bank_account ?? '-' }}</span></div>
+                <div>Date: <span class="font-semibold">{{ $lastCheckUsed->payment_date ? \Carbon\Carbon::parse($lastCheckUsed->payment_date)->format('M d, Y') : '-' }}</span></div>
+                <div>Payee: <span class="font-semibold">{{ $lastCheckUsed->disbursement->payee_name ?? '-' }}</span></div>
+            </div>
+        </div>
+        @endif
+
         <form method="POST" action="{{ route('ap.payments.batch') }}" id="batchForm">
             @csrf
             <template x-for="id in selectedIds" :key="id">
                 <input type="hidden" name="disbursement_ids[]" :value="id">
             </template>
-            <div class="flex items-center gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
                 <div>
+                    <label class="form-label">Payment Date <span class="text-danger-500">*</span></label>
                     <input type="date" name="payment_date" class="form-input text-sm" value="{{ date('Y-m-d') }}" required>
                 </div>
-                <button type="submit" class="btn-primary text-sm"
-                    onclick="return confirm('Generate vouchers and check numbers for ' + document.querySelectorAll('input[name=\'disbursement_ids[]\']').length + ' selected items?')">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                    Generate Vouchers & Checks
-                </button>
+                <div>
+                    <label class="form-label">Bank Account <span class="text-danger-500">*</span></label>
+                    <select name="bank_account" class="form-input text-sm" required>
+                        <option value="">Select Bank...</option>
+                        <option value="BDO" {{ ($lastCheckUsed->bank_account ?? '') === 'BDO' ? 'selected' : '' }}>BDO Unibank</option>
+                        <option value="BPI" {{ ($lastCheckUsed->bank_account ?? '') === 'BPI' ? 'selected' : '' }}>Bank of the Philippine Islands</option>
+                        <option value="Metrobank" {{ ($lastCheckUsed->bank_account ?? '') === 'Metrobank' ? 'selected' : '' }}>Metropolitan Bank</option>
+                        <option value="Landbank" {{ ($lastCheckUsed->bank_account ?? '') === 'Landbank' ? 'selected' : '' }}>Land Bank of the Philippines</option>
+                        <option value="PNB" {{ ($lastCheckUsed->bank_account ?? '') === 'PNB' ? 'selected' : '' }}>Philippine National Bank</option>
+                        <option value="RCBC" {{ ($lastCheckUsed->bank_account ?? '') === 'RCBC' ? 'selected' : '' }}>Rizal Commercial Banking Corp</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Starting Check # <span class="text-xs text-secondary-400">(auto if blank)</span></label>
+                    <input type="text" name="starting_check_number" class="form-input text-sm" placeholder="{{ $nextCheckNumber ?? 'Auto-generate' }}">
+                </div>
+                <div>
+                    <button type="submit" class="btn-primary text-sm w-full"
+                        onclick="return confirm('Generate vouchers and check numbers for ' + document.querySelectorAll('input[name=\'disbursement_ids[]\']').length + ' selected items?')">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                        Generate Vouchers & Checks
+                    </button>
+                </div>
             </div>
         </form>
     </div>

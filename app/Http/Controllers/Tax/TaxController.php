@@ -402,18 +402,17 @@ class TaxController extends Controller
             ->latest('payment_date')
             ->paginate(20);
 
+        // Pending = checks that have been generated but not yet printed (check_number exists)
         $pendingChecks = DisbursementPayment::where('payment_method', 'check')
             ->where('status', 'completed')
-            ->whereNull('check_number')
+            ->whereNotNull('check_number')
             ->count();
 
         $totalAmount = DisbursementPayment::where('payment_method', 'check')
             ->where('status', 'completed')
             ->sum('net_amount');
 
-        $printHistory = collect(); // Print tracking not yet implemented
-
-        return view('pages.tax.check-writer', compact('checkPayments', 'pendingChecks', 'totalAmount', 'printHistory'));
+        return view('pages.tax.check-writer', compact('checkPayments', 'pendingChecks', 'totalAmount'));
     }
 
     public function printCheck(Request $request)

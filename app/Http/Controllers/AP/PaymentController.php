@@ -37,10 +37,22 @@ class PaymentController extends Controller
         $readyForPayment = $query->oldest('request_date')->get();
 
         $totalReadyForPayment = $readyForPayment->sum('amount');
-        $bankAccounts = [];
+
+        // Get last check used for reference (audit trail / bank rec)
+        $lastCheckUsed = DisbursementPayment::with('disbursement')
+            ->where('payment_method', 'check')
+            ->whereNotNull('check_number')
+            ->where('status', 'completed')
+            ->latest('id')
+            ->first();
+
+        // Suggest next check number
+        $nextCheckNumber = $lastCheckUsed && $lastCheckUsed->check_number
+            ? $this->incrementCheckNumber($lastCheckUsed->check_number)
+            : null;
 
         return view('pages.ap.payment-processing', compact(
-            'readyForPayment', 'totalReadyForPayment', 'bankAccounts'
+            'readyForPayment', 'totalReadyForPayment', 'lastCheckUsed', 'nextCheckNumber'
         ));
     }
 
@@ -53,6 +65,8 @@ class PaymentController extends Controller
             'disbursement_ids' => 'required|array|min:1',
             'disbursement_ids.*' => 'exists:disbursement_requests,id',
             'payment_date' => 'required|date',
+            'bank_account' => 'required|string|max:100',
+            'starting_check_number' => 'nullable|string|max:50',
         ]);
 
         $disbursements = DisbursementRequest::whereIn('id', $validated['disbursement_ids'])
@@ -68,6 +82,13 @@ class PaymentController extends Controller
         try {
             $results = DB::transaction(function () use ($disbursements, $validated) {
                 $batchResults = [];
+                $bankAccount = $validated['bank_account'];
+
+                // Track sequential check numbering for manual starting number
+                $manualCheckSeq = null;
+                if (!empty($validated['starting_check_number'])) {
+                    $manualCheckSeq = $validated['starting_check_number'];
+                }
 
                 foreach ($disbursements as $disbursement) {
                     $whtRate = 0.02;
@@ -76,10 +97,15 @@ class PaymentController extends Controller
 
                     $voucherNumber = NumberingService::generate('PV');
 
-                    // Auto-generate check number for check payments
+                    // Generate check number for check payments
                     $checkNumber = null;
                     if ($disbursement->payment_method === 'check') {
-                        $checkNumber = NumberingService::generate('CHK');
+                        if ($manualCheckSeq !== null) {
+                            $checkNumber = $manualCheckSeq;
+                            $manualCheckSeq = $this->incrementCheckNumber($manualCheckSeq);
+                        } else {
+                            $checkNumber = NumberingService::generate('CHK');
+                        }
                     }
 
                     $payment = DisbursementPayment::create([
@@ -87,7 +113,7 @@ class PaymentController extends Controller
                         'voucher_number' => $voucherNumber,
                         'payment_date' => $validated['payment_date'],
                         'payment_method' => $disbursement->payment_method ?? 'check',
-                        'bank_account' => null,
+                        'bank_account' => $bankAccount,
                         'check_number' => $checkNumber,
                         'reference_number' => $voucherNumber,
                         'gross_amount' => $disbursement->amount,
@@ -115,6 +141,7 @@ class PaymentController extends Controller
                         'request_number' => $disbursement->request_number,
                         'payee_name' => $disbursement->payee_name,
                         'payment_method' => $disbursement->payment_method ?? 'check',
+                        'bank_account' => $bankAccount,
                         'check_number' => $checkNumber,
                         'reference_number' => $voucherNumber,
                         'gross_amount' => (float) $disbursement->amount,
@@ -264,6 +291,21 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to void payment: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Increment a check number string (e.g., "CHK-2026-0005" → "CHK-2026-0006", or "12345" → "12346").
+     */
+    private function incrementCheckNumber(string $checkNumber): string
+    {
+        if (preg_match('/^(.+?)(\d+)$/', $checkNumber, $m)) {
+            $prefix = $m[1];
+            $num = $m[2];
+            $next = str_pad((int) $num + 1, strlen($num), '0', STR_PAD_LEFT);
+            return $prefix . $next;
+        }
+
+        return $checkNumber;
     }
 
     public function printVoucher(DisbursementPayment $payment)
