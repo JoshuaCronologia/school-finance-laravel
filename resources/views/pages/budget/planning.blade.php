@@ -89,7 +89,7 @@
 
 {{-- Create Budget Modal --}}
 <x-modal name="create-budget" title="Create New Budget" maxWidth="3xl">
-    <form action="{{ route('budget.planning.store') }}" method="POST">
+    <form action="{{ route('budget.planning.store') }}" method="POST" data-turbo="false">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -174,7 +174,7 @@
 {{-- Edit Budget Modals --}}
 {{-- Copy from Previous Year Modal --}}
 <x-modal name="copy-previous-budget" title="Copy Budgets from Previous Year" maxWidth="lg">
-    <form action="{{ route('budget.planning.copy-previous') }}" method="POST">
+    <form action="{{ route('budget.planning.copy-previous') }}" method="POST" data-turbo="false">
         @csrf
         <div class="grid grid-cols-1 gap-4">
             <div>
@@ -208,7 +208,7 @@
 
 @foreach($budgets as $budget)
 <x-modal name="edit-budget-{{ $budget->id }}" title="Edit Budget" maxWidth="3xl">
-    <form action="{{ route('budget.planning.update', $budget) }}" method="POST">
+    <form action="{{ route('budget.planning.update', $budget) }}" method="POST" data-turbo="false">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

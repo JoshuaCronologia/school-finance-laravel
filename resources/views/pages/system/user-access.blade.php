@@ -66,7 +66,7 @@
                             <button @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
                             <button @click="$dispatch('open-modal', 'perms-user-{{ $user->id }}')" class="text-secondary-600 hover:text-secondary-700 text-sm font-medium">Permissions</button>
                             @if($user->id !== auth()->id())
-                            <form method="POST" action="{{ route('user-access.delete', $user) }}" onsubmit="return confirm('Delete this user?');">
+                            <form method="POST" data-turbo="false" action="{{ route('user-access.delete', $user) }}" onsubmit="return confirm('Delete this user?');">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-danger-500 hover:text-danger-700 text-sm font-medium">Delete</button>
                             </form>
@@ -142,7 +142,7 @@
     ];
 @endphp
 <x-modal name="add-user" title="Add User" maxWidth="4xl">
-    <form action="{{ route('user-access.store') }}" method="POST" x-data="{
+    <form action="{{ route('user-access.store') }}" method="POST" data-turbo="false" x-data="{
         role: '',
         rolePermissions: @js($roles->mapWithKeys(fn($r) => [$r->name => $r->permissions->pluck('name')])),
         get currentPerms() { return this.rolePermissions[this.role] || []; },
@@ -209,7 +209,7 @@
 {{-- Edit User Modals --}}
 @foreach($users as $user)
 <x-modal name="edit-user-{{ $user->id }}" title="Edit: {{ $user->name }}" maxWidth="lg">
-    <form action="{{ route('user-access.update', $user) }}" method="POST">
+    <form action="{{ route('user-access.update', $user) }}" method="POST" data-turbo="false">
         @csrf @method('PUT')
         <div class="space-y-4">
             <div>
@@ -242,7 +242,7 @@
 
 {{-- Permissions Modal --}}
 <x-modal name="perms-user-{{ $user->id }}" title="Permissions: {{ $user->name }}" maxWidth="4xl">
-    <form action="{{ route('user-access.permissions', $user) }}" method="POST">
+    <form action="{{ route('user-access.permissions', $user) }}" method="POST" data-turbo="false">
         @csrf @method('PUT')
 
         @php $userPerms = $user->getAllPermissions()->pluck('name'); @endphp

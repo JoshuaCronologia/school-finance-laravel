@@ -54,7 +54,7 @@
             <td>{{ $template->last_generated_at ? \Carbon\Carbon::parse($template->last_generated_at)->format('M d, Y') : 'Never' }}</td>
             <td class="flex items-center gap-2">
                 <button @click="$dispatch('open-modal', 'edit-template-{{ $template->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
-                <form action="{{ route('gl.recurring.generate', $template) }}" method="POST" class="inline">
+                <form action="{{ route('gl.recurring.generate', $template) }}" method="POST" data-turbo="false" class="inline">
                     @csrf
                     <button type="submit" class="text-success-600 hover:text-success-700 text-sm font-medium">Generate</button>
                 </form>
@@ -73,7 +73,7 @@
 
 {{-- Create Template Modal --}}
 <x-modal name="create-template" title="Create Recurring Journal Template" maxWidth="4xl">
-    <form action="{{ route('gl.recurring.store') }}" method="POST" v-pre x-data="{
+    <form action="{{ route('gl.recurring.store') }}" method="POST" data-turbo="false" v-pre x-data="{
         lines: [
             { account_id: '', description: '', debit: 0, credit: 0 },
             { account_id: '', description: '', debit: 0, credit: 0 }
@@ -179,7 +179,7 @@
 {{-- Edit Template Modals --}}
 @foreach($templates ?? [] as $template)
 <x-modal name="edit-template-{{ $template->id }}" title="Edit Template: {{ $template->template_name }}" maxWidth="4xl">
-    <form action="{{ route('gl.recurring.update', $template) }}" method="POST">
+    <form action="{{ route('gl.recurring.update', $template) }}" method="POST" data-turbo="false">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

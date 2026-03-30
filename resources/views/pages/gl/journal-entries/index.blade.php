@@ -159,7 +159,7 @@
 
 {{-- New Journal Entry Modal --}}
 <x-modal name="new-journal-entry" title="New Journal Entry" maxWidth="5xl">
-    <form action="{{ route('gl.journal-entries.store') }}" method="POST" x-data="{
+    <form action="{{ route('gl.journal-entries.store') }}" method="POST" data-turbo="false" x-data="{
         lines: [
             { account_id: '', description: '', debit: 0, credit: 0 },
             { account_id: '', description: '', debit: 0, credit: 0 }

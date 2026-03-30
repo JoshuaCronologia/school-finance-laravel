@@ -70,7 +70,8 @@
 {{-- Process Payment Modals --}}
 @foreach($readyForPayment ?? [] as $request)
 <x-modal name="process-payment-{{ $request->id }}" title="Process Payment" maxWidth="3xl">
-    <form action="{{ route('ap.payments.store', $request) }}" method="POST" x-data="{
+    <form action="{{ route('ap.payments.store', $request) }}" method="POST" data-turbo="false" x-data="{
+        method: '{{ $request->payment_method ?? 'check' }}',
         grossAmount: {{ $request->amount }},
         whtRate: 0.02,
         get whtAmount() { return parseFloat((this.grossAmount * this.whtRate).toFixed(2)); },
@@ -105,24 +106,16 @@
                 <input type="date" name="payment_date" class="form-input" value="{{ date('Y-m-d') }}" required>
             </div>
             <div>
-                <label class="form-label">Bank Account</label>
-                <input type="text" name="bank_account" class="form-input" placeholder="e.g., BDO - 1234-5678">
-            </div>
-            <div>
                 <label class="form-label">Payment Method <span class="text-danger-500">*</span></label>
-                <select name="payment_method" class="form-input" required>
-                    <option value="check" {{ ($request->payment_method ?? '') == 'check' ? 'selected' : '' }}>Check</option>
-                    <option value="bank_transfer" {{ ($request->payment_method ?? '') == 'bank_transfer' ? 'selected' : '' }}>Bank Transfer</option>
-                    <option value="cash" {{ ($request->payment_method ?? '') == 'cash' ? 'selected' : '' }}>Cash</option>
-                    <option value="online" {{ ($request->payment_method ?? '') == 'online' ? 'selected' : '' }}>Online</option>
+                <select name="payment_method" class="form-input" required x-model="method">
+                    <option value="check">Check</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="online">Online</option>
                 </select>
             </div>
-            <div>
-                <label class="form-label">Reference / Check Number</label>
-                <input type="text" name="reference_number" class="form-input" placeholder="Auto-generated if blank">
-                <p class="text-xs text-secondary-400 mt-1">Leave blank to auto-generate. Fill in for manual check numbers.</p>
-            </div>
         </div>
+        <p class="text-xs text-secondary-400 mb-4">Voucher number, check number, and reference will be auto-generated. Print via Check Writer after processing.</p>
 
         {{-- Calculation --}}
         <div class="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">

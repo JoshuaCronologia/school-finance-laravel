@@ -118,7 +118,7 @@
 
 {{-- New Collection Modal --}}
 <x-modal name="new-collection" title="New Collection / Official Receipt" maxWidth="4xl">
-    <form action="{{ route('ar.collections.store') }}" method="POST" v-pre x-data="{
+    <form action="{{ route('ar.collections.store') }}" method="POST" data-turbo="false" v-pre x-data="{
         method: 'cash',
         openInvoices: @js($openInvoices ?? []),
         applications: [],

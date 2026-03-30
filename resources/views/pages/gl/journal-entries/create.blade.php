@@ -13,7 +13,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form action="{{ route('gl.journal-entries.store') }}" method="POST" x-data="{
+        <form action="{{ route('gl.journal-entries.store') }}" method="POST" data-turbo="false" x-data="{
             lines: [
                 { account_id: '', description: '', debit: 0, credit: 0 },
                 { account_id: '', description: '', debit: 0, credit: 0 }

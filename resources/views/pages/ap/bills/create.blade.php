@@ -27,7 +27,7 @@
     </x-alert>
 @endif
 
-<form action="{{ isset($bill) ? route('ap.bills.update', $bill) : route('ap.bills.store') }}" method="POST" id="bill-form">
+<form action="{{ isset($bill) ? route('ap.bills.update', $bill) : route('ap.bills.store') }}" method="POST" data-turbo="false" id="bill-form">
     @csrf
     @if(isset($bill))
         @method('PUT')
