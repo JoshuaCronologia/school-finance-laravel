@@ -97,15 +97,23 @@ class PaymentController extends Controller
 
                     $voucherNumber = NumberingService::generate('PV');
 
-                    // Generate check number for check payments
+                    // Generate check/reference number based on payment method
                     $checkNumber = null;
-                    if ($disbursement->payment_method === 'check') {
+                    $refNumber = $voucherNumber;
+                    $method = $disbursement->payment_method ?? 'check';
+
+                    if ($method === 'check') {
                         if ($manualCheckSeq !== null) {
                             $checkNumber = $manualCheckSeq;
                             $manualCheckSeq = $this->incrementCheckNumber($manualCheckSeq);
                         } else {
                             $checkNumber = NumberingService::generate('CHK');
                         }
+                        $refNumber = $checkNumber;
+                    } elseif ($method === 'bank_transfer') {
+                        $refNumber = NumberingService::generate('BT');
+                    } elseif ($method === 'online') {
+                        $refNumber = NumberingService::generate('OL');
                     }
 
                     $payment = DisbursementPayment::create([
@@ -115,7 +123,7 @@ class PaymentController extends Controller
                         'payment_method' => $disbursement->payment_method ?? 'check',
                         'bank_account' => $bankAccount,
                         'check_number' => $checkNumber,
-                        'reference_number' => $voucherNumber,
+                        'reference_number' => $refNumber,
                         'gross_amount' => $disbursement->amount,
                         'withholding_tax' => $wht,
                         'net_amount' => $netAmount,
@@ -140,10 +148,10 @@ class PaymentController extends Controller
                         'voucher_number' => $voucherNumber,
                         'request_number' => $disbursement->request_number,
                         'payee_name' => $disbursement->payee_name,
-                        'payment_method' => $disbursement->payment_method ?? 'check',
+                        'payment_method' => $method,
                         'bank_account' => $bankAccount,
                         'check_number' => $checkNumber,
-                        'reference_number' => $voucherNumber,
+                        'reference_number' => $refNumber,
                         'gross_amount' => (float) $disbursement->amount,
                         'withholding_tax' => $wht,
                         'net_amount' => $netAmount,

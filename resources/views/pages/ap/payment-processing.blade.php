@@ -35,7 +35,7 @@
                     <th>Payee</th>
                     <th>Bank</th>
                     <th>Method</th>
-                    <th>Check #</th>
+                    <th>Check / Ref #</th>
                     <th class="text-right">Gross</th>
                     <th class="text-right">WHT (2%)</th>
                     <th class="text-right">Net Amount</th>
@@ -49,7 +49,7 @@
                     <td>{{ $result['payee_name'] }}</td>
                     <td>{{ $result['bank_account'] ?? '-' }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $result['payment_method'])) }}</td>
-                    <td class="font-medium font-mono">{{ $result['check_number'] ?? '-' }}</td>
+                    <td class="font-medium font-mono">{{ $result['check_number'] ?? $result['reference_number'] ?? '-' }}</td>
                     <td class="text-right">{{ '₱' . number_format($result['gross_amount'], 2) }}</td>
                     <td class="text-right text-danger-600">{{ '₱' . number_format($result['withholding_tax'], 2) }}</td>
                     <td class="text-right font-semibold">{{ '₱' . number_format($result['net_amount'], 2) }}</td>
