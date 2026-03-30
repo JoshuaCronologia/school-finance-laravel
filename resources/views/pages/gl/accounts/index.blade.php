@@ -110,7 +110,7 @@
 
 {{-- Add Account Modal --}}
 <x-modal name="add-account" title="Add Account" maxWidth="2xl">
-    <form action="{{ route('gl.accounts.store') }}" method="POST" data-turbo="false">
+    <form action="{{ route('gl.accounts.store') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -164,7 +164,7 @@
 {{-- Edit Account Modals --}}
 @foreach($accounts as $account)
 <x-modal name="edit-account-{{ $account->id }}" title="Edit Account" maxWidth="2xl">
-    <form action="{{ route('gl.accounts.update', $account) }}" method="POST" data-turbo="false">
+    <form action="{{ route('gl.accounts.update', $account) }}" method="POST">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -99,7 +99,7 @@
 
 {{-- Add Vendor Modal --}}
 <x-modal name="add-vendor" title="Add Vendor" maxWidth="4xl">
-    <form action="{{ route('vendors.store') }}" method="POST" data-turbo="false">
+    <form action="{{ route('vendors.store') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -199,7 +199,7 @@
 {{-- Edit Vendor Modals --}}
 @foreach($vendors as $vendor)
 <x-modal name="edit-vendor-{{ $vendor->id }}" title="Edit Vendor" maxWidth="4xl">
-    <form action="{{ route('vendors.update', $vendor) }}" method="POST" data-turbo="false">
+    <form action="{{ route('vendors.update', $vendor) }}" method="POST">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

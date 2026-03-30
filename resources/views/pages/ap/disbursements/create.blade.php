@@ -27,7 +27,7 @@
     </x-alert>
 @endif
 
-<form action="{{ isset($disbursement) ? route('ap.disbursements.update', $disbursement) : route('ap.disbursements.store') }}" method="POST" data-turbo="false" enctype="multipart/form-data" x-data="disbursementForm()">
+<form action="{{ isset($disbursement) ? route('ap.disbursements.update', $disbursement) : route('ap.disbursements.store') }}" method="POST" enctype="multipart/form-data" x-data="disbursementForm()">
     @csrf
     @if(isset($disbursement))
         @method('PUT')

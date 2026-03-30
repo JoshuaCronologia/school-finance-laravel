@@ -103,7 +103,7 @@
 
 {{-- Add Customer Modal --}}
 <x-modal name="add-customer" title="Add Customer" maxWidth="4xl">
-    <form action="{{ route('ar.customers.store') }}" method="POST" data-turbo="false">
+    <form action="{{ route('ar.customers.store') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -169,7 +169,7 @@
 {{-- Edit Customer Modals --}}
 @foreach($customers as $customer)
 <x-modal name="edit-customer-{{ $customer->id }}" title="Edit Customer" maxWidth="4xl">
-    <form action="{{ route('ar.customers.update', $customer) }}" method="POST" data-turbo="false">
+    <form action="{{ route('ar.customers.update', $customer) }}" method="POST">
         @csrf
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
