@@ -239,7 +239,7 @@ class MasterDataSeeder extends Seeder
                 'start_date' => $m[1],
                 'end_date' => $m[2],
                 'status' => $i < 6 ? 'closed' : 'open',
-                'closed_by' => $i < 6 ? 1 : null,
+                'closed_by' => null,
                 'closed_at' => $i < 6 ? $now : null,
                 'notes' => null,
                 'created_at' => $now,
