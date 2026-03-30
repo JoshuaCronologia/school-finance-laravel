@@ -89,6 +89,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/payment-processing', [PaymentController::class, 'index'])->name('payment-processing');
         Route::get('/supplier-payments', [PaymentController::class, 'payments'])->name('supplier-payments');
         Route::get('/payments', [PaymentController::class, 'payments'])->name('payments.index');
+        Route::post('/payments/batch', [PaymentController::class, 'batchProcess'])->name('payments.batch');
         Route::post('/payments/{disbursement}', [PaymentController::class, 'processPayment'])->name('payments.store');
         Route::post('/payments/{payment}/void', [PaymentController::class, 'voidPayment'])->name('payments.void');
         Route::get('/payments/{payment}/print', [PaymentController::class, 'printVoucher'])->name('payments.print');

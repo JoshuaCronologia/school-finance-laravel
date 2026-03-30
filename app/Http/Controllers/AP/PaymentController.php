@@ -18,13 +18,23 @@ class PaymentController extends Controller
     /**
      * Payment Processing queue – approved disbursements waiting to be paid.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $readyForPayment = DisbursementRequest::with('department', 'category')
+        $query = DisbursementRequest::with('department', 'category')
             ->where('status', 'approved')
-            ->whereDoesntHave('payment')
-            ->latest('request_date')
-            ->get();
+            ->whereDoesntHave('payment');
+
+        // Filter by "approved as of" date
+        if ($request->filled('as_of_date')) {
+            $query->where('request_date', '<=', $request->as_of_date);
+        }
+
+        // Filter by payment method
+        if ($request->filled('filter_method')) {
+            $query->where('payment_method', $request->filter_method);
+        }
+
+        $readyForPayment = $query->oldest('request_date')->get();
 
         $totalReadyForPayment = $readyForPayment->sum('amount');
         $bankAccounts = [];
@@ -32,6 +42,96 @@ class PaymentController extends Controller
         return view('pages.ap.payment-processing', compact(
             'readyForPayment', 'totalReadyForPayment', 'bankAccounts'
         ));
+    }
+
+    /**
+     * Batch generate voucher numbers and check numbers for selected disbursements.
+     */
+    public function batchProcess(Request $request)
+    {
+        $validated = $request->validate([
+            'disbursement_ids' => 'required|array|min:1',
+            'disbursement_ids.*' => 'exists:disbursement_requests,id',
+            'payment_date' => 'required|date',
+        ]);
+
+        $disbursements = DisbursementRequest::whereIn('id', $validated['disbursement_ids'])
+            ->where('status', 'approved')
+            ->whereDoesntHave('payment')
+            ->oldest('request_date')
+            ->get();
+
+        if ($disbursements->isEmpty()) {
+            return back()->with('error', 'No valid approved disbursements found for processing.');
+        }
+
+        try {
+            $results = DB::transaction(function () use ($disbursements, $validated) {
+                $batchResults = [];
+
+                foreach ($disbursements as $disbursement) {
+                    $whtRate = 0.02;
+                    $wht = round((float) $disbursement->amount * $whtRate, 2);
+                    $netAmount = (float) $disbursement->amount - $wht;
+
+                    $voucherNumber = NumberingService::generate('PV');
+
+                    // Auto-generate check number for check payments
+                    $checkNumber = null;
+                    if ($disbursement->payment_method === 'check') {
+                        $checkNumber = NumberingService::generate('CHK');
+                    }
+
+                    $payment = DisbursementPayment::create([
+                        'disbursement_id' => $disbursement->id,
+                        'voucher_number' => $voucherNumber,
+                        'payment_date' => $validated['payment_date'],
+                        'payment_method' => $disbursement->payment_method ?? 'check',
+                        'bank_account' => null,
+                        'check_number' => $checkNumber,
+                        'reference_number' => $voucherNumber,
+                        'gross_amount' => $disbursement->amount,
+                        'withholding_tax' => $wht,
+                        'net_amount' => $netAmount,
+                        'status' => 'completed',
+                        'created_by' => auth()->id(),
+                    ]);
+
+                    $disbursement->update(['status' => 'paid']);
+
+                    // Move budget from committed to actual
+                    if ($disbursement->budget_id) {
+                        app(BudgetService::class)->recordActual($disbursement->budget_id, (float) $disbursement->amount);
+                    }
+
+                    // Post to GL
+                    app(PostingService::class)->postDisbursement($payment);
+
+                    app(AuditService::class)->log('payment', 'disbursement', $disbursement, null,
+                        "Batch payment processed: {$payment->voucher_number}");
+
+                    $batchResults[] = [
+                        'voucher_number' => $voucherNumber,
+                        'request_number' => $disbursement->request_number,
+                        'payee_name' => $disbursement->payee_name,
+                        'payment_method' => $disbursement->payment_method ?? 'check',
+                        'check_number' => $checkNumber,
+                        'reference_number' => $voucherNumber,
+                        'gross_amount' => (float) $disbursement->amount,
+                        'withholding_tax' => $wht,
+                        'net_amount' => $netAmount,
+                    ];
+                }
+
+                return $batchResults;
+            });
+
+            return redirect()->route('ap.payment-processing')
+                ->with('success', count($results) . ' payment(s) processed successfully.')
+                ->with('batch_results', $results);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to process batch: ' . $e->getMessage());
+        }
     }
 
     /**
