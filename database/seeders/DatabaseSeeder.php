@@ -42,10 +42,16 @@ class DatabaseSeeder extends Seeder
             JOIN pg_class t ON d.refobjid = t.oid
             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
             WHERE s.relkind = 'S'
+              AND t.relkind = 'r'
+              AND t.relname IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
         ");
 
         foreach ($tables as $row) {
-            DB::statement("SELECT setval('{$row->sequence_name}', COALESCE((SELECT MAX({$row->column_name}) FROM {$row->table_name}), 0) + 1, false)");
+            try {
+                DB::statement("SELECT setval('{$row->sequence_name}', COALESCE((SELECT MAX({$row->column_name}) FROM \"{$row->table_name}\"), 0) + 1, false)");
+            } catch (\Exception $e) {
+                // Skip sequences for tables that don't exist
+            }
         }
     }
 }
