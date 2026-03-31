@@ -104,11 +104,21 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
+<script src="https://cdn.jsdelivr.net/npm/chart.js" data-turbo-track="reload"></script>
+<script data-turbo-eval="false">
+function initTrendChart() {
     var canvas = document.getElementById('trendChart');
-    if (!canvas || typeof Chart === 'undefined') return;
+    if (!canvas) return;
+
+    // Wait for Chart.js to load
+    if (typeof Chart === 'undefined') {
+        setTimeout(initTrendChart, 100);
+        return;
+    }
+
+    // Destroy existing chart instance if any
+    var existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
 
     new Chart(canvas.getContext('2d'), {
         type: 'line',
@@ -158,6 +168,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-});
+}
+
+// Works on both initial load and Turbo Drive navigation
+document.addEventListener('DOMContentLoaded', initTrendChart);
+document.addEventListener('turbo:load', initTrendChart);
 </script>
 @endpush

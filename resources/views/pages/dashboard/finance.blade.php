@@ -11,6 +11,7 @@
     </x-slot:actions>
 </x-page-header> --}}
 
+<div data-vue-root>
 {{-- Stat Cards --}}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
     <x-stat-card label="Total Annual Budget" value="{{ '₱' . number_format($totalBudget, 2) }}" color="blue">
@@ -113,6 +114,8 @@
         </table>
     </div>
 </div>
+
+</div>{{-- /data-vue-root --}}
 @endsection
 
 @push('scripts')
