@@ -167,6 +167,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cash-flow/export/{format}', [ReportController::class, 'exportCashFlow'])->name('cash-flow.export');
         Route::get('/general-ledger/export/{format}', [ReportController::class, 'exportGeneralLedger'])->name('general-ledger.export');
         Route::get('/budget-vs-actual/export/{format}', [ReportController::class, 'exportBudgetVsActual'])->name('budget-vs-actual.export');
+        Route::get('/budget-performance/export/{format}', [ReportController::class, 'exportBudgetPerformance'])->name('budget-performance.export');
     });
 
     // =============================================================
