@@ -36,6 +36,9 @@ use App\Http\Controllers\Api\UserController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
+// SSO Validation (called by SIS)
+Route::post('/sso/validate', [\App\Http\Controllers\Api\SsoValidateController::class, 'validate']);
+
 // -----------------------------------------------------------------
 // Protected Routes
 // -----------------------------------------------------------------

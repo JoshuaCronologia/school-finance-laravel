@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             MasterDataSeeder::class,
             RolePermissionSeeder::class,
             TransactionSeeder::class,
+            SsoPermissionSeeder::class,
+            SsoBranchUserSeeder::class,
         ]);
 
         // Reset all PostgreSQL sequences after seeding with explicit IDs

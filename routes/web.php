@@ -22,6 +22,8 @@ use App\Http\Controllers\Tax\TaxController;
 use App\Http\Controllers\System\AuditTrailController;
 use App\Http\Controllers\System\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\BranchLoginController;
+use App\Http\Controllers\System\AccessRightsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SearchController;
 
@@ -44,9 +46,62 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->name('logout');
 
 // -----------------------------------------------------------------
+// SSO / Branch Login
+// -----------------------------------------------------------------
+Route::get('/branch-login', [BranchLoginController::class, 'login'])->name('branch.login');
+Route::get('/branch-login/{userType}/{branchCode}/{hashedId}', [BranchLoginController::class, 'directLogin'])->name('branch.login.direct');
+Route::post('/branch-logout', [BranchLoginController::class, 'logout'])->name('branch.logout');
+Route::get('/no-access', fn () => view('auth.no-access'))->name('no-access');
+
+// -----------------------------------------------------------------
+// DEV: SSO Test Routes (local only)
+// -----------------------------------------------------------------
+if (app()->environment('local')) {
+    Route::get('/dev/sso-test/{type}/{branchCode}', function (string $type, string $branchCode) {
+        $parentType = $type === 'student' ? \App\Models\Student::class : \App\Models\Employee::class;
+
+        // Find or create a test BranchUser
+        $branchUser = \App\Models\BranchUser::firstOrCreate(
+            ['parent_id' => 'TEST-' . strtoupper($type) . '-001', 'parent_type' => $parentType, 'branch_code' => $branchCode],
+            ['name' => 'Test ' . ucfirst($type), 'email' => "test.{$type}@school.edu.ph", 'is_active' => true]
+        );
+
+        // Assign permissions based on type
+        $allSsoPerms = config('acl.permissions', []);
+        if ($type === 'employee') {
+            $branchUser->syncPermissions(['accounting', 'request', 'announcement', 'announcement history', 'contacts']);
+        } elseif ($type === 'student') {
+            $branchUser->syncPermissions(['test']);
+        } else {
+            $branchUser->syncPermissions($allSsoPerms); // admin gets all
+        }
+
+        $permissions = $branchUser->getPermissionNames()->toArray();
+
+        // Set SSO session
+        session()->flush();
+        session([
+            'user_id'     => $branchUser->parent_id,
+            'branch_code' => $branchCode,
+            'platform'    => 'Kto12',
+            'permissions'  => $permissions,
+            'is_sso'      => true,
+            'user_info'   => [
+                'branch_user_id' => $branchUser->id,
+                'user_type'      => $parentType,
+                'name'           => $branchUser->name,
+                'email'          => $branchUser->email,
+            ],
+        ]);
+
+        return redirect('/')->with('success', "SSO test login as {$type} ({$branchCode}). Permissions: " . implode(', ', $permissions));
+    })->name('dev.sso-test');
+}
+
+// -----------------------------------------------------------------
 // Authenticated Routes
 // -----------------------------------------------------------------
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['check_auth'])->group(function () {
 
     // =============================================================
     // Overview / Dashboards
@@ -209,6 +264,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
     Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
+
+    // Access Rights (SSO user management)
+    Route::get('/access-rights', [AccessRightsController::class, 'index'])->name('access-rights.index');
+    Route::post('/access-rights', [AccessRightsController::class, 'store'])->name('access-rights.store');
+    Route::put('/access-rights/{branchUser}', [AccessRightsController::class, 'update'])->name('access-rights.update');
+    Route::delete('/access-rights/{branchUser}', [AccessRightsController::class, 'destroy'])->name('access-rights.destroy');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');

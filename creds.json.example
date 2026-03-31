@@ -1,0 +1,88 @@
+{
+    "local": {
+        "name": "My School",
+        "domains": ["127.0.0.1", "localhost"],
+        "driver": "mysql",
+        "databases": {
+            "main": {
+                "host": "127.0.0.1",
+                "port": 3306,
+                "database": "accounting",
+                "username": "root",
+                "password": ""
+            },
+            "inventory": {
+                "host": "127.0.0.1",
+                "port": 3306,
+                "database": "inventory",
+                "username": "root",
+                "password": ""
+            },
+            "branches": [
+                {
+                    "id": 1,
+                    "name": "Main Branch",
+                    "code": "main",
+                    "school_types": ["1", "2"],
+                    "kto12": {
+                        "host": "127.0.0.1",
+                        "port": 3306,
+                        "database": "main_kto12",
+                        "username": "root",
+                        "password": ""
+                    },
+                    "college": {
+                        "host": "127.0.0.1",
+                        "port": 3306,
+                        "database": "main_college",
+                        "username": "root",
+                        "password": ""
+                    }
+                }
+            ]
+        }
+    },
+    "production": {
+        "name": "My School",
+        "domains": ["yourdomain.com"],
+        "driver": "pgsql",
+        "databases": {
+            "main": {
+                "host": "YOUR_PROD_HOST",
+                "port": 5432,
+                "database": "accounting",
+                "username": "YOUR_PROD_USER",
+                "password": "YOUR_PROD_PASSWORD"
+            },
+            "inventory": {
+                "host": "YOUR_PROD_HOST",
+                "port": 5432,
+                "database": "inventory",
+                "username": "YOUR_PROD_USER",
+                "password": "YOUR_PROD_PASSWORD"
+            },
+            "branches": [
+                {
+                    "id": 1,
+                    "name": "Main Branch",
+                    "code": "main",
+                    "school_types": ["1", "2"],
+                    "kto12": {
+                        "host": "YOUR_PROD_HOST",
+                        "port": 5432,
+                        "database": "main_kto12",
+                        "username": "YOUR_PROD_USER",
+                        "password": "YOUR_PROD_PASSWORD"
+                    },
+                    "college": {
+                        "host": "YOUR_PROD_HOST",
+                        "port": 5432,
+                        "database": "main_college",
+                        "username": "YOUR_PROD_USER",
+                        "password": "YOUR_PROD_PASSWORD"
+                    }
+                }
+            ]
+        }
+    }
+}

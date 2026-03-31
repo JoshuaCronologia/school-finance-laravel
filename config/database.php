@@ -2,23 +2,104 @@
 
 use Illuminate\Support\Str;
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Dynamic Connection Helper
+|--------------------------------------------------------------------------
+| Builds a Laravel database connection array from creds.json entry.
+| Supports both MySQL and PostgreSQL drivers.
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Database Connection Name
-    |--------------------------------------------------------------------------
-    */
+function connection_template(array $config, string $driver = 'mysql'): array
+{
+    if ($driver === 'pgsql') {
+        return [
+            'driver'         => 'pgsql',
+            'host'           => $config['host'],
+            'port'           => $config['port'] ?? 5432,
+            'database'       => $config['database'],
+            'username'       => $config['username'],
+            'password'       => $config['password'],
+            'charset'        => 'utf8',
+            'prefix'         => '',
+            'prefix_indexes' => true,
+            'search_path'    => $config['schema'] ?? 'public',
+            'sslmode'        => $config['sslmode'] ?? 'require',
+            'options'        => [PDO::ATTR_EMULATE_PREPARES => true],
+        ];
+    }
+
+    // Default: MySQL
+    return [
+        'driver'         => 'mysql',
+        'host'           => $config['host'],
+        'port'           => $config['port'] ?? 3306,
+        'database'       => $config['database'],
+        'username'       => $config['username'],
+        'password'       => $config['password'],
+        'unix_socket'    => '',
+        'charset'        => 'utf8mb4',
+        'collation'      => 'utf8mb4_unicode_ci',
+        'prefix'         => '',
+        'prefix_indexes' => true,
+        'strict'         => false,
+        'engine'         => null,
+    ];
+}
+
+/*
+|--------------------------------------------------------------------------
+| Load creds.json and register dynamic connections
+|--------------------------------------------------------------------------
+*/
+
+$dynamicConnections = [];
+
+$credsPath  = str_replace('config', 'creds.json', __DIR__);
+$configKey  = env('DB_CONFIG_KEY', '');
+
+if ($configKey && file_exists($credsPath)) {
+    $jsonConfig = json_decode(file_get_contents($credsPath), true) ?? [];
+
+    if (array_key_exists($configKey, $jsonConfig)) {
+        $envConfig = $jsonConfig[$configKey];
+        $driver    = $envConfig['driver'] ?? env('DB_CONNECTION', 'mysql');
+
+        // Main accounting database — register under its driver name
+        if (isset($envConfig['databases']['main'])) {
+            $dynamicConnections[$driver] = connection_template($envConfig['databases']['main'], $driver);
+        }
+
+        // Inventory database (optional)
+        if (isset($envConfig['databases']['inventory'])) {
+            $dynamicConnections['inventory'] = connection_template($envConfig['databases']['inventory'], $driver);
+        }
+
+        // Branch databases (SIS connections)
+        foreach ($envConfig['databases']['branches'] ?? [] as $branch) {
+            $code = strtolower($branch['code']);
+
+            if (in_array('1', $branch['school_types'] ?? []) && isset($branch['kto12'])) {
+                $dynamicConnections[$code . '_kto12'] = connection_template($branch['kto12'], $driver);
+            }
+            if (in_array('2', $branch['school_types'] ?? []) && isset($branch['college'])) {
+                $dynamicConnections[$code . '_college'] = connection_template($branch['college'], $driver);
+            }
+        }
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Database Configuration
+|--------------------------------------------------------------------------
+*/
+
+return [
 
     'default' => env('DB_CONNECTION', 'mysql'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Database Connections
-    |--------------------------------------------------------------------------
-    */
-
-    'connections' => [
+    'connections' => array_merge([
 
         'pgsql' => [
             'driver' => 'pgsql',
@@ -69,24 +150,12 @@ return [
             ]) : [],
         ],
 
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Migration Repository Table
-    |--------------------------------------------------------------------------
-    */
+    ], $dynamicConnections), // <-- Dynamic connections merged here
 
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_each_run' => true,
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Redis Databases
-    |--------------------------------------------------------------------------
-    */
 
     'redis' => [
 

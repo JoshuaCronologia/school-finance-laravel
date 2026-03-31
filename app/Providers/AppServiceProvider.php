@@ -7,6 +7,8 @@ use App\Services\CacheService;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -41,6 +43,29 @@ class AppServiceProvider extends ServiceProvider
                 config(['app.asset_url' => $url]);
             }
         }
+
+        // SSO Gate bridge: allow @can() directives to work for SSO session users
+        Gate::before(function ($user, $ability) {
+            // Only for SSO users (no Auth::user but has SSO session)
+            if ($user === null && Session::has('is_sso')) {
+                $ssoPermissions = Session::get('permissions', []);
+
+                // Direct match
+                if (in_array($ability, $ssoPermissions)) {
+                    return true;
+                }
+
+                // Check mapped permissions (e.g., 'accounting' grants 'budget.view')
+                $map = config('acl.permission_map', []);
+                foreach ($ssoPermissions as $ssoPerm) {
+                    if (isset($map[$ssoPerm]) && in_array($ability, $map[$ssoPerm])) {
+                        return true;
+                    }
+                }
+
+                return null; // let other gates handle it
+            }
+        });
 
         // Password defaults
         Password::defaults(function () {
