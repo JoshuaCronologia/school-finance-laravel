@@ -2,27 +2,51 @@
 @section('title', 'Monthly Variance')
 
 @section('content')
-@php
-    $monthlyData = $monthlyData ?? collect();
-    $months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-@endphp
-
-<x-page-header title="Monthly Variance Analysis" subtitle="Compare budget versus actual spending by month">
+<x-page-header title="Monthly Variance Analysis" subtitle="Budget vs actual expenses per category">
     <x-slot:actions>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">Excel</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn-secondary text-sm">PDF</a>
     </x-slot:actions>
 </x-page-header>
 
+{{-- Filters --}}
 <x-filter-bar>
     <div>
-        <label class="form-label">School Year</label>
-        <select name="school_year" class="form-input w-40">
-            <option value="2025-2026" {{ request('school_year', '2025-2026') == '2025-2026' ? 'selected' : '' }}>2025-2026</option>
-            <option value="2024-2025" {{ request('school_year') == '2024-2025' ? 'selected' : '' }}>2024-2025</option>
+        <label class="form-label">Month</label>
+        <select name="month" class="form-input w-36">
+            @for($m = 1; $m <= 12; $m++)
+                <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+            @endfor
+        </select>
+    </div>
+    <div>
+        <label class="form-label">Department</label>
+        <select name="department_id" class="form-input w-48">
+            <option value="">All Departments</option>
+            @foreach($departments as $dept)
+                <option value="{{ $dept->id }}" {{ $departmentId == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
+            @endforeach
         </select>
     </div>
 </x-filter-bar>
+
+{{-- Summary Cards --}}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="card p-4">
+        <p class="text-xs font-medium text-secondary-500 uppercase">Budget for {{ $selectedMonthName }}</p>
+        <p class="text-xl font-bold text-blue-700 mt-1">₱{{ number_format($totals['monthly_budget'], 2) }}</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-xs font-medium text-secondary-500 uppercase">Actual Expenses</p>
+        <p class="text-xl font-bold text-green-700 mt-1">₱{{ number_format($totals['monthly_actual'], 2) }}</p>
+    </div>
+    <div class="card p-4">
+        <p class="text-xs font-medium text-secondary-500 uppercase">Variance</p>
+        <p class="text-xl font-bold {{ $totals['variance'] >= 0 ? 'text-success-700' : 'text-danger-600' }} mt-1">
+            {{ $totals['variance'] < 0 ? '(' : '' }}₱{{ number_format(abs($totals['variance']), 2) }}{{ $totals['variance'] < 0 ? ')' : '' }}
+        </p>
+    </div>
+</div>
 
 {{-- Trend Chart --}}
 <div class="card mb-6">
@@ -34,67 +58,67 @@
     </div>
 </div>
 
-{{-- Monthly Table --}}
+{{-- Itemized Table --}}
 <div class="card">
     <div class="card-header">
-        <h3 class="text-sm font-semibold text-secondary-900">Monthly Details</h3>
+        <h3 class="text-sm font-semibold text-secondary-900">{{ $selectedMonthName }} — Budget vs Actual</h3>
     </div>
     <div class="overflow-x-auto">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Month</th>
-                    <th class="text-right">Budget</th>
-                    <th class="text-right">Actual</th>
+                    <th>Category / Budget Item</th>
+                    <th class="text-right">Budget for {{ $selectedMonthName }}</th>
+                    <th class="text-right">Actual Expenses</th>
                     <th class="text-right">Variance</th>
-                    <th class="text-right">Variance %</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($monthlyData as $index => $month)
-                    @php
-                        $variance = ($month->budget ?? 0) - ($month->actual ?? 0);
-                        $variancePct = ($month->budget ?? 0) > 0 ? ($variance / $month->budget * 100) : 0;
-                        $isOver = $variance < 0;
-                    @endphp
+                @forelse($groupedData as $deptName => $items)
+                    {{-- Department Header --}}
+                    <tr class="bg-gray-100">
+                        <td colspan="4" class="font-bold text-secondary-800 text-sm py-2">{{ $deptName }}</td>
+                    </tr>
+                    @foreach($items as $item)
+                    @php $isOver = $item->variance < 0; @endphp
                     <tr>
-                        <td class="font-medium">{{ $months[$index] ?? $month->month_name ?? '' }}</td>
-                        <td class="text-right font-mono">₱{{ number_format($month->budget ?? 0, 2) }}</td>
-                        <td class="text-right font-mono">₱{{ number_format($month->actual ?? 0, 2) }}</td>
+                        <td class="pl-6">{{ $item->category }} — {{ $item->budget_name }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($item->monthly_budget, 2) }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($item->monthly_actual, 2) }}</td>
                         <td class="text-right font-mono font-semibold {{ $isOver ? 'text-danger-600' : 'text-success-600' }}">
-                            {{ $isOver ? '-' : '' }}₱{{ number_format(abs($variance), 2) }}
+                            {{ $isOver ? '(' : '' }}₱{{ number_format(abs($item->variance), 2) }}{{ $isOver ? ')' : '' }}
                         </td>
-                        <td class="text-right">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $isOver ? 'bg-danger-50 text-danger-700' : 'bg-success-50 text-success-700' }}">
-                                {{ $isOver ? '' : '+' }}{{ number_format($variancePct, 1) }}%
-                            </span>
+                    </tr>
+                    @endforeach
+                    {{-- Subtotal --}}
+                    @php
+                        $deptBudget = $items->sum('monthly_budget');
+                        $deptActual = $items->sum('monthly_actual');
+                        $deptVar = $deptBudget - $deptActual;
+                    @endphp
+                    <tr class="bg-gray-50 font-semibold">
+                        <td class="text-right text-secondary-600">{{ $deptName }} Subtotal</td>
+                        <td class="text-right font-mono">₱{{ number_format($deptBudget, 2) }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($deptActual, 2) }}</td>
+                        <td class="text-right font-mono {{ $deptVar < 0 ? 'text-danger-600' : 'text-success-600' }}">
+                            {{ $deptVar < 0 ? '(' : '' }}₱{{ number_format(abs($deptVar), 2) }}{{ $deptVar < 0 ? ')' : '' }}
                         </td>
                     </tr>
                 @empty
-                    @foreach($months as $monthName)
-                        <tr>
-                            <td class="font-medium">{{ $monthName }}</td>
-                            <td class="text-right font-mono text-secondary-300">₱0.00</td>
-                            <td class="text-right font-mono text-secondary-300">₱0.00</td>
-                            <td class="text-right font-mono text-secondary-300">₱0.00</td>
-                            <td class="text-right"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-secondary-400">0.0%</span></td>
-                        </tr>
-                    @endforeach
+                    <tr>
+                        <td colspan="4" class="text-center text-secondary-400 py-8">No budget data found.</td>
+                    </tr>
                 @endforelse
             </tbody>
-            @if($monthlyData->isNotEmpty())
-            <tfoot class="bg-gray-50 font-semibold">
-                @php
-                    $totBudget = $monthlyData->sum('budget');
-                    $totActual = $monthlyData->sum('actual');
-                    $totVariance = $totBudget - $totActual;
-                @endphp
+            @if($itemizedData->isNotEmpty())
+            <tfoot class="bg-gray-100 font-bold">
                 <tr>
-                    <td>Total</td>
-                    <td class="text-right font-mono">₱{{ number_format($totBudget, 2) }}</td>
-                    <td class="text-right font-mono">₱{{ number_format($totActual, 2) }}</td>
-                    <td class="text-right font-mono {{ $totVariance < 0 ? 'text-danger-600' : 'text-success-600' }}">₱{{ number_format(abs($totVariance), 2) }}</td>
-                    <td class="text-right font-mono">{{ $totBudget > 0 ? number_format($totVariance / $totBudget * 100, 1) : '0.0' }}%</td>
+                    <td class="text-right">TOTAL</td>
+                    <td class="text-right font-mono">₱{{ number_format($totals['monthly_budget'], 2) }}</td>
+                    <td class="text-right font-mono">₱{{ number_format($totals['monthly_actual'], 2) }}</td>
+                    <td class="text-right font-mono {{ $totals['variance'] < 0 ? 'text-danger-600' : 'text-success-600' }}">
+                        {{ $totals['variance'] < 0 ? '(' : '' }}₱{{ number_format(abs($totals['variance']), 2) }}{{ $totals['variance'] < 0 ? ')' : '' }}
+                    </td>
                 </tr>
             </tfoot>
             @endif
@@ -104,74 +128,75 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js" data-turbo-track="reload"></script>
-<script data-turbo-eval="false">
-function initTrendChart() {
-    var canvas = document.getElementById('trendChart');
-    if (!canvas) return;
+<script>
+(function() {
+    var chartLabels = @json($monthLabels);
+    var chartBudget = @json($monthlyChartData->pluck('budget')->values()->toArray());
+    var chartActual = @json($monthlyChartData->pluck('actual')->values()->toArray());
 
-    // Wait for Chart.js to load
-    if (typeof Chart === 'undefined') {
-        setTimeout(initTrendChart, 100);
-        return;
+    function loadChartJs(callback) {
+        if (typeof Chart !== 'undefined') { callback(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        s.onload = callback;
+        document.head.appendChild(s);
     }
 
-    // Destroy existing chart instance if any
-    var existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
+    function renderChart() {
+        var canvas = document.getElementById('trendChart');
+        if (!canvas) return;
 
-    new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: {!! json_encode($months) !!},
-            datasets: [
-                {
-                    label: 'Budget',
-                    data: {!! json_encode($monthlyData->pluck('budget')->values()->toArray() ?: array_fill(0, 12, 0)) !!},
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    fill: true,
-                    tension: 0.3
+        loadChartJs(function() {
+            var existing = Chart.getChart(canvas);
+            if (existing) existing.destroy();
+
+            new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: 'Budget',
+                            data: chartBudget,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true, tension: 0.3
+                        },
+                        {
+                            label: 'Actual',
+                            data: chartActual,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true, tension: 0.3
+                        }
+                    ]
                 },
-                {
-                    label: 'Actual',
-                    data: {!! json_encode($monthlyData->pluck('actual')->values()->toArray() ?: array_fill(0, 12, 0)) !!},
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            return ctx.dataset.label + ': \u20B1' + ctx.parsed.y.toLocaleString();
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.dataset.label + ': \u20B1' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits: 2});
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: function(v) { return '\u20B1' + (v / 1000).toFixed(0) + 'K'; } }
                         }
                     }
                 }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(v) {
-                            return '\u20B1' + (v / 1000).toFixed(0) + 'K';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
+            });
+        });
+    }
 
-// Works on both initial load and Turbo Drive navigation
-document.addEventListener('DOMContentLoaded', initTrendChart);
-document.addEventListener('turbo:load', initTrendChart);
+    // Run immediately (Turbo already loaded the page at this point)
+    renderChart();
+})();
 </script>
 @endpush

@@ -487,63 +487,92 @@ class ReportController extends Controller
     }
 
     /**
-     * Monthly budget variance analysis.
+     * Monthly budget variance analysis – itemized per budget line, grouped by department.
      */
     public function monthlyVariance(Request $request)
     {
-        $budgets = Budget::with(['department', 'category', 'allocations'])
-            ->whereIn('status', ['active', 'approved'])
-            ->get();
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $departmentId = $request->input('department_id');
+        $selectedMonth = $request->input('month', now()->month);
 
-        // 1 query for ALL 12 months instead of 12 separate queries
-        $monthlyActuals = collect(DB::select("
-            SELECT EXTRACT(MONTH FROM je.posting_date)::int as month,
-                   COALESCE(SUM(jel.debit - jel.credit), 0) as total
-            FROM journal_entry_lines jel
-            JOIN journal_entries je ON jel.journal_entry_id = je.id
-            JOIN chart_of_accounts coa ON jel.account_id = coa.id
-            WHERE coa.account_type = 'expense'
-              AND je.status = 'posted'
-              AND EXTRACT(YEAR FROM je.posting_date) = ?
-            GROUP BY EXTRACT(MONTH FROM je.posting_date)
-        ", [now()->year]))->keyBy('month');
+        $query = Budget::with(['department', 'category', 'allocations'])
+            ->whereIn('status', ['active', 'approved']);
 
-        $monthlyData = [];
-        for ($m = 1; $m <= 12; $m++) {
-            $budgetedForMonth = 0;
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
 
-            foreach ($budgets as $budget) {
-                $alloc = $budget->allocations->firstWhere('month', $m);
-                $budgetedForMonth += $alloc ? (float) $alloc->amount : ($budget->annual_budget / 12);
-            }
+        $budgets = $query->get();
 
-            $actualForMonth = (float) ($monthlyActuals->get($m)->total ?? 0);
+        // Build itemized data: each budget line with its monthly allocation
+        $itemizedData = $budgets->map(function ($budget) use ($selectedMonth) {
+            $alloc = $budget->allocations->firstWhere('month', $selectedMonth);
+            $monthlyBudget = $alloc ? (float) $alloc->amount : round((float) $budget->annual_budget / 12, 2);
 
-            $variance = $budgetedForMonth - $actualForMonth;
-            $variancePct = $budgetedForMonth > 0 ? ($variance / $budgetedForMonth) * 100 : 0;
+            // Actual comes from the budget model's actual field prorated
+            // (since we don't have per-budget-per-month actuals, use annual actual / 12 as estimate)
+            $monthlyActual = round((float) $budget->actual / 12, 2);
 
-            $monthlyData[$m] = (object) [
-                'month' => $m,
-                'month_name' => date('F', mktime(0, 0, 0, $m, 1)),
-                'budget' => $budgetedForMonth,
-                'actual' => $actualForMonth,
+            $variance = $monthlyBudget - $monthlyActual;
+            $variancePct = $monthlyBudget > 0 ? ($variance / $monthlyBudget) * 100 : 0;
+
+            return (object) [
+                'budget_name' => $budget->budget_name,
+                'category' => $budget->category->name ?? '-',
+                'department' => $budget->department->name ?? '-',
+                'department_id' => $budget->department_id,
+                'annual_budget' => (float) $budget->annual_budget,
+                'monthly_budget' => $monthlyBudget,
+                'monthly_actual' => $monthlyActual,
+                'annual_actual' => (float) $budget->actual,
                 'variance' => $variance,
                 'variance_pct' => $variancePct,
             ];
-        }
+        })->sortBy('department');
 
-        $monthlyData = collect($monthlyData)->values();
+        // Group by department
+        $groupedData = $itemizedData->groupBy('department');
+
+        // Monthly summary for chart (all 12 months)
+        $monthLabels = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        $monthlyChartData = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $budgetedForMonth = 0;
+            foreach ($budgets as $budget) {
+                $alloc = $budget->allocations->firstWhere('month', $m);
+                $budgetedForMonth += $alloc ? (float) $alloc->amount : ((float) $budget->annual_budget / 12);
+            }
+            $actualForMonth = round($budgets->sum('actual') / 12, 2);
+
+            $monthlyChartData[] = (object) [
+                'month' => $m,
+                'budget' => round($budgetedForMonth, 2),
+                'actual' => $actualForMonth,
+            ];
+        }
+        $monthlyChartData = collect($monthlyChartData);
+
+        // Totals
+        $totals = [
+            'annual_budget' => $itemizedData->sum('annual_budget'),
+            'monthly_budget' => $itemizedData->sum('monthly_budget'),
+            'monthly_actual' => $itemizedData->sum('monthly_actual'),
+            'annual_actual' => $itemizedData->sum('annual_actual'),
+        ];
+        $totals['variance'] = $totals['monthly_budget'] - $totals['monthly_actual'];
+        $totals['variance_pct'] = $totals['monthly_budget'] > 0
+            ? ($totals['variance'] / $totals['monthly_budget']) * 100 : 0;
+
+        $selectedMonthName = date('F', mktime(0, 0, 0, $selectedMonth, 1));
 
         // Handle export
         if ($request->filled('export')) {
             $schoolName = Setting::where('key', 'school_name')->value('value') ?? config('app.name');
+            $deptLabel = $departmentId
+                ? strtoupper($departments->firstWhere('id', $departmentId)->name ?? 'DEPARTMENT')
+                : 'INSTITUTIONAL';
 
             if ($request->export === 'pdf') {
-                $totalBudget = $monthlyData->sum('budget');
-                $totalActual = $monthlyData->sum('actual');
-                $totalVar = $totalBudget - $totalActual;
-                $totalPct = $totalBudget > 0 ? ($totalVar / $totalBudget) * 100 : 0;
-
                 $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Monthly Variance</title>'
                     . '<style>* { margin:0; padding:0; } body { font-family: DejaVu Sans, Arial, sans-serif; font-size:10px; }'
                     . '.header { text-align:center; margin-bottom:15px; border-bottom:2px solid #1a1a1a; padding-bottom:8px; }'
@@ -553,61 +582,93 @@ class ReportController extends Controller
                     . 'th { background:#2c3e50; color:#fff; font-size:9px; } td { font-size:9px; }'
                     . '.text-right { text-align:right; } .negative { color:#c0392b; } .positive { color:#27ae60; }'
                     . '.total-row { background:#ecf0f1; font-weight:bold; }'
+                    . '.dept-header { background:#f0f4f8; font-weight:bold; font-size:10px; }'
+                    . '.subtotal { background:#f9fafb; font-weight:bold; font-size:9px; }'
                     . '.footer { margin-top:15px; font-size:8px; color:#888; text-align:center; border-top:1px solid #ccc; padding-top:5px; }'
                     . '</style></head><body>'
                     . '<div class="header">'
-                    . '<h1>MONTHLY VARIANCE ANALYSIS</h1>'
+                    . '<h1>MONTHLY VARIANCE - ' . e($selectedMonthName) . '</h1>'
                     . '<h2>' . e($schoolName) . '</h2>'
-                    . '<h3>INSTITUTIONAL</h3>'
+                    . '<h3>' . e($deptLabel) . '</h3>'
                     . '<div class="sub">Generated: ' . now()->format('M d, Y h:i A') . '</div>'
                     . '</div>'
-                    . '<table><thead><tr><th>Month</th><th class="text-right">Budget</th><th class="text-right">Actual</th><th class="text-right">Variance (B-A)</th><th class="text-right">Variance %</th></tr></thead><tbody>';
+                    . '<table><thead><tr>'
+                    . '<th style="width:40%">Category / Budget Item</th>'
+                    . '<th class="text-right" style="width:20%">Budget for ' . e($selectedMonthName) . '</th>'
+                    . '<th class="text-right" style="width:20%">Actual Expenses</th>'
+                    . '<th class="text-right" style="width:20%">Variance</th>'
+                    . '</tr></thead><tbody>';
 
-                foreach ($monthlyData as $row) {
-                    $isNeg = $row->variance < 0;
-                    $cls = $isNeg ? 'negative' : 'positive';
-                    $html .= '<tr><td>' . $row->month_name . '</td>'
-                        . '<td class="text-right">' . number_format($row->budget, 2) . '</td>'
-                        . '<td class="text-right">' . number_format($row->actual, 2) . '</td>'
-                        . '<td class="text-right ' . $cls . '">' . ($isNeg ? '(' : '') . number_format(abs($row->variance), 2) . ($isNeg ? ')' : '') . '</td>'
-                        . '<td class="text-right ' . $cls . '">' . number_format($row->variance_pct, 1) . '%</td></tr>';
+                foreach ($groupedData as $deptName => $items) {
+                    $html .= '<tr class="dept-header"><td colspan="4">' . e($deptName) . '</td></tr>';
+                    foreach ($items as $item) {
+                        $cls = $item->variance < 0 ? 'negative' : 'positive';
+                        $vFmt = ($item->variance < 0 ? '(' : '') . number_format(abs($item->variance), 2) . ($item->variance < 0 ? ')' : '');
+                        $html .= '<tr>'
+                            . '<td style="padding-left:16px">' . e($item->category) . ' — ' . e($item->budget_name) . '</td>'
+                            . '<td class="text-right">' . number_format($item->monthly_budget, 2) . '</td>'
+                            . '<td class="text-right">' . number_format($item->monthly_actual, 2) . '</td>'
+                            . '<td class="text-right ' . $cls . '">' . $vFmt . '</td>'
+                            . '</tr>';
+                    }
+                    $dB = $items->sum('monthly_budget'); $dA = $items->sum('monthly_actual'); $dV = $dB - $dA;
+                    $dCls = $dV < 0 ? 'negative' : 'positive';
+                    $html .= '<tr class="subtotal"><td class="text-right">' . e($deptName) . ' Subtotal</td>'
+                        . '<td class="text-right">' . number_format($dB, 2) . '</td>'
+                        . '<td class="text-right">' . number_format($dA, 2) . '</td>'
+                        . '<td class="text-right ' . $dCls . '">' . ($dV < 0 ? '(' : '') . number_format(abs($dV), 2) . ($dV < 0 ? ')' : '') . '</td></tr>';
                 }
 
-                $html .= '<tr class="total-row"><td>TOTAL</td>'
-                    . '<td class="text-right">' . number_format($totalBudget, 2) . '</td>'
-                    . '<td class="text-right">' . number_format($totalActual, 2) . '</td>'
-                    . '<td class="text-right">' . number_format($totalVar, 2) . '</td>'
-                    . '<td class="text-right">' . number_format($totalPct, 1) . '%</td></tr>';
+                $vTotal = ($totals['variance'] < 0 ? '(' : '') . number_format(abs($totals['variance']), 2) . ($totals['variance'] < 0 ? ')' : '');
+                $html .= '<tr class="total-row">'
+                    . '<td class="text-right">TOTAL</td>'
+                    . '<td class="text-right">' . number_format($totals['monthly_budget'], 2) . '</td>'
+                    . '<td class="text-right">' . number_format($totals['monthly_actual'], 2) . '</td>'
+                    . '<td class="text-right">' . $vTotal . '</td>'
+                    . '</tr>';
                 $html .= '</tbody></table><div class="footer">' . e($schoolName) . ' - Monthly Variance Report</div></body></html>';
 
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('letter', 'portrait');
-                return $pdf->download('Monthly-Variance.pdf');
+                return $pdf->download('Monthly-Variance-' . $selectedMonthName . '.pdf');
             }
 
             // CSV
-            $callback = function () use ($monthlyData, $schoolName) {
+            $callback = function () use ($groupedData, $totals, $schoolName, $deptLabel, $selectedMonthName) {
                 $file = fopen('php://output', 'w');
-                fputcsv($file, ['MONTHLY VARIANCE ANALYSIS']);
+                fputcsv($file, ["MONTHLY VARIANCE - {$selectedMonthName}"]);
                 fputcsv($file, [$schoolName]);
-                fputcsv($file, ['INSTITUTIONAL']);
+                fputcsv($file, [$deptLabel]);
                 fputcsv($file, ['Generated: ' . now()->format('F d, Y')]);
                 fputcsv($file, []);
-                fputcsv($file, ['Month', 'Budget', 'Actual', 'Variance (B-A)', 'Variance %']);
-                foreach ($monthlyData as $row) {
-                    fputcsv($file, [
-                        $row->month_name,
-                        number_format($row->budget, 2),
-                        number_format($row->actual, 2),
-                        number_format($row->variance, 2),
-                        number_format($row->variance_pct, 1) . '%',
-                    ]);
+                fputcsv($file, ['Category / Budget Item', "Budget for {$selectedMonthName}", 'Actual Expenses', 'Variance']);
+                foreach ($groupedData as $deptName => $items) {
+                    fputcsv($file, [$deptName, '', '', '']);
+                    foreach ($items as $item) {
+                        $vFmt = ($item->variance < 0 ? '(' : '') . number_format(abs($item->variance), 2) . ($item->variance < 0 ? ')' : '');
+                        fputcsv($file, [
+                            '  ' . $item->category . ' - ' . $item->budget_name,
+                            number_format($item->monthly_budget, 2),
+                            number_format($item->monthly_actual, 2),
+                            $vFmt,
+                        ]);
+                    }
                 }
+                fputcsv($file, []);
+                $vTotal = ($totals['variance'] < 0 ? '(' : '') . number_format(abs($totals['variance']), 2) . ($totals['variance'] < 0 ? ')' : '');
+                fputcsv($file, ['TOTAL',
+                    number_format($totals['monthly_budget'], 2),
+                    number_format($totals['monthly_actual'], 2),
+                    $vTotal,
+                ]);
                 fclose($file);
             };
-            return response()->streamDownload($callback, 'Monthly-Variance.csv', ['Content-Type' => 'text/csv']);
+            return response()->streamDownload($callback, "Monthly-Variance-{$selectedMonthName}.csv", ['Content-Type' => 'text/csv']);
         }
 
-        return view('pages.reports.monthly-variance', compact('monthlyData'));
+        return view('pages.reports.monthly-variance', compact(
+            'groupedData', 'itemizedData', 'monthlyChartData', 'monthLabels',
+            'totals', 'departments', 'departmentId', 'selectedMonth', 'selectedMonthName'
+        ));
     }
 
     // ---------------------------------------------------------------

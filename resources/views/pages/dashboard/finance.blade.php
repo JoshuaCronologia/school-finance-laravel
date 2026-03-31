@@ -11,7 +11,6 @@
     </x-slot:actions>
 </x-page-header> --}}
 
-<div data-vue-root>
 {{-- Stat Cards --}}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
     <x-stat-card label="Total Annual Budget" value="{{ '₱' . number_format($totalBudget, 2) }}" color="blue">
@@ -32,42 +31,36 @@
 </div>
 
 {{-- Charts Row --}}
-<div data-vue-root>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {{-- Budget vs Actual by Department --}}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Budget vs Actual by Department</h3>
-            </div>
-            <div class="card-body">
-                <div id="bar-chart-container" style="min-height: 320px;">
-                    <bar-chart :labels='@json($departmentLabels)' :datasets='@json($departmentDatasets)' :currency="true"></bar-chart>
-                </div>
-            </div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    {{-- Budget vs Actual by Department --}}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Budget vs Actual by Department</h3>
         </div>
-
-        {{-- Monthly Expense Trend --}}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Monthly Expense Trend</h3>
-            </div>
-            <div class="card-body">
-                <div id="line-chart-container" style="min-height: 320px;">
-                    <line-chart :labels='@json($monthlyLabels)' :datasets='@json($monthlyDatasets)' :currency="true" :fill="true"></line-chart>
-                </div>
-            </div>
+        <div class="card-body">
+            <canvas id="deptChart" height="320"></canvas>
         </div>
     </div>
 
-    {{-- Spending by Category --}}
-    <div class="card mb-6">
+    {{-- Monthly Expense Trend --}}
+    <div class="card">
         <div class="card-header">
-            <h3 class="card-title">Spending by Category</h3>
+            <h3 class="card-title">Monthly Expense Trend</h3>
         </div>
-        <div class="card-body flex justify-center">
-            <div style="max-width: 400px; width: 100%;">
-                <doughnut-chart :labels='@json($categoryLabels)' :data='@json($categoryValues)' :currency="true"></doughnut-chart>
-            </div>
+        <div class="card-body">
+            <canvas id="expenseChart" height="320"></canvas>
+        </div>
+    </div>
+</div>
+
+{{-- Spending by Category --}}
+<div class="card mb-6">
+    <div class="card-header">
+        <h3 class="card-title">Spending by Category</h3>
+    </div>
+    <div class="card-body flex justify-center">
+        <div style="max-width: 400px; width: 100%;">
+            <canvas id="categoryChart" height="300"></canvas>
         </div>
     </div>
 </div>
@@ -114,12 +107,115 @@
         </table>
     </div>
 </div>
-
-</div>{{-- /data-vue-root --}}
 @endsection
 
 @push('scripts')
 <script>
-    // Vue chart components are mounted via app.js; data is passed as props above.
+(function() {
+    var deptLabels = @json($departmentLabels);
+    var deptDatasets = @json($departmentDatasets);
+    var monthlyLabels = @json($monthlyLabels);
+    var monthlyDatasets = @json($monthlyDatasets);
+    var catLabels = @json($categoryLabels);
+    var catValues = @json($categoryValues);
+
+    var barColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+    var doughnutColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4'];
+
+    function loadChartJs(cb) {
+        if (typeof Chart !== 'undefined') { cb(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        s.onload = cb;
+        document.head.appendChild(s);
+    }
+
+    function currencyTick(v) {
+        return '\u20B1' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K');
+    }
+
+    function currencyTooltip(ctx) {
+        return ctx.dataset.label + ': \u20B1' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits:2});
+    }
+
+    function initChart(id, cfg) {
+        var canvas = document.getElementById(id);
+        if (!canvas) return;
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas.getContext('2d'), cfg);
+    }
+
+    function renderAll() {
+        loadChartJs(function() {
+            // Budget vs Actual by Department (Bar)
+            initChart('deptChart', {
+                type: 'bar',
+                data: {
+                    labels: deptLabels,
+                    datasets: deptDatasets.map(function(ds, i) {
+                        return {
+                            label: ds.label,
+                            data: ds.data,
+                            backgroundColor: barColors[i % barColors.length],
+                            borderRadius: 4
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: currencyTooltip } } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: currencyTick } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // Monthly Expense Trend (Line)
+            initChart('expenseChart', {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: monthlyDatasets.map(function(ds, i) {
+                        return {
+                            label: ds.label,
+                            data: ds.data,
+                            borderColor: barColors[i % barColors.length],
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true, tension: 0.3
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: currencyTooltip } } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: currencyTick } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // Spending by Category (Doughnut)
+            initChart('categoryChart', {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{ data: catValues, backgroundColor: doughnutColors.slice(0, catLabels.length) }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.label + ': \u20B1' + ctx.parsed.toLocaleString('en-PH', {minimumFractionDigits:2});
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    renderAll();
+})();
 </script>
 @endpush
