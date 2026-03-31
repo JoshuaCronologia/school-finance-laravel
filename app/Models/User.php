@@ -14,6 +14,12 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
+    /**
+     * Cast primary key as string for Spatie permissions compatibility.
+     * model_has_permissions.model_id is text to support both integer and UUID keys.
+     */
+    protected $keyType = 'string';
+
     protected $fillable = [
         'name',
         'email',
