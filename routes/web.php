@@ -23,7 +23,6 @@ use App\Http\Controllers\System\AuditTrailController;
 use App\Http\Controllers\System\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\BranchLoginController;
-use App\Http\Controllers\System\AccessRightsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SearchController;
 
@@ -265,11 +264,10 @@ Route::middleware(['check_auth'])->group(function () {
     Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
     Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
 
-    // Access Rights (SSO user management)
-    Route::get('/access-rights', [AccessRightsController::class, 'index'])->name('access-rights.index');
-    Route::post('/access-rights', [AccessRightsController::class, 'store'])->name('access-rights.store');
-    Route::put('/access-rights/{branchUser}', [AccessRightsController::class, 'update'])->name('access-rights.update');
-    Route::delete('/access-rights/{branchUser}', [AccessRightsController::class, 'destroy'])->name('access-rights.destroy');
+    // Branch user (SSO) management — merged into User Access page
+    Route::post('/user-access/branch', [\App\Http\Controllers\System\UserAccessController::class, 'storeBranchUser'])->name('user-access.branch.store');
+    Route::put('/user-access/branch/{branchUser}', [\App\Http\Controllers\System\UserAccessController::class, 'updateBranchUser'])->name('user-access.branch.update');
+    Route::delete('/user-access/branch/{branchUser}', [\App\Http\Controllers\System\UserAccessController::class, 'deleteBranchUser'])->name('user-access.branch.delete');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
