@@ -36,6 +36,16 @@ class User extends Authenticatable
         'is_active' => 'boolean',
     ];
 
+    /**
+     * Get the value used for Spatie permission's model_id column.
+     * Cast to string because model_has_permissions.model_id is varchar
+     * (needed to support both integer User IDs and UUID BranchUser IDs).
+     */
+    public function getKey()
+    {
+        return (string) parent::getKey();
+    }
+
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
