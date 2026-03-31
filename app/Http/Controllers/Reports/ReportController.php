@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reports;
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
 use App\Models\ChartOfAccount;
+use App\Models\Department;
 use App\Models\JournalEntryLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -376,13 +377,90 @@ class ReportController extends Controller
     }
 
     /**
+     * Budget Performance Report – Institutional or per Department.
+     * Columns: Approved Budget, Actual Expense, Variance (B-A), Variance %.
+     */
+    public function budgetPerformance(Request $request)
+    {
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $schoolYear = $request->input('school_year', '2025-2026');
+        $departmentId = $request->input('department_id');
+        $asOfDate = $request->input('as_of_date', now()->format('Y-m-d'));
+
+        // Calculate months elapsed (school year starts July)
+        $asOfCarbon = \Carbon\Carbon::parse($asOfDate);
+        $syStart = \Carbon\Carbon::parse(substr($schoolYear, 0, 4) . '-07-01');
+        $monthsElapsed = $syStart->gt($asOfCarbon) ? 0 : $syStart->diffInMonths($asOfCarbon) + 1;
+        $monthsElapsed = min($monthsElapsed, 12);
+        $periodLabel = $monthsElapsed . ' Month' . ($monthsElapsed !== 1 ? 's' : '');
+
+        $query = Budget::with('department', 'category')
+            ->whereIn('status', ['active', 'approved'])
+            ->where('school_year', $schoolYear);
+
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+
+        $budgets = $query->get();
+
+        $reportTitle = 'INSTITUTIONAL';
+        $selectedDept = null;
+        if ($departmentId) {
+            $selectedDept = $departments->firstWhere('id', $departmentId);
+            $reportTitle = strtoupper($selectedDept->name ?? 'DEPARTMENT');
+        }
+
+        // Group by category and aggregate
+        $lineItems = $budgets->groupBy(fn ($b) => $b->category->name ?? 'Uncategorized')
+            ->map(function ($group, $categoryName) {
+                $approved = $group->sum('annual_budget');
+                $actual = $group->sum('actual');
+                $variance = $approved - $actual;
+                return [
+                    'category' => $categoryName,
+                    'approved_budget' => $approved,
+                    'actual' => $actual,
+                    'variance' => $variance,
+                    'variance_pct' => $approved > 0 ? ($variance / $approved) * 100 : 0,
+                ];
+            })
+            ->sortByDesc('approved_budget')
+            ->values();
+
+        $totals = [
+            'approved_budget' => $lineItems->sum('approved_budget'),
+            'actual' => $lineItems->sum('actual'),
+        ];
+        $totals['variance'] = $totals['approved_budget'] - $totals['actual'];
+        $totals['variance_pct'] = $totals['approved_budget'] > 0
+            ? ($totals['variance'] / $totals['approved_budget']) * 100 : 0;
+
+        return view('pages.reports.budget-performance', compact(
+            'departments', 'schoolYear', 'departmentId', 'asOfDate',
+            'reportTitle', 'selectedDept', 'lineItems', 'totals',
+            'periodLabel', 'monthsElapsed'
+        ));
+    }
+
+    /**
      * Budget vs Actual comparison.
      */
-    public function budgetVsActual()
+    public function budgetVsActual(Request $request)
     {
-        $budgets = Budget::with('department', 'category')
-            ->where('status', 'active')
-            ->get()
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+
+        $query = Budget::with('department', 'category')
+            ->whereIn('status', ['active', 'approved']);
+
+        if ($request->filled('school_year')) {
+            $query->where('school_year', $request->school_year);
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
+        }
+
+        $budgets = $query->get()
             ->map(function ($b) {
                 $b->remaining = $b->annual_budget - $b->committed - $b->actual;
                 $b->utilization = $b->annual_budget > 0
@@ -402,7 +480,7 @@ class ReportController extends Controller
         $summary['overall_utilization'] = $summary['total_budget'] > 0
             ? (($summary['total_committed'] + $summary['total_actual']) / $summary['total_budget']) * 100 : 0;
 
-        return view('pages.reports.budget-vs-actual', compact('budgets', 'summary'));
+        return view('pages.reports.budget-vs-actual', compact('budgets', 'summary', 'departments'));
     }
 
     /**
@@ -411,7 +489,7 @@ class ReportController extends Controller
     public function monthlyVariance()
     {
         $budgets = Budget::with(['department', 'category', 'allocations'])
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'approved'])
             ->get();
 
         // 1 query for ALL 12 months instead of 12 separate queries

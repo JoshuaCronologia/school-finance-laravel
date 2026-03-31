@@ -153,6 +153,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
         Route::get('/general-ledger', [ReportController::class, 'generalLedger'])->name('general-ledger');
         Route::get('/budget-vs-actual', [ReportController::class, 'budgetVsActual'])->name('budget-vs-actual');
+        Route::get('/budget-performance', [ReportController::class, 'budgetPerformance'])->name('budget-performance');
         Route::get('/monthly-variance', [ReportController::class, 'monthlyVariance'])->name('monthly-variance');
         Route::get('/expense-schedule', [ReportController::class, 'expenseSchedule'])->name('expense-schedule');
         Route::get('/general-journal', [ReportController::class, 'generalJournal'])->name('general-journal');
