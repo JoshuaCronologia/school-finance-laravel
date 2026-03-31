@@ -29,13 +29,14 @@
 </head>
 <body>
     <div class="header">
-        <h1>Budget vs Actual Report</h1>
+        <h1>BUDGET VS ACTUAL REPORT SY {{ $schoolYear }}</h1>
+        <h2>{{ $schoolName ?? 'School Finance System' }}</h2>
         @if($departmentName)
-            <h2>{{ $departmentName }}</h2>
+            <h2 style="font-weight:bold;">{{ strtoupper($departmentName) }}</h2>
         @else
-            <h2>All Departments</h2>
+            <h2 style="font-weight:bold;">INSTITUTIONAL</h2>
         @endif
-        <div class="subtitle">School Year: {{ $schoolYear }} &nbsp;|&nbsp; Generated: {{ $generatedAt }}</div>
+        <div class="subtitle">Generated: {{ $generatedAt }}</div>
     </div>
 
     {{-- Summary Box --}}
