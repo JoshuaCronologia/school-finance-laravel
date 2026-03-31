@@ -109,7 +109,7 @@
             </a>
 
             {{-- Budget Reports (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') || str_starts_with($currentRoute, '/reports/budget-performance') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
@@ -118,6 +118,7 @@
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                 </button>
                 <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
+                    <a href="/reports/budget-performance" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-performance' ? 'sidebar-link--active' : '' }}">Budget Performance</a>
                     <a href="/reports/budget-vs-actual" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-vs-actual' ? 'sidebar-link--active' : '' }}">Budget vs Actual</a>
                     <a href="/reports/monthly-variance" class="sidebar-link text-xs {{ $currentRoute === '/reports/monthly-variance' ? 'sidebar-link--active' : '' }}">Monthly Variance</a>
                 </div>
@@ -552,6 +553,7 @@
                 { type: 'Page', icon: 'page', title: 'Income Statement', subtitle: 'Reports', url: '/reports/income-statement' },
                 { type: 'Page', icon: 'page', title: 'Cash Flow Statement', subtitle: 'Reports', url: '/reports/cash-flow' },
                 { type: 'Page', icon: 'page', title: 'General Ledger Report', subtitle: 'Reports', url: '/reports/general-ledger' },
+                { type: 'Page', icon: 'page', title: 'Budget Performance', subtitle: 'Reports', url: '/reports/budget-performance' },
                 { type: 'Page', icon: 'page', title: 'Budget vs Actual', subtitle: 'Reports', url: '/reports/budget-vs-actual' },
                 { type: 'Page', icon: 'page', title: 'Monthly Variance', subtitle: 'Reports', url: '/reports/monthly-variance' },
                 { type: 'Page', icon: 'page', title: 'BIR 2307', subtitle: 'Tax & Compliance', url: '/tax/bir-2307' },

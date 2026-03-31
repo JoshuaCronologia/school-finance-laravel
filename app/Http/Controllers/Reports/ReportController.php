@@ -584,13 +584,66 @@ class ReportController extends Controller
         $summary['overall_utilization'] = $summary['total_budget'] > 0
             ? (($summary['total_committed'] + $summary['total_actual']) / $summary['total_budget']) * 100 : 0;
 
+        // Handle export
+        if ($request->filled('export')) {
+            $format = $request->export;
+
+            if ($format === 'pdf') {
+                $data = [
+                    'budgets' => $budgets->map(fn ($b) => (object) [
+                        'budget_name' => $b->budget_name,
+                        'department_name' => $b->department->name ?? '-',
+                        'category_name' => $b->category->name ?? '-',
+                        'annual_budget' => $b->annual_budget,
+                        'committed' => $b->committed,
+                        'actual' => $b->actual,
+                        'remaining' => $b->remaining,
+                        'variance' => $b->variance,
+                        'variance_pct' => $b->variance_pct,
+                    ])->sortBy('department_name'),
+                    'summary' => array_merge($summary, [
+                        'total_variance' => $summary['total_budget'] - $summary['total_actual'],
+                    ]),
+                    'schoolYear' => $request->input('school_year', 'All Years'),
+                    'departmentName' => $request->filled('department_id')
+                        ? ($departments->firstWhere('id', $request->department_id)->name ?? null)
+                        : null,
+                    'generatedAt' => now()->format('M d, Y h:i A'),
+                ];
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.budget.pdf-budget-vs-actual', $data)
+                    ->setPaper('letter', 'landscape');
+                return $pdf->download('Budget-vs-Actual.pdf');
+            }
+
+            // CSV/Excel
+            $callback = function () use ($budgets) {
+                $file = fopen('php://output', 'w');
+                fputcsv($file, ['Budget Name', 'Department', 'Category', 'Annual Budget', 'Committed', 'Actual', 'Remaining', 'Variance', 'Variance %']);
+                foreach ($budgets as $b) {
+                    fputcsv($file, [
+                        $b->budget_name,
+                        $b->department->name ?? '-',
+                        $b->category->name ?? '-',
+                        number_format($b->annual_budget, 2),
+                        number_format($b->committed, 2),
+                        number_format($b->actual, 2),
+                        number_format($b->remaining, 2),
+                        number_format($b->variance, 2),
+                        number_format($b->variance_pct, 1) . '%',
+                    ]);
+                }
+                fclose($file);
+            };
+            return response()->streamDownload($callback, 'Budget-vs-Actual.csv', ['Content-Type' => 'text/csv']);
+        }
+
         return view('pages.reports.budget-vs-actual', compact('budgets', 'summary', 'departments'));
     }
 
     /**
      * Monthly budget variance analysis.
      */
-    public function monthlyVariance()
+    public function monthlyVariance(Request $request)
     {
         $budgets = Budget::with(['department', 'category', 'allocations'])
             ->whereIn('status', ['active', 'approved'])
@@ -634,6 +687,66 @@ class ReportController extends Controller
         }
 
         $monthlyData = collect($monthlyData)->values();
+
+        // Handle export
+        if ($request->filled('export')) {
+            $format = $request->export;
+
+            if ($format === 'pdf') {
+                $pdfView = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Monthly Variance</title>'
+                    . '<style>* { margin:0; padding:0; } body { font-family: DejaVu Sans, Arial, sans-serif; font-size:10px; }'
+                    . '.header { text-align:center; margin-bottom:15px; border-bottom:2px solid #1a1a1a; padding-bottom:8px; }'
+                    . '.header h1 { font-size:14px; } .header h2 { font-size:11px; font-weight:normal; color:#555; }'
+                    . 'table { width:100%; border-collapse:collapse; } th,td { border:1px solid #ccc; padding:5px 8px; }'
+                    . 'th { background:#2c3e50; color:#fff; font-size:9px; } td { font-size:9px; }'
+                    . '.text-right { text-align:right; } .negative { color:#c0392b; } .positive { color:#27ae60; }'
+                    . '.total-row { background:#ecf0f1; font-weight:bold; }'
+                    . '.footer { margin-top:15px; font-size:8px; color:#888; text-align:center; border-top:1px solid #ccc; padding-top:5px; }'
+                    . '</style></head><body>'
+                    . '<div class="header"><h1>Monthly Variance Analysis</h1><h2>Generated: ' . now()->format('M d, Y') . '</h2></div>'
+                    . '<table><thead><tr><th>Month</th><th class="text-right">Budget</th><th class="text-right">Actual</th><th class="text-right">Variance</th><th class="text-right">Variance %</th></tr></thead><tbody>';
+                $totalBudget = 0; $totalActual = 0;
+                foreach ($monthlyData as $row) {
+                    $isNeg = $row->variance < 0;
+                    $cls = $isNeg ? 'negative' : 'positive';
+                    $pdfView .= '<tr><td>' . $row->month_name . '</td>'
+                        . '<td class="text-right">₱' . number_format($row->budget, 2) . '</td>'
+                        . '<td class="text-right">₱' . number_format($row->actual, 2) . '</td>'
+                        . '<td class="text-right ' . $cls . '">' . ($isNeg ? '(' : '') . '₱' . number_format(abs($row->variance), 2) . ($isNeg ? ')' : '') . '</td>'
+                        . '<td class="text-right ' . $cls . '">' . number_format($row->variance_pct, 1) . '%</td></tr>';
+                    $totalBudget += $row->budget;
+                    $totalActual += $row->actual;
+                }
+                $totalVar = $totalBudget - $totalActual;
+                $totalPct = $totalBudget > 0 ? ($totalVar / $totalBudget) * 100 : 0;
+                $pdfView .= '<tr class="total-row"><td>TOTAL</td>'
+                    . '<td class="text-right">₱' . number_format($totalBudget, 2) . '</td>'
+                    . '<td class="text-right">₱' . number_format($totalActual, 2) . '</td>'
+                    . '<td class="text-right">₱' . number_format(abs($totalVar), 2) . '</td>'
+                    . '<td class="text-right">' . number_format($totalPct, 1) . '%</td></tr>';
+                $pdfView .= '</tbody></table><div class="footer">School Finance ERP - Monthly Variance Report</div></body></html>';
+
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($pdfView)->setPaper('letter', 'portrait');
+                return $pdf->download('Monthly-Variance.pdf');
+            }
+
+            // CSV
+            $callback = function () use ($monthlyData) {
+                $file = fopen('php://output', 'w');
+                fputcsv($file, ['Month', 'Budget', 'Actual', 'Variance', 'Variance %']);
+                foreach ($monthlyData as $row) {
+                    fputcsv($file, [
+                        $row->month_name,
+                        number_format($row->budget, 2),
+                        number_format($row->actual, 2),
+                        number_format($row->variance, 2),
+                        number_format($row->variance_pct, 1) . '%',
+                    ]);
+                }
+                fclose($file);
+            };
+            return response()->streamDownload($callback, 'Monthly-Variance.csv', ['Content-Type' => 'text/csv']);
+        }
 
         return view('pages.reports.monthly-variance', compact('monthlyData'));
     }
