@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BranchUser;
+use App\Services\Users\BranchUser;
+use App\Services\Users\User;
 use App\Models\Employee;
 use App\Models\Student;
-use App\Models\User;
 use Illuminate\Support\Facades\Session;
 
 /**

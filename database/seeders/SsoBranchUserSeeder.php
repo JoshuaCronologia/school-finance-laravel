@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\BranchUser;
+use App\Services\Users\BranchUser;
 use App\Models\Employee;
 use App\Models\Student;
 use Illuminate\Database\Seeder;

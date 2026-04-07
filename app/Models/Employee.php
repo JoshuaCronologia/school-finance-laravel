@@ -26,9 +26,9 @@ class Employee extends Model
     public function getFullNameAttribute(): string
     {
         $parts = array_filter([
-            $this->fname ?? $this->first_name ?? '',
-            $this->mname ?? $this->middle_name ?? '',
-            $this->lname ?? $this->last_name ?? '',
+            $this->firstname ?? $this->fname ?? $this->first_name ?? '',
+            $this->middlename ?? $this->mname ?? $this->middle_name ?? '',
+            $this->lastname ?? $this->lname ?? $this->last_name ?? '',
             $this->ext_name ?? $this->suffix ?? '',
         ]);
 

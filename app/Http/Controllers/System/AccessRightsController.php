@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
-use App\Models\BranchUser;
+use App\Services\Users\BranchUser;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 

@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\User;
+use App\Services\Users\User;
 use Illuminate\Support\Facades\Hash;
 
 class RolePermissionSeeder extends Seeder

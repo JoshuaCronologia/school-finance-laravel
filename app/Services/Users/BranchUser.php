@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Services\Users;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -30,16 +30,14 @@ class BranchUser extends Model
         'is_active' => 'boolean',
     ];
 
-    // ─── Helpers ────────────────────────────────────────────────
-
     public function isEmployee(): bool
     {
-        return $this->parent_type === Employee::class;
+        return $this->parent_type === \App\Models\Employee::class;
     }
 
     public function isStudent(): bool
     {
-        return $this->parent_type === Student::class;
+        return $this->parent_type === \App\Models\Student::class;
     }
 
     public function isAdmin(): bool
@@ -48,22 +46,21 @@ class BranchUser extends Model
     }
 
     /**
-     * Get the SIS parent record (Employee or Student) from the branch database.
+     * Get the SIS parent record from the branch database.
      */
     public function getSisRecord(string $connection)
     {
         if ($this->isEmployee()) {
-            return Employee::on($connection)->find($this->parent_id);
+            return \App\Models\Employee::on($connection)->find($this->parent_id);
         }
         if ($this->isStudent()) {
-            return Student::on($connection)->find($this->parent_id);
+            return \App\Models\Student::on($connection)->find($this->parent_id);
         }
         return null;
     }
 
     /**
      * Get the branch database connection name.
-     * e.g., 'main_kto12' or 'pcc_college'
      */
     public function branchConnection(string $platform = 'kto12'): string
     {

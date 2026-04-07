@@ -13,6 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Only run on PostgreSQL
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         // Get all tables that have an 'id' column with a sequence
         $sequences = DB::select("
             SELECT

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Services\Users;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,14 +14,16 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
-    /**
-     * Cast primary key as string for Spatie permissions compatibility.
-     * model_has_permissions.model_id is text to support both integer and UUID keys.
-     */
     protected $keyType = 'string';
+
+    protected $guard_name = 'web';
 
     protected $fillable = [
         'name',
+        'fname',
+        'mname',
+        'lname',
+        'ext_name',
         'email',
         'password',
         'phone',
@@ -42,28 +44,39 @@ class User extends Authenticatable
         'is_active' => 'boolean',
     ];
 
-    /**
-     * Get the value used for Spatie permission's model_id column.
-     * Cast to string because model_has_permissions.model_id is varchar
-     * (needed to support both integer User IDs and UUID BranchUser IDs).
-     */
     public function getKey()
     {
         return (string) parent::getKey();
     }
 
+    public function getNameAttribute($value): string
+    {
+        if ($value) return $value;
+        return trim(sprintf('%s %s %s %s', $this->fname, $this->mname, $this->lname, $this->ext_name));
+    }
+
+    public function isAdmin(): bool
+    {
+        foreach ($this->roles as $role) {
+            if ($role->name === Acl::ROLE_ADMIN) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function department(): BelongsTo
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(\App\Models\Department::class);
     }
 
     public function campus(): BelongsTo
     {
-        return $this->belongsTo(Campus::class);
+        return $this->belongsTo(\App\Models\Campus::class);
     }
 
     public function auditLogs(): HasMany
     {
-        return $this->hasMany(AuditLog::class);
+        return $this->hasMany(\App\Models\AuditLog::class);
     }
 }

@@ -31,6 +31,7 @@
 
             {{-- Form --}}
             <div class="px-8 py-8">
+                {{-- Error alert (for server-side errors) --}}
                 @if ($errors->any())
                     <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <ul class="text-sm text-red-600 list-disc list-inside">
@@ -47,14 +48,17 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('login') }}">
+                {{-- AJAX alert container --}}
+                <div id="login-alert" class="mb-4 p-3 rounded-lg text-sm hidden"></div>
+
+                <form id="login-form" method="POST">
                     @csrf
 
                     {{-- Email --}}
                     <div class="mb-5">
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">Email / Employee ID</label>
                         <input
-                            type="email"
+                            type="text"
                             id="email"
                             name="email"
                             value="{{ old('email') }}"
@@ -62,7 +66,7 @@
                             autofocus
                             autocomplete="email"
                             class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition text-sm"
-                            placeholder="you@orangeapps.edu.ph"
+                            placeholder="you@orangeapps.edu.ph or EMP-001"
                         >
                     </div>
 
@@ -97,6 +101,7 @@
                     {{-- Submit --}}
                     <button
                         type="submit"
+                        id="login-btn"
                         class="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2.5 px-4 rounded-lg transition duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                     >
                         Sign In
@@ -110,6 +115,60 @@
             OrangeApps Finance ERP v1.0
         </p>
     </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var btn = document.getElementById('login-btn');
+            var alert = document.getElementById('login-alert');
+            var email = document.getElementById('email').value;
+            var password = document.getElementById('password').value;
+            var token = document.querySelector('input[name="_token"]').value;
+
+            // Disable button
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+            alert.classList.add('hidden');
+
+            fetch('{{ route("multi_login") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.status === 1 && data.redirect) {
+                    // Success
+                    alert.className = 'mb-4 p-3 rounded-lg text-sm bg-green-50 border border-green-200 text-green-600';
+                    alert.textContent = data.text || 'Logged in successfully!';
+                    alert.classList.remove('hidden');
+                    window.location.href = data.redirect;
+                } else {
+                    // Error
+                    alert.className = 'mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-600';
+                    alert.textContent = data.text || 'Invalid credentials!';
+                    alert.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign In';
+                }
+            })
+            .catch(function(err) {
+                alert.className = 'mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-600';
+                alert.textContent = 'Something went wrong. Please try again.';
+                alert.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            });
+        });
+    </script>
 
 </body>
 </html>

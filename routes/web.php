@@ -22,7 +22,9 @@ use App\Http\Controllers\Tax\TaxController;
 use App\Http\Controllers\System\AuditTrailController;
 use App\Http\Controllers\System\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\BranchLoginController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SearchController;
 
@@ -53,49 +55,12 @@ Route::post('/branch-logout', [BranchLoginController::class, 'logout'])->name('b
 Route::get('/no-access', fn () => view('auth.no-access'))->name('no-access');
 
 // -----------------------------------------------------------------
-// DEV: SSO Test Routes (local only)
+// Multi-Login (LoginController) & Branch Login
 // -----------------------------------------------------------------
-if (app()->environment('local')) {
-    Route::get('/dev/sso-test/{type}/{branchCode}', function (string $type, string $branchCode) {
-        $parentType = $type === 'student' ? \App\Models\Student::class : \App\Models\Employee::class;
-
-        // Find or create a test BranchUser
-        $branchUser = \App\Models\BranchUser::firstOrCreate(
-            ['parent_id' => 'TEST-' . strtoupper($type) . '-001', 'parent_type' => $parentType, 'branch_code' => $branchCode],
-            ['name' => 'Test ' . ucfirst($type), 'email' => "test.{$type}@school.edu.ph", 'is_active' => true]
-        );
-
-        // Assign permissions based on type
-        $allSsoPerms = config('acl.permissions', []);
-        if ($type === 'employee') {
-            $branchUser->syncPermissions(['accounting', 'request', 'announcement', 'announcement history', 'contacts']);
-        } elseif ($type === 'student') {
-            $branchUser->syncPermissions(['test']);
-        } else {
-            $branchUser->syncPermissions($allSsoPerms); // admin gets all
-        }
-
-        $permissions = $branchUser->getPermissionNames()->toArray();
-
-        // Set SSO session
-        session()->flush();
-        session([
-            'user_id'     => $branchUser->parent_id,
-            'branch_code' => $branchCode,
-            'platform'    => 'Kto12',
-            'permissions'  => $permissions,
-            'is_sso'      => true,
-            'user_info'   => [
-                'branch_user_id' => $branchUser->id,
-                'user_type'      => $parentType,
-                'name'           => $branchUser->name,
-                'email'          => $branchUser->email,
-            ],
-        ]);
-
-        return redirect('/')->with('success', "SSO test login as {$type} ({$branchCode}). Permissions: " . implode(', ', $permissions));
-    })->name('dev.sso-test');
-}
+Route::post('/multi_login', [LoginController::class, 'multi_login'])->name('multi_login');
+Route::post('/admin_login', [LoginController::class, 'login'])->name('admin_login');
+Route::get('/branch_login/{user_type}/{branch_code}/{user_id}', [LoginController::class, 'branch_login'])->name('branch_login');
+Route::post('/validate_login', [AccountController::class, 'validate_login'])->name('validate_login');
 
 // -----------------------------------------------------------------
 // Authenticated Routes

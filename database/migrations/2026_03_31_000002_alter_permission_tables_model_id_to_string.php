@@ -1,36 +1,38 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Change model_id from unsignedBigInteger to string (varchar)
+ * Change model_id from unsignedBigInteger to varchar
  * to support UUID-based models like BranchUser with Spatie permissions.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        // model_has_permissions
-        Schema::table('model_has_permissions', function (Blueprint $table) {
-            $table->string('model_id')->change();
-        });
+        $driver = DB::connection()->getDriverName();
 
-        // model_has_roles
-        Schema::table('model_has_roles', function (Blueprint $table) {
-            $table->string('model_id')->change();
-        });
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE model_has_permissions MODIFY model_id VARCHAR(255) NOT NULL');
+            DB::statement('ALTER TABLE model_has_roles MODIFY model_id VARCHAR(255) NOT NULL');
+        } else {
+            // PostgreSQL
+            DB::statement('ALTER TABLE model_has_permissions ALTER COLUMN model_id TYPE VARCHAR(255) USING model_id::VARCHAR');
+            DB::statement('ALTER TABLE model_has_roles ALTER COLUMN model_id TYPE VARCHAR(255) USING model_id::VARCHAR');
+        }
     }
 
     public function down(): void
     {
-        Schema::table('model_has_permissions', function (Blueprint $table) {
-            $table->unsignedBigInteger('model_id')->change();
-        });
+        $driver = DB::connection()->getDriverName();
 
-        Schema::table('model_has_roles', function (Blueprint $table) {
-            $table->unsignedBigInteger('model_id')->change();
-        });
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE model_has_permissions MODIFY model_id BIGINT UNSIGNED NOT NULL');
+            DB::statement('ALTER TABLE model_has_roles MODIFY model_id BIGINT UNSIGNED NOT NULL');
+        } else {
+            DB::statement('ALTER TABLE model_has_permissions ALTER COLUMN model_id TYPE BIGINT USING model_id::BIGINT');
+            DB::statement('ALTER TABLE model_has_roles ALTER COLUMN model_id TYPE BIGINT USING model_id::BIGINT');
+        }
     }
 };

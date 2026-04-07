@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\BranchUser;
+use App\Services\Users\BranchUser;
 use App\Models\Employee;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
