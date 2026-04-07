@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ArCollection;
 use App\Models\ArInvoice;
 use App\Models\Customer;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -150,6 +151,8 @@ class ARController extends Controller
 
     public function soaPdf(Customer $customer)
     {
+        (new AuditService)->logActivity('exported', 'ar_soa', 'Downloaded SOA PDF');
+
         $customer->load('campus');
         $asOfDate = request('as_of_date', now()->toDateString());
 

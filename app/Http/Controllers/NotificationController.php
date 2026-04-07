@@ -13,7 +13,13 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $notifications = Notification::where('user_id', $request->user()->id)
+        $userId = $request->user() ? $request->user()->id : session('user_id');
+
+        if (!$userId) {
+            return response()->json(['notifications' => [], 'unread_count' => 0]);
+        }
+
+        $notifications = Notification::where('user_id', $userId)
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
@@ -28,7 +34,7 @@ class NotificationController extends Controller
                 'time_ago' => $n->created_at->diffForHumans(),
             ]; });
 
-        $unreadCount = Notification::where('user_id', $request->user()->id)
+        $unreadCount = Notification::where('user_id', $userId)
             ->unread()
             ->count();
 
@@ -43,7 +49,8 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request, Notification $notification): JsonResponse
     {
-        if ($notification->user_id !== $request->user()->id) {
+        $userId = $request->user() ? $request->user()->id : session('user_id');
+        if ($notification->user_id !== $userId) {
             abort(403);
         }
 
@@ -57,7 +64,8 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request): JsonResponse
     {
-        Notification::where('user_id', $request->user()->id)
+        $userId = $request->user() ? $request->user()->id : session('user_id');
+        Notification::where('user_id', $userId)
             ->unread()
             ->update(['read_at' => now()]);
 

@@ -147,6 +147,7 @@ class CollectionController extends Controller
 
     public function printReceipt(ArCollection $collection)
     {
+        (new \App\Services\AuditService)->logActivity('exported', 'ar_collection', 'Printed receipt: ' . $collection->receipt_number);
         $collection->load('customer', 'allocations.invoice');
 
         return view('pages.ar.collections.print-receipt', compact('collection'));

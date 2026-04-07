@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChartOfAccount;
 use App\Models\JournalEntryLine;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -95,6 +96,8 @@ class BankReconciliationController extends Controller
 
     public function pdf(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'bank_reconciliation', 'Downloaded bank reconciliation PDF');
+
         // Reuse index logic
         $bankAccounts = ChartOfAccount::where('account_code', '>=', '1010')
             ->where('account_code', '<=', '1050')

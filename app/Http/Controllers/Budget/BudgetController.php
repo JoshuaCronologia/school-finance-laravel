@@ -308,6 +308,8 @@ class BudgetController extends Controller
      */
     public function export()
     {
+        (new AuditService)->logActivity('exported', 'budget', 'Exported budget data');
+
         $budgets = Budget::with('department', 'category', 'costCenter', 'fundSource')
             ->orderBy('school_year', 'desc')
             ->orderBy('department_id')

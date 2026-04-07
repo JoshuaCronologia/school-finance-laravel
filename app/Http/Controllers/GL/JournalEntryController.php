@@ -304,6 +304,7 @@ class JournalEntryController extends Controller
      */
     public function printVoucher(JournalEntry $journalEntry)
     {
+        (new \App\Services\AuditService)->logActivity('exported', 'journal_entry', 'Printed JE voucher: ' . $journalEntry->entry_number);
         $journalEntry->load('lines.account', 'lines.department', 'campus', 'department');
 
         $totalDebit = $journalEntry->lines->sum('debit');
@@ -418,6 +419,7 @@ class JournalEntryController extends Controller
 
     public function generateRecurring(RecurringJournalTemplate $template)
     {
+        (new \App\Services\AuditService)->logActivity('created', 'journal_entry', 'Generated recurring JE from template: ' . $template->name);
         $template->load('lines.account');
 
         if (!$template->is_active) {

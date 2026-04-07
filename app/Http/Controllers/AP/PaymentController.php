@@ -318,6 +318,8 @@ class PaymentController extends Controller
 
     public function printVoucher(DisbursementPayment $payment)
     {
+        (new AuditService)->logActivity('exported', 'payment', 'Printed payment voucher');
+
         $payment->load('disbursement.items', 'disbursement.department', 'disbursement.category', 'disbursement.approvals');
 
         $data = [

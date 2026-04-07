@@ -47,11 +47,9 @@ class AuditService
         ?array $oldValues = null,
         ?string $remarks = null
     ): AuditLog {
-        $user = Auth::user();
-
-        // For SSO users (K-12/College employees), get info from session
-        if (!$user && session('is_sso')) {
-            $userId = session('user_id');
+        // SSO users first — their IDs are NOT in accounting.users table
+        if (session('is_sso')) {
+            $userId = null;
             $userName = session('user_info.name', 'SSO User');
             $platform = session('platform', '');
             $branchCode = session('branch_code', '');
@@ -59,6 +57,7 @@ class AuditService
                 $userName .= ' (' . trim($platform . '/' . strtoupper($branchCode), '/') . ')';
             }
         } else {
+            $user = Auth::user();
             $userId = optional($user)->id;
             $userName = optional($user)->name ?? 'System';
         }
@@ -87,6 +86,40 @@ class AuditService
             'record_id' => $record->getKey(),
             'old_values' => $oldValues,
             'new_values' => $newValues,
+            'ip_address' => Request::ip(),
+            'user_agent' => Request::userAgent(),
+            'remarks' => $remarks,
+        ]);
+    }
+
+    /**
+     * Log an activity without a specific model (e.g., exports, downloads, prints).
+     */
+    public function logActivity(string $action, string $module, $remarks = null)
+    {
+        if (session('is_sso')) {
+            $userId = null;
+            $userName = session('user_info.name', 'SSO User');
+            $platform = session('platform', '');
+            $branchCode = session('branch_code', '');
+            if ($platform || $branchCode) {
+                $userName .= ' (' . trim($platform . '/' . strtoupper($branchCode), '/') . ')';
+            }
+        } else {
+            $user = Auth::user();
+            $userId = optional($user)->id;
+            $userName = optional($user)->name ?? 'System';
+        }
+
+        return AuditLog::create([
+            'user_id' => $userId,
+            'user_name' => $userName,
+            'action' => $action,
+            'module' => $module,
+            'record_type' => 'system',
+            'record_id' => 0,
+            'old_values' => null,
+            'new_values' => null,
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
             'remarks' => $remarks,

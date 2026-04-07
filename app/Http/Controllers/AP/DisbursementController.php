@@ -222,6 +222,7 @@ class DisbursementController extends Controller
 
     public function export()
     {
+        (new \App\Services\AuditService)->logActivity('exported', 'disbursement', 'Exported disbursements');
         $disbursements = DisbursementRequest::with('department', 'category')
             ->latest('request_date')
             ->get();

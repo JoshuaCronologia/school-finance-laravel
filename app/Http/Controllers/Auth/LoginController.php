@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\AuditService;
 use Spatie\Permission\Models\Permission;
 
 class LoginController extends Controller
@@ -205,6 +206,8 @@ class LoginController extends Controller
             }
             Session::put('school_img', $school_image ?? null);
 
+            (new AuditService)->logActivity('login', 'auth', 'Admin login: ' . Auth::user()->email);
+
             $rs = SharedFunctions::success_msg('Logged in successfully!');
             $rs['redirect'] = url('/');
         } else {
@@ -281,6 +284,8 @@ class LoginController extends Controller
                     Session::put('referer', $request->server('HTTP_REFERER'));
                     Session::put('school_img', $school_image);
 
+                    (new AuditService)->logActivity('login', 'auth', 'K-12 Employee login: ' . ($employee_user->email ?: $employee_user->employee_id));
+
                     $rs = SharedFunctions::success_msg('Logged in successfully!');
                     $rs['redirect'] = url('/');
                     $found = true;
@@ -333,6 +338,8 @@ class LoginController extends Controller
                     Session::put('referer', $request->server('HTTP_REFERER'));
                     Session::put('school_img', $school_image);
 
+                    (new AuditService)->logActivity('login', 'auth', 'K-12 Student login: ' . ($student_user->email ?: $student_user->student_id));
+
                     $rs = SharedFunctions::success_msg('Logged in successfully!');
                     $rs['redirect'] = url('/');
                     $found = true;
@@ -380,6 +387,9 @@ class LoginController extends Controller
                                 Session::put('is_sso', true);
                                 Session::put('referer', $request->server('HTTP_REFERER'));
                                 Session::put('school_img', $school_image);
+
+                                (new AuditService)->logActivity('login', 'auth', 'College Employee login: ' . $request->email);
+
                                 $rs = SharedFunctions::success_msg('Logged in successfully!');
                                 $rs['redirect'] = url('/');
                                 $found = true;
@@ -424,6 +434,8 @@ class LoginController extends Controller
 
     public function logout()
     {
+        (new AuditService)->logActivity('logout', 'auth', 'User logged out');
+
         $redirect = env('HOME_URL', url('/login'));
         Auth::logout();
         Session::flush();

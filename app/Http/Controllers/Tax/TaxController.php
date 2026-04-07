@@ -13,6 +13,7 @@ use App\Models\JournalEntryLine;
 use App\Models\Setting;
 use App\Models\Vendor;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -140,6 +141,8 @@ class TaxController extends Controller
 
     public function generateBir2307(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'tax', 'Generated BIR 2307');
+
         return $this->bir2307($request);
     }
 
@@ -204,6 +207,8 @@ class TaxController extends Controller
 
     public function generateBir1601e(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'tax', 'Generated BIR 1601-E');
+
         return $this->bir1601e($request);
     }
 
@@ -281,6 +286,8 @@ class TaxController extends Controller
 
     public function generateVat2550m(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'tax', 'Generated VAT 2550M');
+
         return $this->vat2550m($request);
     }
 
@@ -337,6 +344,8 @@ class TaxController extends Controller
 
     public function exportAlphalist(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'tax', 'Exported Alphalist');
+
         $request->merge(['export' => 'csv']);
         return $this->alphalist($request);
     }
@@ -417,6 +426,8 @@ class TaxController extends Controller
 
     public function printCheck(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'tax', 'Printed check');
+
         $validated = $request->validate([
             'payment_id' => 'required|exists:disbursement_payments,id',
         ]);

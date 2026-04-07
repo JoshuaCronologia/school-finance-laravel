@@ -4,6 +4,7 @@ namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 
 class AuditTrailController extends Controller
@@ -46,6 +47,8 @@ class AuditTrailController extends Controller
 
     public function export(Request $request)
     {
+        (new AuditService)->logActivity('exported', 'audit_trail', 'Exported audit trail');
+
         $query = AuditLog::query();
 
         if ($request->filled('module')) {
