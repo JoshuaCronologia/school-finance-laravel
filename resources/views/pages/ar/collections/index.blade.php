@@ -9,12 +9,12 @@
 @endphp
 
 <x-page-header title="Collections / Official Receipts" :subtitle="$receiptsCount . ' receipts'">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'new-collection')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             New Collection
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -81,12 +81,8 @@
             <td>{{ $collection->customer->name ?? $collection->customer_name ?? '-' }}</td>
             <td>
                 @php
-                    $methodBadge = match($collection->payment_method ?? '') {
-                        'cash' => 'badge-success',
-                        'check' => 'badge-warning',
-                        'bank_transfer' => 'badge-info',
-                        default => 'badge-neutral',
-                    };
+                    $_map = ['cash' => 'badge-success', 'check' => 'badge-warning', 'bank_transfer' => 'badge-info'];
+    $methodBadge = $_map[$collection->payment_method ?? ''] ?? 'badge-neutral';
                 @endphp
                 <span class="badge {{ $methodBadge }}">{{ ucfirst(str_replace('_', ' ', $collection->payment_method ?? '-')) }}</span>
             </td>
@@ -110,9 +106,9 @@
         @endforelse
     </tbody>
     @if($collections instanceof \Illuminate\Pagination\LengthAwarePaginator && $collections->hasPages())
-    <x-slot:footer>
+    <x-slot name="footer">
         {{ $collections->withQueryString()->links() }}
-    </x-slot:footer>
+    </x-slot>
     @endif
 </x-data-table>
 

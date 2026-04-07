@@ -16,14 +16,14 @@ class Setting extends Model
         'description',
     ];
 
-    public static function get(string $key, mixed $default = null): mixed
+    public static function get(string $key, $default = null)
     {
         $setting = static::where('key', $key)->first();
 
         return $setting ? $setting->value : $default;
     }
 
-    public static function set(string $key, mixed $value): void
+    public static function set(string $key, $value)
     {
         static::updateOrCreate(
             ['key' => $key],

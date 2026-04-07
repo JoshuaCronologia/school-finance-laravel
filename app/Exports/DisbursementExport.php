@@ -14,10 +14,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class DisbursementExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnFormats, WithTitle
 {
-    protected ?string $startDate;
-    protected ?string $endDate;
-    protected ?string $status;
-    protected ?int $departmentId;
+    protected $startDate;
+    protected $endDate;
+    protected $status;
+    protected $departmentId;
 
     public function __construct(
         ?string $startDate = null,
@@ -70,10 +70,10 @@ class DisbursementExport implements FromCollection, WithHeadings, WithMapping, W
     {
         return [
             $request->request_number,
-            $request->request_date?->format('m/d/Y'),
+            ($request->request_date ? $request->request_date->format('m/d/Y') : null),
             $request->payee_name,
-            $request->department?->name ?? '-',
-            $request->costCenter?->name ?? '-',
+            optional($request->department)->name ?? '-',
+            optional($request->costCenter)->name ?? '-',
             $request->amount,
             ucfirst($request->status),
         ];

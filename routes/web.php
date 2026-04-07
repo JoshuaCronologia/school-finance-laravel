@@ -52,7 +52,7 @@ Route::post('/logout', [AuthController::class, 'logout'])
 Route::get('/branch-login', [BranchLoginController::class, 'login'])->name('branch.login');
 Route::get('/branch-login/{userType}/{branchCode}/{hashedId}', [BranchLoginController::class, 'directLogin'])->name('branch.login.direct');
 Route::post('/branch-logout', [BranchLoginController::class, 'logout'])->name('branch.logout');
-Route::get('/no-access', fn () => view('auth.no-access'))->name('no-access');
+Route::get('/no-access', function () { return view('auth.no-access'); })->name('no-access');
 
 // -----------------------------------------------------------------
 // Multi-Login (LoginController) & Branch Login
@@ -131,7 +131,7 @@ Route::middleware(['check_auth'])->group(function () {
         Route::resource('customers', CustomerController::class);
         Route::get('/aging', [ARController::class, 'aging'])->name('aging');
         // Simple export placeholder: reuse aging view data for now
-        Route::get('/aging/export', fn() => redirect()->route('ar.aging'))->name('aging.export');
+        Route::get('/aging/export', function () { return redirect()->route('ar.aging'); })->name('aging.export');
         Route::get('/soa', [ARController::class, 'soa'])->name('soa');
         Route::get('/soa/{customer}', [ARController::class, 'soaDetail'])->name('soa.detail');
         Route::get('/soa/{customer}/pdf', [ARController::class, 'soaPdf'])->name('soa.pdf');
@@ -229,7 +229,12 @@ Route::middleware(['check_auth'])->group(function () {
     Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
     Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
 
-    // Branch user (SSO) management — merged into User Access page
+    // Branch employee pages (K-12 and College)
+    Route::get('/user-access/kto12', [\App\Http\Controllers\System\UserAccessController::class, 'kto12Employees'])->name('user-access.kto12');
+    Route::get('/user-access/college', [\App\Http\Controllers\System\UserAccessController::class, 'collegeEmployees'])->name('user-access.college');
+    Route::post('/user-access/grant-access', [\App\Http\Controllers\System\UserAccessController::class, 'grantAccess'])->name('user-access.grant-access');
+
+    // Branch user (SSO) management
     Route::post('/user-access/branch', [\App\Http\Controllers\System\UserAccessController::class, 'storeBranchUser'])->name('user-access.branch.store');
     Route::put('/user-access/branch/{branchUser}', [\App\Http\Controllers\System\UserAccessController::class, 'updateBranchUser'])->name('user-access.branch.update');
     Route::delete('/user-access/branch/{branchUser}', [\App\Http\Controllers\System\UserAccessController::class, 'deleteBranchUser'])->name('user-access.branch.delete');
@@ -242,7 +247,7 @@ Route::middleware(['check_auth'])->group(function () {
     Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
     Route::delete('/settings/users/{user}', [SettingsController::class, 'deleteUser'])->name('settings.users.delete');
 
-    Route::get('/api-docs', fn () => view('system.api-docs'))->name('api-docs');
+    Route::get('/api-docs', function () { return view('system.api-docs'); })->name('api-docs');
 
     // =============================================================
     // Global Search

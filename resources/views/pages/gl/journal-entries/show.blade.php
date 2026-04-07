@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header :title="$journalEntry->entry_number" subtitle="Journal Entry Details">
-    <x-slot:actions>
+    <x-slot name="actions">
         <div class="flex flex-wrap gap-2">
             {{-- Print --}}
             @if($journalEntry->status === 'posted')
@@ -60,7 +60,7 @@
 
             <a href="{{ route('gl.journal-entries.index') }}" class="btn-secondary">Back to List</a>
         </div>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))

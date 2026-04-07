@@ -3,12 +3,12 @@
 
 @section('content')
 <x-page-header title="Recurring Journals">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'create-template')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             New Template
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -37,14 +37,8 @@
             <td class="font-medium text-secondary-900">{{ $template->template_name }}</td>
             <td>
                 @php
-                    $freqBadge = match($template->frequency ?? '') {
-                        'daily' => 'badge-info',
-                        'weekly' => 'badge-info',
-                        'monthly' => 'badge-success',
-                        'quarterly' => 'badge-warning',
-                        'annually' => 'badge-neutral',
-                        default => 'badge-neutral',
-                    };
+                    $_map = ['daily' => 'badge-info', 'weekly' => 'badge-info', 'monthly' => 'badge-success', 'quarterly' => 'badge-warning', 'annually' => 'badge-neutral'];
+    $freqBadge = $_map[$template->frequency ?? ''] ?? 'badge-neutral';
                 @endphp
                 <span class="badge {{ $freqBadge }}">{{ ucfirst($template->frequency ?? '-') }}</span>
             </td>

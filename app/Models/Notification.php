@@ -27,7 +27,7 @@ class Notification extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(\App\Services\Users\User::class);
     }
 
     public function scopeUnread(Builder $query): Builder

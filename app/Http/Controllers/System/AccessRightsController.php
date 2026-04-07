@@ -16,9 +16,9 @@ class AccessRightsController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('email', 'ilike', "%{$search}%")
-                  ->orWhere('parent_id', 'ilike', "%{$search}%");
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('parent_id', 'like', "%{$search}%");
             });
         }
 
@@ -118,6 +118,6 @@ class AccessRightsController extends Controller
         $config = $json[$configKey] ?? [];
         $branches = $config['databases']['branches'] ?? [];
 
-        return array_map(fn ($b) => $b['code'], $branches);
+        return array_map(function ($b) { return $b['code']; }, $branches);
     }
 }

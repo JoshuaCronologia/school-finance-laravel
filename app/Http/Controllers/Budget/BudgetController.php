@@ -52,11 +52,11 @@ class BudgetController extends Controller
                 ];
             })->values();
 
-            $deptLabels = $budgetsByDepartment->map(fn ($d) => $d['department']->name ?? 'Unassigned');
+            $deptLabels = $budgetsByDepartment->map(function ($d) { return $d['department']->name ?? 'Unassigned'; });
             $deptDatasets = [
-                ['label' => 'Budget',    'data' => $budgetsByDepartment->pluck('budget')->map(fn ($v) => (float) $v)],
-                ['label' => 'Actual',    'data' => $budgetsByDepartment->pluck('actual')->map(fn ($v) => (float) $v)],
-                ['label' => 'Committed', 'data' => $budgetsByDepartment->pluck('committed')->map(fn ($v) => (float) $v)],
+                ['label' => 'Budget',    'data' => $budgetsByDepartment->pluck('budget')->map(function ($v) { return (float) $v; })],
+                ['label' => 'Actual',    'data' => $budgetsByDepartment->pluck('actual')->map(function ($v) { return (float) $v; })],
+                ['label' => 'Committed', 'data' => $budgetsByDepartment->pluck('committed')->map(function ($v) { return (float) $v; })],
             ];
 
             $utilizationLabels = ['Actual Spent', 'Committed', 'Remaining'];
@@ -329,11 +329,11 @@ class BudgetController extends Controller
             foreach ($budgets as $b) {
                 fputcsv($file, [
                     $b->school_year,
-                    $b->department?->name ?? '',
-                    $b->category?->name ?? '',
+                    optional($b->department)->name ?? '',
+                    optional($b->category)->name ?? '',
                     $b->budget_name,
-                    $b->costCenter?->name ?? '',
-                    $b->fundSource?->name ?? '',
+                    optional($b->costCenter)->name ?? '',
+                    optional($b->fundSource)->name ?? '',
                     $b->project ?? '',
                     $b->annual_budget,
                     $b->committed,

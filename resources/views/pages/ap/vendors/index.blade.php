@@ -7,12 +7,12 @@
 @endphp
 
 <x-page-header title="Vendors / Payees" :subtitle="$vendorCount . ' vendors'">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'add-vendor')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Add Vendor
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -91,9 +91,9 @@
         @endforelse
     </tbody>
     @if($vendors instanceof \Illuminate\Pagination\LengthAwarePaginator && $vendors->hasPages())
-    <x-slot:footer>
+    <x-slot name="footer">
         {{ $vendors->withQueryString()->links() }}
-    </x-slot:footer>
+    </x-slot>
     @endif
 </x-data-table>
 

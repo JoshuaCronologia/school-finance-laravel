@@ -10,12 +10,12 @@
 @endphp
 
 <x-page-header title="AR Invoices / Charges" :subtitle="$invoiceCount . ' invoices'">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'new-invoice')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             New Invoice
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -107,9 +107,9 @@
         @endforelse
     </tbody>
     @if($invoices instanceof \Illuminate\Pagination\LengthAwarePaginator && $invoices->hasPages())
-    <x-slot:footer>
+    <x-slot name="footer">
         {{ $invoices->withQueryString()->links() }}
-    </x-slot:footer>
+    </x-slot>
     @endif
 </x-data-table>
 

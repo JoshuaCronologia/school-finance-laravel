@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header title="Alphalist of Payees (Annual)" subtitle="Annual Alphalist of Payees Subject to Withholding Tax">
-    <x-slot:actions><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot:actions>
+    <x-slot name="actions"><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot>
 </x-page-header>
 
 <div class="card mb-6">

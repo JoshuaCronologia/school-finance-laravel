@@ -271,7 +271,7 @@
                                     <span class="badge badge-neutral">No Role</span>
                                 @endif
                             </td>
-                            <td class="text-sm text-secondary-500">{{ $user->created_at?->format('M d, Y') }}</td>
+                            <td class="text-sm text-secondary-500">{{ ($user->created_at ? $user->created_at->format('M d, Y') : '-') }}</td>
                             <td>
                                 <div class="flex items-center gap-2">
                                     <button @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>

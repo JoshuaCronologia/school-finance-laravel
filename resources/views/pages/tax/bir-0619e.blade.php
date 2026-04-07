@@ -3,9 +3,9 @@
 
 @section('content')
 <x-page-header title="BIR 0619-E" subtitle="Monthly Remittance of Creditable Income Taxes Withheld (Expanded)">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <div class="card mb-6">

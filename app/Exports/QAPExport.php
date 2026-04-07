@@ -14,8 +14,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class QAPExport implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
-    protected int $year;
-    protected int $quarter;
+    protected $year;
+    protected $quarter;
 
     public function __construct(int $year, int $quarter)
     {
@@ -40,7 +40,7 @@ class QAPExport implements FromCollection, WithHeadings, WithStyles, WithTitle, 
 
         // Group by vendor TIN
         $payees = $bills->groupBy(function ($bill) {
-            return $bill->vendor?->tin ?? 'NO-TIN';
+            return optional($bill->vendor)->tin ?? 'NO-TIN';
         });
 
         $rows = new Collection();
@@ -54,7 +54,7 @@ class QAPExport implements FromCollection, WithHeadings, WithStyles, WithTitle, 
             $rows->push([
                 $seq++,
                 $tin !== 'NO-TIN' ? $tin : '',
-                $vendor?->name ?? 'Unknown',
+                optional($vendor)->name ?? 'Unknown',
                 $this->resolveAtc($vendor),
                 $incomePayment,
                 $taxWithheld,
@@ -80,13 +80,13 @@ class QAPExport implements FromCollection, WithHeadings, WithStyles, WithTitle, 
             return 'WC010';
         }
 
-        return match ($vendor->withholding_tax_type) {
+        $atcMap = [
             'professional' => 'WC010',
             'rental' => 'WC040',
             'contractor' => 'WC160',
             'supplier' => 'WI010',
-            default => 'WC010',
-        };
+        ];
+        return $atcMap[$vendor->withholding_tax_type] ?? 'WC010';
     }
 
     public function headings(): array

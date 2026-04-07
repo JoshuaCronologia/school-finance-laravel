@@ -43,7 +43,7 @@ class BillController extends Controller
                 $q->where('bill_number', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('reference_number', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', fn($v) => $v->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('vendor', function ($v) { return $v->where('name', 'like', "%{$search}%"); });
             });
         }
 

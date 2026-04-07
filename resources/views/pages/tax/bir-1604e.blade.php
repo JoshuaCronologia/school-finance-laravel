@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header title="BIR 1604-E" subtitle="Annual Information Return of Creditable Income Taxes Withheld (Expanded)">
-    <x-slot:actions><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot:actions>
+    <x-slot name="actions"><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot>
 </x-page-header>
 
 <div class="card mb-6">
@@ -45,7 +45,7 @@
                 <tr><th>Payee</th><th>TIN</th><th>ATC</th><th class="text-right">Income Payment</th><th class="text-right">Tax Withheld</th></tr>
             </thead>
             <tbody>
-                @php $grouped = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown'); @endphp
+                @php $grouped = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; }); @endphp
                 @forelse($grouped as $payee => $group)
                 <tr>
                     <td class="font-medium">{{ $payee }}</td>

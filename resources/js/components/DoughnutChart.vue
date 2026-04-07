@@ -1,6 +1,6 @@
 <template>
   <div class="relative" :style="{ height: height }">
-    <Doughnut v-if="loaded" :data="chartData" :options="chartOptions" />
+    <Doughnut v-if="loaded && hasData" :data="chartData" :options="chartOptions" />
   </div>
 </template>
 
@@ -19,8 +19,8 @@ export default {
   name: 'DoughnutChart',
   components: { Doughnut },
   props: {
-    labels:   { type: Array, required: true },
-    data:     { type: Array, required: true },
+    labels:   { type: Array, default: function () { return []; } },
+    data:     { type: Array, default: function () { return []; } },
     title:    { type: String, default: '' },
     height:   { type: String, default: '280px' },
     colors:   { type: Array, default: null },
@@ -31,7 +31,11 @@ export default {
     return { loaded: false };
   },
   computed: {
+    hasData() {
+      return this.data && this.data.length > 0;
+    },
     chartData() {
+      if (!this.hasData) return { labels: [], datasets: [] };
       const defaultColors = [
         '#2563eb', '#16a34a', '#eab308', '#ef4444',
         '#a855f7', '#06b6d4', '#f97316', '#ec4899',

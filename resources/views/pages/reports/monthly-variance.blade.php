@@ -3,10 +3,10 @@
 
 @section('content')
 <x-page-header title="Monthly Variance Analysis" subtitle="Budget vs actual expenses per category">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">Excel</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn-secondary text-sm">PDF</a>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 {{-- Filters --}}

@@ -28,6 +28,6 @@ class CheckAuth
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        return redirect('/login');
+        return redirect(url('/login'));
     }
 }

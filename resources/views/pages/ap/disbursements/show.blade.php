@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header :title="'Request #' . $disbursement->request_number" :subtitle="'Created ' . $disbursement->created_at->format('M d, Y')">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ route('ap.disbursements.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back to Requests
@@ -34,7 +34,7 @@
             </form>
             <button @click="$dispatch('open-modal', 'reject-dr-{{ $disbursement->id }}')" class="btn-secondary text-danger-600 border-danger-300 hover:bg-danger-50">Reject</button>
         @endif
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))

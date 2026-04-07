@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class MasterDataSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         $now = Carbon::now();
 

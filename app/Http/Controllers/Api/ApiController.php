@@ -203,7 +203,7 @@ class ApiController extends Controller
         $query = Vendor::query();
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('vendor_code', 'like', "%{$search}%"));
+            $query->where(function ($q) { return $q->where('name', 'like', "%{$search}%")->orWhere('vendor_code', 'like', "%{$search}%"); });
         }
 
         return $this->success($query->orderBy('name')->paginate($request->input('per_page', 25)));
@@ -289,7 +289,7 @@ class ApiController extends Controller
         $query = Customer::query();
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"));
+            $query->where(function ($q) { return $q->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"); });
         }
 
         return $this->success($query->orderBy('name')->paginate($request->input('per_page', 25)));
@@ -452,7 +452,7 @@ class ApiController extends Controller
             )
             ->orderBy('chart_of_accounts.account_code')
             ->get()
-            ->filter(fn($a) => $a->total_debit > 0 || $a->total_credit > 0)
+            ->filter(function ($a) { return $a->total_debit > 0 || $a->total_credit > 0; })
             ->values();
 
         return $this->success([
@@ -467,18 +467,18 @@ class ApiController extends Controller
         $budgets = Budget::with('department', 'category')
             ->where('status', 'active')
             ->get()
-            ->map(fn($b) => [
+            ->map(function ($b) { return [
                 'id' => $b->id,
                 'name' => $b->budget_name,
-                'department' => $b->department?->name,
-                'category' => $b->category?->name,
+                'department' => optional($b->department)->name,
+                'category' => optional($b->category)->name,
                 'annual_budget' => $b->annual_budget,
                 'committed' => $b->committed,
                 'actual' => $b->actual,
                 'remaining' => $b->annual_budget - $b->committed - $b->actual,
                 'utilization_pct' => $b->annual_budget > 0
                     ? round(($b->committed + $b->actual) / $b->annual_budget * 100, 1) : 0,
-            ]);
+            ]; });
 
         return $this->success($budgets);
     }

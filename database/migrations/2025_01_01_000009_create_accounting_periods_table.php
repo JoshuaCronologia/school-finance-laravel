@@ -4,9 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateAccountingPeriodsTable extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::create('accounting_periods', function (Blueprint $table) {
             $table->id();
@@ -25,8 +25,8 @@ return new class extends Migration
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('accounting_periods');
     }
-};
+}

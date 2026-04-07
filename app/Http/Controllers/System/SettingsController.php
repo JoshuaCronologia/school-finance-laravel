@@ -35,7 +35,7 @@ class SettingsController extends Controller
         DB::transaction(function () use ($validated) {
             foreach ($validated['settings'] as $setting) {
                 $existing = Setting::where('key', $setting['key'])->first();
-                $oldValue = $existing?->value;
+                $oldValue = optional($existing)->value;
 
                 Setting::set($setting['key'], $setting['value'] ?? '');
 

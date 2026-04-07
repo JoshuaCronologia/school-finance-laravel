@@ -49,12 +49,25 @@ class AuditService
     ): AuditLog {
         $user = Auth::user();
 
+        // For SSO users (K-12/College employees), get info from session
+        if (!$user && session('is_sso')) {
+            $userId = session('user_id');
+            $userName = session('user_info.name', 'SSO User');
+            $platform = session('platform', '');
+            $branchCode = session('branch_code', '');
+            if ($platform || $branchCode) {
+                $userName .= ' (' . trim($platform . '/' . strtoupper($branchCode), '/') . ')';
+            }
+        } else {
+            $userId = optional($user)->id;
+            $userName = optional($user)->name ?? 'System';
+        }
+
         // Normalize action to match DB enum
         $dbAction = self::ACTION_MAP[$action] ?? $action;
 
         $newValues = null;
         if ($oldValues !== null) {
-            // Calculate changed fields only
             $currentValues = $record->toArray();
             $changes = [];
             foreach ($currentValues as $key => $value) {
@@ -66,8 +79,8 @@ class AuditService
         }
 
         return AuditLog::create([
-            'user_id' => $user?->id,
-            'user_name' => $user?->name ?? 'System',
+            'user_id' => $userId,
+            'user_name' => $userName,
             'action' => $dbAction,
             'module' => $module,
             'record_type' => get_class($record),

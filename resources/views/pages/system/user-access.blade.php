@@ -3,19 +3,14 @@
 
 @section('content')
 <x-page-header title="User Access" subtitle="Manage admin users and branch (SIS) access">
-    <x-slot:actions>
+    <x-slot name="actions">
         @if(($tab ?? 'admin') === 'admin')
             <button @click="$dispatch('open-modal', 'add-user')" class="btn-primary">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Add Admin User
             </button>
-        @else
-            <button @click="$dispatch('open-modal', 'add-branch-user')" class="btn-primary">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                Add Branch User
-            </button>
         @endif
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -36,6 +31,14 @@
        class="px-4 py-2.5 text-sm font-medium border-b-2 transition {{ ($tab ?? 'admin') === 'branch' ? 'border-primary-600 text-primary-700' : 'border-transparent text-secondary-500 hover:text-secondary-700' }}">
         Branch Users (SSO)
         <span class="ml-1 text-xs bg-gray-100 text-secondary-600 px-1.5 py-0.5 rounded-full">{{ $branchUsers->total() }}</span>
+    </a>
+    <a href="{{ url('/user-access/kto12') }}"
+       class="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-secondary-500 hover:text-secondary-700 transition">
+        K-12 Employees
+    </a>
+    <a href="{{ url('/user-access/college') }}"
+       class="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-secondary-500 hover:text-secondary-700 transition">
+        College Employees
     </a>
 </div>
 
@@ -77,7 +80,7 @@
                         @endif
                     </td>
                     <td><span class="text-sm text-secondary-500">{{ $user->getAllPermissions()->count() }} permissions</span></td>
-                    <td class="text-sm text-secondary-500">{{ $user->created_at?->format('M d, Y') }}</td>
+                    <td class="text-sm text-secondary-500">{{ ($user->created_at ? $user->created_at->format('M d, Y') : '-') }}</td>
                     <td>
                         <div class="flex items-center gap-2">
                             <button @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
@@ -265,7 +268,7 @@
 <x-modal name="add-user" title="Add Admin User" maxWidth="4xl">
     <form action="{{ route('user-access.store') }}" method="POST" x-data="{
         role: '',
-        rolePermissions: @js($roles->mapWithKeys(fn($r) => [$r->name => $r->permissions->pluck('name')])),
+        rolePermissions: @js($roles->mapWithKeys(function ($r) { return [$r->name => $r->permissions->pluck('name')]; })),
         get currentPerms() { return this.rolePermissions[this.role] || []; },
         isChecked(perm) { return this.currentPerms.includes(perm); }
     }">
@@ -316,61 +319,6 @@
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
             <button type="button" @click="$dispatch('close-modal', 'add-user')" class="btn-secondary">Cancel</button>
             <button type="submit" class="btn-primary">Create User</button>
-        </div>
-    </form>
-</x-modal>
-
-{{-- Add Branch User Modal --}}
-<x-modal name="add-branch-user" title="Add Branch User (SSO)" maxWidth="2xl">
-    <form method="POST" action="{{ route('user-access.branch.store') }}">
-        @csrf
-        <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="form-label">SIS ID <span class="text-danger-500">*</span></label>
-                    <input type="text" name="parent_id" class="form-input" placeholder="e.g., EMP-001" required>
-                </div>
-                <div>
-                    <label class="form-label">User Type <span class="text-danger-500">*</span></label>
-                    <select name="parent_type" class="form-input" required>
-                        <option value="employee">Employee</option>
-                        <option value="student">Student</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="form-label">Branch <span class="text-danger-500">*</span></label>
-                    <select name="branch_code" class="form-input" required>
-                        @foreach($branchCodes as $code)
-                            <option value="{{ $code }}">{{ ucfirst($code) }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label">Full Name <span class="text-danger-500">*</span></label>
-                    <input type="text" name="name" class="form-input" placeholder="Juan Dela Cruz" required>
-                </div>
-            </div>
-            <div>
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-input" placeholder="juan@school.edu.ph">
-            </div>
-            <div>
-                <label class="form-label">Permissions</label>
-                <div class="flex flex-wrap gap-3">
-                    @foreach($ssoPermissions as $perm)
-                    <label class="inline-flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="permissions[]" value="{{ $perm }}" class="form-checkbox">
-                        {{ ucfirst($perm) }}
-                    </label>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-        <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
-            <button type="button" @click="$dispatch('close-modal', 'add-branch-user')" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary">Grant Access</button>
         </div>
     </form>
 </x-modal>

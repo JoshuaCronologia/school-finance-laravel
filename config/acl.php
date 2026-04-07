@@ -17,44 +17,45 @@ return [
     |--------------------------------------------------------------------------
     | SSO Permissions
     |--------------------------------------------------------------------------
-    | These are permissions assignable to BranchUser records.
-    | They control what SIS users can do in the Accounting system.
+    | Assignable to BranchUser records by admin.
+    | Maps to sidebar modules via permission_map below.
     */
     'permissions' => [
-        'access rights',        // manage who has access to the system
-        'setup',                // system configuration, ID printing setup, request setup
-        'request',              // manage ID requests
-        'announcement',         // create announcements
-        'announcement history', // view past announcements
-        'contacts',             // manage contacts
-        'accounting',           // access accounting module
-        'test',                 // test module
+        'budget',               // Budget Management (dashboard, planning, allocation)
+        'accounts payable',     // AP (bills, disbursements, vendors, payments)
+        'accounts receivable',  // AR (invoices, collections, customers, aging)
+        'general ledger',       // GL (chart of accounts, journal entries, bank recon)
+        'reports',              // All reports (trial balance, income statement, etc.)
+        'tax',                  // Tax & Compliance (BIR forms)
     ],
 
     /*
     |--------------------------------------------------------------------------
     | Permission Mapping: SSO -> Sidebar
     |--------------------------------------------------------------------------
-    | Maps SSO permissions to the Spatie permission names used in sidebar @can.
-    | When an SSO user has 'accounting', they also get 'budget.view', 'je.view', etc.
+    | Maps SSO permissions to Spatie permission names used in sidebar @can.
     */
     'permission_map' => [
-        'accounting' => [
-            'budget.view', 'budget.create', 'budget.edit',
-            'disbursement.view', 'disbursement.create',
-            'bill.view', 'bill.create',
+        'budget' => [
+            'budget.view', 'budget.create', 'budget.edit', 'budget.approve',
+        ],
+        'accounts payable' => [
+            'bill.view', 'bill.create', 'bill.approve', 'bill.post',
+            'disbursement.view', 'disbursement.create', 'disbursement.approve', 'disbursement.pay',
+        ],
+        'accounts receivable' => [
             'invoice.view', 'invoice.create',
             'collection.view', 'collection.create',
-            'je.view', 'je.create',
-            'report.view', 'report.export',
         ],
-        'setup' => [
-            'settings.manage',
+        'general ledger' => [
+            'je.view', 'je.create', 'je.post', 'je.reverse',
             'period.close',
         ],
-        'access rights' => [
-            'settings.manage',
-            'audit.view',
+        'reports' => [
+            'report.view', 'report.export',
+        ],
+        'tax' => [
+            'report.view', 'report.export',
         ],
     ],
 

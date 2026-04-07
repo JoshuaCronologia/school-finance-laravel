@@ -57,7 +57,7 @@ class BranchLoginController extends Controller
         Session::put('user_info', $userInfo);
         Session::put('is_sso', true);
 
-        return redirect('/');
+        return redirect(url('/'));
     }
 
     /**
@@ -69,7 +69,7 @@ class BranchLoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login')->with('success', 'You have been logged out.');
+        return redirect(url('/login'))->with('success', 'You have been logged out.');
     }
 
     /**
@@ -83,7 +83,7 @@ class BranchLoginController extends Controller
         $branchUser = BranchUser::where('branch_code', $branchCode)
             ->where('is_active', true)
             ->get()
-            ->first(fn ($bu) => md5($bu->parent_id) === $hashedId);
+            ->first(function ($bu) { return md5($bu->parent_id) === $hashedId; });
 
         if (!$branchUser) {
             return redirect()->route('no-access')->with('error', 'User not found or no access.');
@@ -103,6 +103,6 @@ class BranchLoginController extends Controller
         ]);
         Session::put('is_sso', true);
 
-        return redirect('/');
+        return redirect(url('/'));
     }
 }

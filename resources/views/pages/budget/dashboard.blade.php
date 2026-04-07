@@ -217,13 +217,11 @@
 </div>
 
 {{-- Charts --}}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" data-vue-root>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="card">
         <div class="card-header"><h3 class="card-title">Budget by Department</h3></div>
         <div class="card-body">
-            <div style="min-height: 320px;">
-                <bar-chart :labels='@json($deptLabels)' :datasets='@json($deptDatasets)' :currency="true"></bar-chart>
-            </div>
+            <canvas id="budgetDeptChart" height="320"></canvas>
         </div>
     </div>
 
@@ -231,7 +229,7 @@
         <div class="card-header"><h3 class="card-title">Budget Utilization</h3></div>
         <div class="card-body flex flex-col items-center justify-center">
             <div style="max-width: 320px; width: 100%;">
-                <doughnut-chart :labels='@json($utilizationLabels)' :data='@json($utilizationValues)' :currency="true"></doughnut-chart>
+                <canvas id="budgetUtilChart" height="300"></canvas>
             </div>
             <div class="mt-4 grid grid-cols-3 gap-6 text-center text-sm">
                 <div><div class="font-semibold text-primary-600">@currency($totalActual)</div><div class="text-secondary-400">Actual</div></div>
@@ -292,3 +290,70 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function() {
+    var deptLabels = @json($deptLabels);
+    var deptDatasets = @json($deptDatasets);
+    var utilLabels = @json($utilizationLabels);
+    var utilValues = @json($utilizationValues);
+    var barColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    var doughnutColors = ['#3b82f6', '#f59e0b', '#10b981'];
+
+    function loadChartJs(cb) {
+        if (typeof Chart !== 'undefined') { cb(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        s.onload = cb;
+        document.head.appendChild(s);
+    }
+
+    function currencyTick(v) {
+        return '\u20B1' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K');
+    }
+
+    function initChart(id, cfg) {
+        var canvas = document.getElementById(id);
+        if (!canvas) return;
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas.getContext('2d'), cfg);
+    }
+
+    loadChartJs(function() {
+        // Budget by Department (Bar)
+        initChart('budgetDeptChart', {
+            type: 'bar',
+            data: {
+                labels: deptLabels,
+                datasets: deptDatasets.map(function(ds, i) {
+                    return { label: ds.label, data: ds.data, backgroundColor: barColors[i % barColors.length], borderRadius: 4 };
+                })
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': \u20B1' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits:2}); } } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: currencyTick } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // Budget Utilization (Doughnut)
+        initChart('budgetUtilChart', {
+            type: 'doughnut',
+            data: {
+                labels: utilLabels,
+                datasets: [{ data: utilValues, backgroundColor: doughnutColors.slice(0, utilLabels.length) }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': \u20B1' + ctx.parsed.toLocaleString('en-PH', {minimumFractionDigits:2}); } } }
+                }
+            }
+        });
+    });
+})();
+</script>
+@endpush

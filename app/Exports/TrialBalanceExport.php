@@ -16,8 +16,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class TrialBalanceExport implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
-    protected string $asOfDate;
-    protected ?int $campusId;
+    protected $asOfDate;
+    protected $campusId;
 
     public function __construct(string $asOfDate, ?int $campusId = null)
     {

@@ -62,7 +62,7 @@ class TaxController extends Controller
             // Monthly breakdown for the form
             $monthly = [];
             for ($m = $startMonth; $m <= $endMonth; $m++) {
-                $monthPayments = $payments->filter(fn($p) => (int) $p->payment_date->format('m') === $m);
+                $monthPayments = $payments->filter(function ($p) { return (int) $p->payment_date->format('m') === $m; });
                 $monthly[$m] = (object) [
                     'month' => $m,
                     'income_payment' => $monthPayments->sum('gross_amount'),
@@ -88,11 +88,11 @@ class TaxController extends Controller
             ->groupBy('vendor_id')
             ->get();
 
-        $summary = $summaryQuery->map(fn($p) => (object) [
+        $summary = $summaryQuery->map(function ($p) { return (object) [
             'vendor' => $p->vendor,
             'income_payment' => (float) $p->total_income,
             'tax_withheld' => (float) $p->total_tax,
-        ]);
+        ]; });
 
         $totalWithheld = $summary->sum('tax_withheld');
 
@@ -162,7 +162,7 @@ class TaxController extends Controller
             ->get();
 
         // Group by ATC (tax type)
-        $atcEntries = $payments->groupBy(fn($p) => $p->vendor?->withholding_tax_type ?? 'EWT')
+        $atcEntries = $payments->groupBy(function ($p) { return optional($p->vendor)->withholding_tax_type ?? 'EWT'; })
             ->map(function ($group, $type) {
                 return (object) [
                     'atc' => $type,
@@ -193,7 +193,7 @@ class TaxController extends Controller
         if ($request->filled('export')) {
             return $this->exportCsv("BIR-1601E-{$taxableMonth}.csv",
                 ['ATC', 'No. of Payees', 'Taxable Amount', 'Tax Withheld'],
-                $atcEntries->map(fn($e) => [$e->atc, $e->count, $e->taxable_amount, $e->tax_withheld])
+                $atcEntries->map(function ($e) { return [$e->atc, $e->count, $e->taxable_amount, $e->tax_withheld]; })
             );
         }
 
@@ -325,7 +325,7 @@ class TaxController extends Controller
         if ($request->filled('export')) {
             return $this->exportCsv("Alphalist-{$quarter}-{$year}.csv",
                 ['TIN', 'Registered Name', 'ATC', 'Income Payment', 'Tax Withheld'],
-                $qapEntries->map(fn($e) => [$e->tin, $e->registered_name, $e->atc, $e->income_payment, $e->tax_withheld])
+                $qapEntries->map(function ($e) { return [$e->tin, $e->registered_name, $e->atc, $e->income_payment, $e->tax_withheld]; })
             );
         }
 
@@ -380,7 +380,7 @@ class TaxController extends Controller
             $entries = $map[$journal] ?? $cashReceipts;
             return $this->exportCsv("Special-Journal-{$journal}-{$dateFrom}.csv",
                 ['Date', 'Entry #', 'Reference', 'Account Code', 'Account Name', 'Description', 'Debit', 'Credit'],
-                $entries->map(fn($e) => [$e->posting_date, $e->entry_number, $e->reference_number, $e->account_code, $e->account_name, $e->je_description, $e->debit, $e->credit])
+                $entries->map(function ($e) { return [$e->posting_date, $e->entry_number, $e->reference_number, $e->account_code, $e->account_name, $e->je_description, $e->debit, $e->credit]; })
             );
         }
 
@@ -496,7 +496,7 @@ class TaxController extends Controller
 
         $totalTaxBase = $payments->sum('gross_amount');
         $totalTaxWithheld = $payments->sum('withholding_tax');
-        $payeeCount = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? '')->count();
+        $payeeCount = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? ''; })->count();
 
         return view('pages.tax.bir-1604e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'payeeCount', 'year'));
     }
@@ -528,7 +528,7 @@ class TaxController extends Controller
             ->orderBy('payment_date')
             ->get();
 
-        $alphalist = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown')
+        $alphalist = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; })
             ->map(function ($group, $payeeName) {
                 $first = $group->first();
                 return (object) [
@@ -554,7 +554,7 @@ class TaxController extends Controller
             ->orderBy('payment_date')
             ->get();
 
-        $alphalist = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown')
+        $alphalist = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; })
             ->map(function ($group, $payeeName) {
                 $first = $group->first();
                 return (object) [

@@ -231,7 +231,7 @@ class PostingEngine
             // Credit Revenue accounts per line
             foreach ($invoice->lines as $line) {
                 $accountId = $line->revenue_account_id
-                    ?? ChartOfAccount::where('account_type', 'revenue')->first()?->id;
+                    ?? optional(ChartOfAccount::where('account_type', 'revenue')->first())->id;
 
                 JournalEntryLine::create([
                     'journal_entry_id' => $entry->id,

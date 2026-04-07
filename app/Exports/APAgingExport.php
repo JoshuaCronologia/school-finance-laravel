@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class APAgingExport implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
-    protected string $asOfDate;
+    protected $asOfDate;
 
     public function __construct(string $asOfDate)
     {
@@ -34,8 +34,8 @@ class APAgingExport implements FromCollection, WithHeadings, WithStyles, WithTit
         $vendorBuckets = [];
 
         foreach ($bills as $bill) {
-            $vendorName = $bill->vendor?->name ?? 'Unknown';
-            $vendorCode = $bill->vendor?->vendor_code ?? '-';
+            $vendorName = $billoptional($bill->vendor)->name ?? 'Unknown';
+            $vendorCode = $billoptional($bill->vendor)->vendor_code ?? '-';
             $key = $vendorCode . '|' . $vendorName;
 
             if (!isset($vendorBuckets[$key])) {

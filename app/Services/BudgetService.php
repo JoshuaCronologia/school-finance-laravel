@@ -32,7 +32,7 @@ class BudgetService
     /**
      * Add amount to committed (when a disbursement is submitted/approved).
      */
-    public function commitBudget(int $budgetId, float $amount): void
+    public function commitBudget(int $budgetId, float $amount)
     {
         DB::transaction(function () use ($budgetId, $amount) {
             $budget = Budget::lockForUpdate()->findOrFail($budgetId);
@@ -43,7 +43,7 @@ class BudgetService
     /**
      * Release committed amount (when a disbursement is rejected/returned).
      */
-    public function releaseCommitment(int $budgetId, float $amount): void
+    public function releaseCommitment(int $budgetId, float $amount)
     {
         DB::transaction(function () use ($budgetId, $amount) {
             $budget = Budget::lockForUpdate()->findOrFail($budgetId);
@@ -55,7 +55,7 @@ class BudgetService
     /**
      * Move from committed to actual (when payment is processed).
      */
-    public function recordActual(int $budgetId, float $amount): void
+    public function recordActual(int $budgetId, float $amount)
     {
         DB::transaction(function () use ($budgetId, $amount) {
             $budget = Budget::lockForUpdate()->findOrFail($budgetId);

@@ -8,9 +8,9 @@
 @endphp
 
 <x-page-header title="Statement of Cash Flows" :subtitle="'For the period ' . \Carbon\Carbon::parse($dateFrom)->format('M d, Y') . ' to ' . \Carbon\Carbon::parse($dateTo)->format('M d, Y')">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <div class="card mb-6">

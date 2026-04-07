@@ -3,12 +3,12 @@
 
 @section('content')
 <x-page-header :title="isset($disbursement) ? 'Edit Request #' . $disbursement->request_number : 'Create Disbursement Request'" subtitle="Fill in the request details and line items">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ route('ap.disbursements.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back to Requests
         </a>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -46,7 +46,7 @@
                 </div>
                 <div>
                     <label class="form-label">Due Date</label>
-                    <input type="date" name="due_date" class="form-input" value="{{ old('due_date', isset($disbursement) ? $disbursement->due_date?->format('Y-m-d') : '') }}">
+                    <input type="date" name="due_date" class="form-input" value="{{ old('due_date', isset($disbursement) ? ($disbursement->due_date ? $disbursement->due_date->format('Y-m-d') : '') : '') }}">
                 </div>
                 <div>
                     <label class="form-label">Payee Type <span class="text-danger-500">*</span></label>

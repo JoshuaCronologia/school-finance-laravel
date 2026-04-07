@@ -4,9 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreatePermissionTables extends Migration
 {
-    public function up(): void
+    public function up()
     {
         $teams = config('permission.teams', false);
         $tableNames = config('permission.table_names', [
@@ -133,7 +133,7 @@ return new class extends Migration
             ->forget(config('permission.cache.key'));
     }
 
-    public function down(): void
+    public function down()
     {
         $tableNames = config('permission.table_names', [
             'roles' => 'roles',
@@ -149,4 +149,4 @@ return new class extends Migration
         Schema::dropIfExists($tableNames['roles'] ?? 'roles');
         Schema::dropIfExists($tableNames['permissions'] ?? 'permissions');
     }
-};
+}

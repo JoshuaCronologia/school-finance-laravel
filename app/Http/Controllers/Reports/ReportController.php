@@ -45,7 +45,7 @@ class ReportController extends Controller
             )
             ->orderBy('chart_of_accounts.account_code')
             ->get()
-            ->filter(fn($a) => $a->total_debit > 0 || $a->total_credit > 0);
+            ->filter(function ($a) { return $a->total_debit > 0 || $a->total_credit > 0; });
 
         $totalDebit = $accounts->sum('total_debit');
         $totalCredit = $accounts->sum('total_credit');
@@ -70,11 +70,11 @@ class ReportController extends Controller
         $equity = $balances->where('account_type', 'equity');
 
         $totalAssets = $assets->sum('balance');
-        $totalLiabilities = $liabilities->sum(fn($a) => abs($a->balance));
-        $totalEquity = $equity->sum(fn($a) => abs($a->balance));
+        $totalLiabilities = $liabilities->sum(function ($a) { return abs($a->balance); });
+        $totalEquity = $equity->sum(function ($a) { return abs($a->balance); });
 
         // Net Income = Revenue - Expenses
-        $revenue = $balances->where('account_type', 'revenue')->sum(fn($a) => abs($a->balance));
+        $revenue = $balances->where('account_type', 'revenue')->sum(function ($a) { return abs($a->balance); });
         $expenses = $balances->where('account_type', 'expense')->sum('balance');
         $netIncome = $revenue - $expenses;
 
@@ -98,7 +98,7 @@ class ReportController extends Controller
         $revenueAccounts = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo);
         $expenseAccounts = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo);
 
-        $totalRevenue = $revenueAccounts->sum(fn($a) => abs($a->balance));
+        $totalRevenue = $revenueAccounts->sum(function ($a) { return abs($a->balance); });
         $totalExpenses = $expenseAccounts->sum('balance');
         $netIncome = $totalRevenue - $totalExpenses;
         $netIncomeMargin = $totalRevenue > 0 ? ($netIncome / $totalRevenue) * 100 : 0;
@@ -311,8 +311,8 @@ class ReportController extends Controller
             ->orderBy('entry_number')
             ->get();
 
-        $totalDebit = $entries->sum(fn($e) => $e->lines->sum('debit'));
-        $totalCredit = $entries->sum(fn($e) => $e->lines->sum('credit'));
+        $totalDebit = $entries->sum(function ($e) { return $e->lines->sum('debit'); });
+        $totalCredit = $entries->sum(function ($e) { return $e->lines->sum('credit'); });
 
         return view('pages.reports.general-journal', compact('entries', 'dateFrom', 'dateTo', 'totalDebit', 'totalCredit'));
     }
@@ -424,7 +424,7 @@ class ReportController extends Controller
 
             if ($request->export === 'pdf') {
                 $data = [
-                    'budgets' => $budgets->map(fn ($b) => (object) [
+                    'budgets' => $budgets->map(function ($b) { return (object) [
                         'budget_name' => $b->budget_name,
                         'department_name' => $b->department->name ?? '-',
                         'category_name' => $b->category->name ?? '-',
@@ -434,7 +434,7 @@ class ReportController extends Controller
                         'remaining' => $b->remaining,
                         'variance' => $b->variance,
                         'variance_pct' => $b->variance_pct,
-                    ])->sortBy('department_name'),
+                    ]; })->sortBy('department_name'),
                     'summary' => array_merge($summary, [
                         'total_variance' => $summary['total_budget'] - $summary['total_actual'],
                     ]),
@@ -457,7 +457,7 @@ class ReportController extends Controller
                 fputcsv($file, ['Generated: ' . now()->format('F d, Y')]);
                 fputcsv($file, []);
                 fputcsv($file, ['', 'Approved Budget', 'Actual', 'Committed', 'Remaining', 'Variance (B-A)', 'Variance %']);
-                foreach ($budgets->sortBy(fn ($b) => $b->department->name ?? '') as $b) {
+                foreach ($budgets->sortBy(function ($b) { return $b->department->name ?? ''; }) as $b) {
                     fputcsv($file, [
                         $b->budget_name . ' (' . ($b->department->name ?? '-') . ')',
                         number_format($b->annual_budget, 2),

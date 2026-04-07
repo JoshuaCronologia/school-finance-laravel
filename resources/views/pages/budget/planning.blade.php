@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header title="Budget Planning" subtitle="Create and manage budget plans">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button onclick="document.dispatchEvent(new CustomEvent('open-modal', { detail: 'copy-previous-budget' }))" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
             Copy from Previous Year
@@ -20,7 +20,7 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             New Budget
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -43,12 +43,12 @@
 
 {{-- Budget Items Table --}}
 <x-data-table search-placeholder="Search budgets...">
-    {{-- <x-slot:actions>
+    {{-- <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'create-budget')" class="btn-primary text-sm">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             New Budget
         </button>
-    </x-slot:actions> --}}
+    </x-slot> --}}
     <thead>
         <tr>
             <th>Budget Name</th>
@@ -81,9 +81,9 @@
         @endforelse
     </tbody>
     @if($budgets instanceof \Illuminate\Pagination\LengthAwarePaginator && $budgets->hasPages())
-    <x-slot:footer>
+    <x-slot name="footer">
         {{ $budgets->links() }}
-    </x-slot:footer>
+    </x-slot>
     @endif
 </x-data-table>
 

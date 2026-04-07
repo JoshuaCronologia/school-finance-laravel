@@ -3,12 +3,12 @@
 
 @section('content')
 <x-page-header :title="$vendor->name" :subtitle="$vendor->vendor_code . ' — ' . ucfirst(str_replace('_', ' ', $vendor->vendor_type ?? 'Vendor'))">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ route('vendors.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back
         </a>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

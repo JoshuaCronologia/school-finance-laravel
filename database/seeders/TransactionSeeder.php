@@ -17,10 +17,13 @@ class TransactionSeeder extends Seeder
         if ($map === null) {
             $map = DB::table('chart_of_accounts')->pluck('id', 'account_code')->toArray();
         }
-        return $map[$code] ?? throw new \RuntimeException("Account code $code not found");
+        if (!isset($map[$code])) {
+            throw new \RuntimeException("Account code $code not found");
+        }
+        return $map[$code];
     }
 
-    public function run(): void
+    public function run()
     {
         $now = Carbon::now();
 
@@ -340,7 +343,7 @@ class TransactionSeeder extends Seeder
      *   JE-0068..0073: Monthly security/janitorial (Jul-Dec)
      *   JE-0074..0078: Additional adjusting entries
      */
-    private function seedJournalEntries(Carbon $now): void
+    private function seedJournalEntries(Carbon $now)
     {
         $jeId = 0;
         $lineId = 0;

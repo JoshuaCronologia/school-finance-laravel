@@ -36,7 +36,7 @@ class CollectionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('receipt_number', 'like', "%{$search}%")
                   ->orWhere('reference_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('customer', function ($c) { return $c->where('name', 'like', "%{$search}%"); });
             });
         }
 

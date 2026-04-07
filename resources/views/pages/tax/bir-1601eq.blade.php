@@ -3,9 +3,9 @@
 
 @section('content')
 <x-page-header title="BIR 1601-EQ" subtitle="Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <div class="card mb-6">
@@ -67,7 +67,7 @@
             </thead>
             <tbody>
                 @php
-                    $grouped = $payments->groupBy(fn($p) => $p->disbursement->payee_name ?? 'Unknown');
+                    $grouped = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; });
                 @endphp
                 @forelse($grouped as $payee => $group)
                 <tr>

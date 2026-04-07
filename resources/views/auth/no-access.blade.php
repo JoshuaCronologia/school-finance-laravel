@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>No Access - School Finance</title>
-    @vite(['resources/css/app.css'])
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
     <div class="max-w-md w-full text-center">
@@ -26,7 +26,7 @@
             </p>
 
             <div class="space-y-3">
-                <a href="/login" class="block w-full bg-primary-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary-700 transition">
+                <a href="{{ url('/login') }}" class="block w-full bg-primary-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary-700 transition">
                     Go to Login Page
                 </a>
                 <button onclick="window.history.back()" class="block w-full bg-gray-100 text-gray-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-gray-200 transition">

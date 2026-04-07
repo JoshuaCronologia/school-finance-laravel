@@ -39,7 +39,7 @@ class InvoiceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('customer', function ($c) { return $c->where('name', 'like', "%{$search}%"); });
             });
         }
 
@@ -243,7 +243,7 @@ class InvoiceController extends Controller
                     'due_date' => $validated['due_date'] ?? null,
                     'description' => $validated['description'] ?? null,
                     'status' => $validated['status'] ?? null,
-                ], fn($v) => $v !== null));
+                ], function ($v) { return $v !== null; }));
 
                 app(AuditService::class)->log('update', 'ar_invoice', $invoice, $oldValues, 'Invoice updated');
             });

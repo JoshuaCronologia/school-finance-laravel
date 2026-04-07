@@ -8,11 +8,11 @@
 @endphp
 
 <x-page-header title="Expense Schedule" subtitle="Breakdown of expenses by category">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">Excel</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn-secondary text-sm">PDF</a>
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <x-filter-bar />

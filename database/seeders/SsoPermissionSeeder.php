@@ -7,7 +7,7 @@ use Spatie\Permission\Models\Permission;
 
 class SsoPermissionSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         $permissions = config('acl.permissions', []);
 

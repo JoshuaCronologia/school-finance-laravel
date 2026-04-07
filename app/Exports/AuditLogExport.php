@@ -13,11 +13,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class AuditLogExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
 {
-    protected ?string $startDate;
-    protected ?string $endDate;
-    protected ?string $module;
-    protected ?string $action;
-    protected ?int $userId;
+    protected $startDate;
+    protected $endDate;
+    protected $module;
+    protected $action;
+    protected $userId;
 
     public function __construct(
         ?string $startDate = null,
@@ -83,7 +83,7 @@ class AuditLogExport implements FromCollection, WithHeadings, WithMapping, WithS
     {
         return [
             $log->created_at->format('m/d/Y h:i:s A'),
-            $log->user_name ?? ($log->user?->name ?? 'System'),
+            $log->user_name ?? ($logoptional($log->user)->name ?? 'System'),
             ucfirst($log->action),
             $log->module,
             $log->record_type,

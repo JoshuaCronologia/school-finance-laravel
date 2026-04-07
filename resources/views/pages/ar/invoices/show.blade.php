@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header :title="'Invoice #' . $invoice->invoice_number" :subtitle="$invoice->customer->name ?? 'AR Invoice'">
-    <x-slot:actions>
+    <x-slot name="actions">
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('ar.invoices.index') }}" class="btn-secondary">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
@@ -34,7 +34,7 @@
                 Print
             </button>
         </div>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -217,8 +217,8 @@
                             -
                         @endif
                     </td>
-                    <td>{{ $alloc->collection?->collection_date?->format('M d, Y') ?? '-' }}</td>
-                    <td>{{ ucfirst(str_replace('_', ' ', $alloc->collection?->payment_method ?? '-')) }}</td>
+                    <td>{{ ($alloc->collection && $alloc->collection->collection_date) ? $alloc->collection->collection_date->format('M d, Y') : '-' }}</td>
+                    <td>{{ ucfirst(str_replace('_', ' ', ($alloc->collection ? $alloc->collection->payment_method : '-'))) }}</td>
                     <td class="text-right font-medium">@currency($alloc->amount_applied ?? $alloc->amount ?? 0)</td>
                 </tr>
                 @endforeach

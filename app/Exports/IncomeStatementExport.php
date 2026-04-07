@@ -14,9 +14,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class IncomeStatementExport implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
-    protected string $startDate;
-    protected string $endDate;
-    protected ?int $campusId;
+    protected $startDate;
+    protected $endDate;
+    protected $campusId;
 
     public function __construct(string $startDate, string $endDate, ?int $campusId = null)
     {

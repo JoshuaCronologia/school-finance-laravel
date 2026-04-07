@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class SearchController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request)
     {
         $q = trim($request->input('q', ''));
 
@@ -20,87 +20,86 @@ class SearchController extends Controller
 
         $rows = DB::select("
             (SELECT 'Account' as type, 'book' as icon,
-                    account_code || ' — ' || account_name as title,
-                    INITCAP(account_type) as subtitle,
+                    CONCAT(account_code, ' — ', account_name) as title,
+                    account_type as subtitle,
                     id, 'gl.accounts.show' as route_name
              FROM chart_of_accounts
-             WHERE account_name ILIKE ? OR account_code ILIKE ?
+             WHERE account_name LIKE ? OR account_code LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Vendor', 'truck', name, vendor_code, id, 'vendors.show'
              FROM vendors
-             WHERE name ILIKE ? OR vendor_code ILIKE ? OR tin ILIKE ?
+             WHERE name LIKE ? OR vendor_code LIKE ? OR tin LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Customer', 'users', name, customer_code, id, 'ar.customers.show'
              FROM customers
-             WHERE name ILIKE ? OR customer_code ILIKE ? OR email ILIKE ?
+             WHERE name LIKE ? OR customer_code LIKE ? OR email LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Bill', 'file-text', bill_number, COALESCE(description, 'AP Bill'), id, 'ap.bills.show'
              FROM ap_bills
-             WHERE bill_number ILIKE ? OR description ILIKE ? OR reference_number ILIKE ?
+             WHERE bill_number LIKE ? OR description LIKE ? OR reference_number LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Invoice', 'file', invoice_number, COALESCE(description, 'AR Invoice'), id, 'ar.invoices.show'
              FROM ar_invoices
-             WHERE invoice_number ILIKE ? OR description ILIKE ? OR invoice_number ILIKE ?
+             WHERE invoice_number LIKE ? OR description LIKE ? OR invoice_number LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Journal Entry', 'layers', entry_number, COALESCE(description, 'Journal Entry'), id, 'gl.journal-entries.show'
              FROM journal_entries
-             WHERE entry_number ILIKE ? OR description ILIKE ? OR reference_number ILIKE ?
+             WHERE entry_number LIKE ? OR description LIKE ? OR reference_number LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Disbursement', 'banknotes', request_number,
-                    COALESCE(payee_name, '') || ' — ₱' || TRIM(TO_CHAR(amount, '999,999,990.00')),
+                    CONCAT(COALESCE(payee_name, ''), ' — ', FORMAT(amount, 2)),
                     id, 'ap.disbursements.show'
              FROM disbursement_requests
-             WHERE request_number ILIKE ? OR payee_name ILIKE ? OR description ILIKE ?
+             WHERE request_number LIKE ? OR payee_name LIKE ? OR description LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Collection', 'receipt', receipt_number,
-                    payment_method || ' — ₱' || TRIM(TO_CHAR(amount_received, '999,999,990.00')),
+                    CONCAT(payment_method, ' — ', FORMAT(amount_received, 2)),
                     id, 'ar.collections.show'
              FROM ar_collections
-             WHERE receipt_number ILIKE ? OR reference_number ILIKE ?
+             WHERE receipt_number LIKE ? OR reference_number LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Payment', 'credit-card', voucher_number,
-                    payment_method || ' — ₱' || TRIM(TO_CHAR(net_amount, '999,999,990.00')),
+                    CONCAT(payment_method, ' — ', FORMAT(net_amount, 2)),
                     id, 'ap.payments.print'
              FROM disbursement_payments
-             WHERE voucher_number ILIKE ? OR check_number ILIKE ?
+             WHERE voucher_number LIKE ? OR check_number LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Budget', 'calculator', budget_name,
-                    school_year || ' — ₱' || TRIM(TO_CHAR(annual_budget, '999,999,990.00')),
+                    CONCAT(school_year, ' — ', FORMAT(annual_budget, 2)),
                     id, 'budget.dashboard'
              FROM budgets
-             WHERE budget_name ILIKE ? OR project ILIKE ?
+             WHERE budget_name LIKE ? OR project LIKE ?
              LIMIT 4)
             UNION ALL
             (SELECT 'Department', 'building', name, 'Department', id, 'budget.dashboard'
              FROM departments
-             WHERE name ILIKE ?
+             WHERE name LIKE ?
              LIMIT 3)
             LIMIT 20
         ", [
-            $like, $like,                 // accounts
-            $like, $like, $like,          // vendors
-            $like, $like, $like,          // customers
-            $like, $like, $like,          // bills
-            $like, $like, $like,          // invoices
-            $like, $like, $like,          // journal entries
-            $like, $like, $like,          // disbursements
-            $like, $like,                 // collections
-            $like, $like,                 // payments
-            $like, $like,                 // budgets
-            $like,                        // departments
+            $like, $like,
+            $like, $like, $like,
+            $like, $like, $like,
+            $like, $like, $like,
+            $like, $like, $like,
+            $like, $like, $like,
+            $like, $like, $like,
+            $like, $like,
+            $like, $like,
+            $like, $like,
+            $like,
         ]);
 
         $results = collect($rows)->map(function ($row) {
-            // Budget and Department don't have individual show pages — link to dashboard
             $url = in_array($row->route_name, ['budget.dashboard'])
                 ? route($row->route_name)
                 : route($row->route_name, $row->id);

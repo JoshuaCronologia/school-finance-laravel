@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
      * Order matters: master data first, then roles/permissions (creates admin user),
      * then transactions (references master data and user).
      */
-    public function run(): void
+    public function run()
     {
         $this->call([
             MasterDataSeeder::class,
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
      * Reset PostgreSQL auto-increment sequences to match max ID in each table.
      * Prevents "duplicate key" errors after seeding with explicit IDs.
      */
-    private function resetSequences(): void
+    private function resetSequences()
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
             return;

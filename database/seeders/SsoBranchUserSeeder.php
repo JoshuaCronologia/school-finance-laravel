@@ -10,7 +10,7 @@ use Spatie\Permission\Models\Permission;
 
 class SsoBranchUserSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         // Ensure SSO permissions exist first
         $this->call(SsoPermissionSeeder::class);

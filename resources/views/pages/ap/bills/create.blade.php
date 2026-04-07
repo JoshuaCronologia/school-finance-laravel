@@ -3,12 +3,12 @@
 
 @section('content')
 <x-page-header :title="isset($bill) ? 'Edit Bill #' . $bill->bill_number : 'Create Supplier Bill'" subtitle="Enter bill details and line items">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ route('ap.bills.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back to Bills
         </a>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -208,7 +208,7 @@ function billLineItems() {
         lines: {!! json_encode(
             old('lines',
                 isset($bill) && $bill->lines
-                    ? $bill->lines->map(fn($l) => ['account_id' => $l->account_id, 'description' => $l->description, 'qty' => $l->quantity, 'unit_cost' => $l->unit_cost, 'amount' => $l->amount, 'tax_code' => $l->tax_code_id ?? '', 'wht_code' => ''])->toArray()
+                    ? $bill->lines->map(function ($l) { return ['account_id' => $l->account_id, 'description' => $l->description, 'qty' => $l->quantity, 'unit_cost' => $l->unit_cost, 'amount' => $l->amount, 'tax_code' => $l->tax_code_id ?? '', 'wht_code' => '']; })->toArray()
                     : [['account_id' => '', 'description' => '', 'qty' => 1, 'unit_cost' => 0, 'amount' => 0, 'tax_code' => '', 'wht_code' => '']]
             ),
             JSON_UNESCAPED_UNICODE

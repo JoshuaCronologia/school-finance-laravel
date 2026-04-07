@@ -40,16 +40,25 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
         'is_active' => 'boolean',
     ];
+
+    public function setPasswordAttribute($value)
+    {
+        // Skip if already hashed (prevents double-hashing)
+        if (strlen($value) === 60 && strpos($value, '$2y$') === 0) {
+            $this->attributes['password'] = $value;
+        } else {
+            $this->attributes['password'] = bcrypt($value);
+        }
+    }
 
     public function getKey()
     {
         return (string) parent::getKey();
     }
 
-    public function getNameAttribute($value): string
+    public function getNameAttribute($value)
     {
         if ($value) return $value;
         return trim(sprintf('%s %s %s %s', $this->fname, $this->mname, $this->lname, $this->ext_name));

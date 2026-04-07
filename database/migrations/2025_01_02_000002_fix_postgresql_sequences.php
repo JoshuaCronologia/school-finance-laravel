@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration
+class FixPostgresqlSequences extends Migration
 {
     /**
      * Fix PostgreSQL auto-increment sequences that are out of sync.
@@ -11,7 +11,7 @@ return new class extends Migration
      * This happens when seeders insert rows with explicit IDs — the sequence
      * doesn't advance, so the next INSERT tries id=1 and hits a duplicate key.
      */
-    public function up(): void
+    public function up()
     {
         // Only run on PostgreSQL
         if (DB::connection()->getDriverName() !== 'pgsql') {
@@ -37,8 +37,8 @@ return new class extends Migration
         }
     }
 
-    public function down(): void
+    public function down()
     {
         // No rollback needed — sequences are always correct after this
     }
-};
+}

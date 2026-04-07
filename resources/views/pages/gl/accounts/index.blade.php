@@ -7,12 +7,12 @@
 @endphp
 
 <x-page-header title="Chart of Accounts" :subtitle="$accountCount . ' accounts'">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button @click="$dispatch('open-modal', 'add-account')" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Add Account
         </button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 @if(session('success'))
@@ -68,14 +68,8 @@
             </td>
             <td>
                 @php
-                    $typeBadge = match($account->account_type ?? '') {
-                        'asset' => 'badge-info',
-                        'liability' => 'badge-warning',
-                        'equity' => 'badge-success',
-                        'revenue' => 'badge-success',
-                        'expense' => 'badge-danger',
-                        default => 'badge-neutral',
-                    };
+                    $_map = ['asset' => 'badge-info', 'liability' => 'badge-warning', 'equity' => 'badge-success', 'revenue' => 'badge-success', 'expense' => 'badge-danger'];
+    $typeBadge = $_map[$account->account_type ?? ''] ?? 'badge-neutral';
                 @endphp
                 <span class="badge {{ $typeBadge }}">{{ ucfirst($account->account_type ?? '-') }}</span>
             </td>
@@ -102,9 +96,9 @@
         @endforelse
     </tbody>
     @if($accounts instanceof \Illuminate\Pagination\LengthAwarePaginator && $accounts->hasPages())
-    <x-slot:footer>
+    <x-slot name="footer">
         {{ $accounts->withQueryString()->links() }}
-    </x-slot:footer>
+    </x-slot>
     @endif
 </x-data-table>
 

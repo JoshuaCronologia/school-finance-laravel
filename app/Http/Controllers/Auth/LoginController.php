@@ -95,7 +95,7 @@ class LoginController extends Controller
                 Session::put('is_sso', true);
                 Session::put('school_img', $school_image);
                 $rs = SharedFunctions::success_msg('Logged in successfully!');
-                $rs['redirect'] = '/';
+                $rs['redirect'] = url('/');
             } else {
                 b:
                 if (isset($branch[0]->platforms[1])) {
@@ -130,7 +130,7 @@ class LoginController extends Controller
                         Session::put('is_sso', true);
                         Session::put('school_img', $school_image);
                         $rs = SharedFunctions::success_msg('Logged in successfully!');
-                        $rs['redirect'] = '/';
+                        $rs['redirect'] = url('/');
                     }
                 }
             }
@@ -164,14 +164,14 @@ class LoginController extends Controller
                 Session::put('platform', 'Kto12');
                 Session::put('is_sso', true);
                 $rs = SharedFunctions::success_msg('Logged in successfully!');
-                $rs['redirect'] = '/';
+                $rs['redirect'] = url('/');
             }
         }
 
         if (isset($rs['redirect'])) {
             return redirect($rs['redirect']);
         }
-        return redirect('/login')->withErrors(['email' => $rs['text']]);
+        return redirect(url('/login'))->withErrors(['email' => $rs['text']]);
     }
 
     public function multi_login(Request $request)
@@ -206,7 +206,7 @@ class LoginController extends Controller
             Session::put('school_img', $school_image ?? null);
 
             $rs = SharedFunctions::success_msg('Logged in successfully!');
-            $rs['redirect'] = '/';
+            $rs['redirect'] = url('/');
         } else {
             $permissions = [];
             $branches = Branch::get("", false, false, false);
@@ -282,7 +282,7 @@ class LoginController extends Controller
                     Session::put('school_img', $school_image);
 
                     $rs = SharedFunctions::success_msg('Logged in successfully!');
-                    $rs['redirect'] = '/';
+                    $rs['redirect'] = url('/');
                     $found = true;
                     continue;
                 }
@@ -334,7 +334,7 @@ class LoginController extends Controller
                     Session::put('school_img', $school_image);
 
                     $rs = SharedFunctions::success_msg('Logged in successfully!');
-                    $rs['redirect'] = '/';
+                    $rs['redirect'] = url('/');
                     $found = true;
                     continue;
                 }
@@ -381,7 +381,7 @@ class LoginController extends Controller
                                 Session::put('referer', $request->server('HTTP_REFERER'));
                                 Session::put('school_img', $school_image);
                                 $rs = SharedFunctions::success_msg('Logged in successfully!');
-                                $rs['redirect'] = '/';
+                                $rs['redirect'] = url('/');
                                 $found = true;
                                 break;
                             }
@@ -416,7 +416,7 @@ class LoginController extends Controller
             Session::put('referer', $request->server('HTTP_REFERER'));
 
             $rs = SharedFunctions::success_msg();
-            $rs['redirect'] = '/';
+            $rs['redirect'] = url('/');
             $rs['text'] = "Logged in successfully!";
         }
         return response()->json($rs);
@@ -424,7 +424,7 @@ class LoginController extends Controller
 
     public function logout()
     {
-        $redirect = env('HOME_URL', '/login');
+        $redirect = env('HOME_URL', url('/login'));
         Auth::logout();
         Session::flush();
         return redirect($redirect);

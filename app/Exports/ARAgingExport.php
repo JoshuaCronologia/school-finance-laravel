@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ARAgingExport implements FromCollection, WithHeadings, WithStyles, WithTitle, WithEvents
 {
-    protected string $asOfDate;
+    protected $asOfDate;
 
     public function __construct(string $asOfDate)
     {
@@ -34,8 +34,8 @@ class ARAgingExport implements FromCollection, WithHeadings, WithStyles, WithTit
         $customerBuckets = [];
 
         foreach ($invoices as $invoice) {
-            $customerName = $invoice->customer?->name ?? 'Unknown';
-            $customerCode = $invoice->customer?->customer_code ?? '-';
+            $customerName = $invoiceoptional($invoice->customer)->name ?? 'Unknown';
+            $customerCode = $invoiceoptional($invoice->customer)->customer_code ?? '-';
             $key = $customerCode . '|' . $customerName;
 
             if (!isset($customerBuckets[$key])) {

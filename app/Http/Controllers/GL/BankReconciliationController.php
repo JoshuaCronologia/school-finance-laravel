@@ -132,8 +132,8 @@ class BankReconciliationController extends Controller
             ->orderBy('je.posting_date', 'desc')
             ->get();
 
-        $depositsInTransit = $transactions->filter(fn($t) => $t->debit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 3);
-        $outstandingChecks = $transactions->filter(fn($t) => $t->credit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 15);
+        $depositsInTransit = $transactions->filter(function ($t) { return $t->debit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 3; });
+        $outstandingChecks = $transactions->filter(function ($t) { return $t->credit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 15; });
 
         $totalDepositsTransit = $depositsInTransit->sum('debit');
         $totalOutstandingChecks = $outstandingChecks->sum('credit');

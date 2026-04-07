@@ -45,7 +45,7 @@ Route::post('/sso/validate', [\App\Http\Controllers\Api\SsoValidateController::c
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', function (Request $request) { return $request->user(); });
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::put('/user/profile', [AuthController::class, 'updateProfile']);
     Route::put('/user/password', [AuthController::class, 'updatePassword']);

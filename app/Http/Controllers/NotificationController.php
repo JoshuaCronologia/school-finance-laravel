@@ -17,16 +17,16 @@ class NotificationController extends Controller
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
-            ->map(fn ($n) => [
+            ->map(function ($n) { return [
                 'id' => $n->id,
                 'type' => $n->type,
                 'title' => $n->title,
                 'message' => $n->message,
                 'url' => $n->data['url'] ?? null,
-                'read_at' => $n->read_at?->toIso8601String(),
+                'read_at' => ($n->read_at ? $n->read_at->toIso8601String() : null),
                 'created_at' => $n->created_at->toIso8601String(),
                 'time_ago' => $n->created_at->diffForHumans(),
-            ]);
+            ]; });
 
         $unreadCount = Notification::where('user_id', $request->user()->id)
             ->unread()

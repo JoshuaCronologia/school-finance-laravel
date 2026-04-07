@@ -1,4 +1,4 @@
-import { createApp, h } from 'vue';
+import { createApp } from 'vue';
 import axios from 'axios';
 
 import '../css/app.css';
@@ -8,7 +8,7 @@ import '../css/app.css';
    ---------------------------------------------------------------- */
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-const token = document.head.querySelector('meta[name="csrf-token"]');
+var token = document.head.querySelector('meta[name="csrf-token"]');
 if (token) {
     axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
 }
@@ -16,57 +16,49 @@ if (token) {
 window.axios = axios;
 
 /* ----------------------------------------------------------------
-   Vue 3 application
+   Vue components (explicit imports for Laravel Mix)
    ---------------------------------------------------------------- */
-const app = createApp({});
-
-// Alpine.js manages its own <template x-for> / <template x-if> elements.
-// Tell Vue's runtime compiler to treat them as custom elements so it
-// does not flag them as invalid HTML nesting (e.g. <template> in <tbody>).
-app.config.compilerOptions.isCustomElement = (tag) => {
-    return false;
-};
-app.config.warnHandler = (msg, instance, trace) => {
-    // Suppress Vue warnings about Alpine-managed <template> and x-data properties
-    if (msg.includes('<template> cannot be child of') ||
-        msg.includes('was accessed during render but is not defined')) {
-        return;
-    }
-    console.warn(`[Vue warn]: ${msg}${trace}`);
-};
-
+import BarChart from './components/BarChart.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
+import DataTable from './components/DataTable.vue';
+import DoughnutChart from './components/DoughnutChart.vue';
+import LineChart from './components/LineChart.vue';
+import Modal from './components/Modal.vue';
+import SearchableSelect from './components/SearchableSelect.vue';
+import StatCard from './components/StatCard.vue';
+import Toast from './components/Toast.vue';
 
 /* ----------------------------------------------------------------
-   Auto-register Vue components from ./components directory
-   Requires: import.meta.glob (Vite)
-   Convention:
-     components/StatCard.vue      -> <StatCard />
-     components/ui/Badge.vue      -> <UiBadge />
+   Vue 3 application
    ---------------------------------------------------------------- */
-const componentFiles = import.meta.glob('./components/**/*.vue', { eager: true });
+var app = createApp({});
 
-Object.entries(componentFiles).forEach(([path, module]) => {
-    // ./components/StatCard.vue  ->  StatCard
-    // ./components/ui/Badge.vue  ->  UiBadge
-    const name = path
-        .replace('./components/', '')
-        .replace(/\.vue$/, '')
-        .split('/')
-        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join('');
+app.config.compilerOptions.isCustomElement = function () { return false; };
+app.config.warnHandler = function (msg) {
+    if (msg.indexOf('<template> cannot be child of') !== -1 ||
+        msg.indexOf('was accessed during render but is not defined') !== -1) {
+        return;
+    }
+    console.warn('[Vue warn]: ' + msg);
+};
 
-    app.component(name, module.default || module);
-});
+// Register components
+app.component('BarChart', BarChart);
+app.component('ConfirmDialog', ConfirmDialog);
+app.component('DataTable', DataTable);
+app.component('DoughnutChart', DoughnutChart);
+app.component('LineChart', LineChart);
+app.component('Modal', Modal);
+app.component('SearchableSelect', SearchableSelect);
+app.component('StatCard', StatCard);
+app.component('Toast', Toast);
 
 /* ----------------------------------------------------------------
    Global properties
    ---------------------------------------------------------------- */
 app.config.globalProperties.$axios = axios;
 
-/**
- * Format a number as Philippine Peso currency.
- */
-app.config.globalProperties.$currency = (value) => {
+app.config.globalProperties.$currency = function (value) {
     if (value === null || value === undefined) return '₱0.00';
     return new Intl.NumberFormat('en-PH', {
         style: 'currency',
@@ -75,45 +67,21 @@ app.config.globalProperties.$currency = (value) => {
     }).format(value);
 };
 
-/**
- * Format a date string.
- */
-app.config.globalProperties.$formatDate = (dateStr, options = {}) => {
+app.config.globalProperties.$formatDate = function (dateStr, options) {
     if (!dateStr) return '';
-    const defaults = { year: 'numeric', month: 'short', day: 'numeric' };
-    return new Date(dateStr).toLocaleDateString('en-PH', { ...defaults, ...options });
+    var defaults = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateStr).toLocaleDateString('en-PH', Object.assign({}, defaults, options || {}));
 };
 
 /* ----------------------------------------------------------------
    Mount
    ---------------------------------------------------------------- */
-// Only mount Vue on explicit root containers to avoid conflicts with Alpine.js.
-// Re-mount after Turbo Drive navigations so charts render on page transitions.
 function mountVue() {
-    const mountTarget = document.querySelector('[data-vue-root], #vue-app');
+    var mountTarget = document.querySelector('[data-vue-root], #vue-app');
     if (mountTarget && !mountTarget.__vue_app__) {
-        // Create a fresh app instance for each mount (Turbo replaces DOM)
-        const freshApp = createApp({});
-        freshApp.config.compilerOptions.isCustomElement = () => false;
-        freshApp.config.warnHandler = app.config.warnHandler;
-        Object.entries(componentFiles).forEach(([path, module]) => {
-            const name = path
-                .replace('./components/', '')
-                .replace(/\.vue$/, '')
-                .split('/')
-                .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                .join('');
-            freshApp.component(name, module.default || module);
-        });
-        freshApp.config.globalProperties.$axios = axios;
-        freshApp.config.globalProperties.$currency = app.config.globalProperties.$currency;
-        freshApp.config.globalProperties.$formatDate = app.config.globalProperties.$formatDate;
-        freshApp.mount(mountTarget);
+        app.mount(mountTarget);
     }
 }
 
-// Mount on initial load
 mountVue();
-
-// Re-mount after Turbo Drive page transitions
 document.addEventListener('turbo:load', mountVue);

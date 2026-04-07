@@ -157,21 +157,21 @@ class ARController extends Controller
             ->whereNotIn('status', ['cancelled', 'voided'])
             ->whereDate('invoice_date', '<=', $asOfDate)
             ->orderBy('invoice_date')->get()
-            ->map(fn($inv) => (object) [
+            ->map(function ($inv) { return (object) [
                 'date' => $inv->invoice_date, 'reference' => $inv->invoice_number,
                 'description' => $inv->description ?? 'Invoice',
                 'debit' => (float) $inv->net_receivable, 'credit' => 0,
-            ]);
+            ]; });
 
         $collections = ArCollection::where('customer_id', $customer->id)
             ->whereNotIn('status', ['cancelled', 'voided'])
             ->whereDate('collection_date', '<=', $asOfDate)
             ->orderBy('collection_date')->get()
-            ->map(fn($col) => (object) [
+            ->map(function ($col) { return (object) [
                 'date' => $col->collection_date, 'reference' => $col->receipt_number,
                 'description' => 'Payment - ' . $col->payment_method,
                 'debit' => 0, 'credit' => (float) $col->amount_received,
-            ]);
+            ]; });
 
         $runningBalance = 0;
         $transactions = $invoices->concat($collections)->sortBy('date')->values()

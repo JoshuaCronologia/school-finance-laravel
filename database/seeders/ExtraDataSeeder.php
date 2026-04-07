@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class ExtraDataSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         $now = now();
         $cash = ChartOfAccount::where('account_code', '1010')->first();

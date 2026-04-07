@@ -44,7 +44,7 @@
             @endif
             @if(!$isSSO)
             <div class="mt-4 pt-4 border-t border-gray-100 text-sm text-secondary-500">
-                <p>Member since {{ auth()->user()->created_at?->format('F d, Y') }}</p>
+                <p>Member since {{ (auth()->user()->created_at ? auth()->user()->created_at->format('F d, Y') : '-') }}</p>
             </div>
             @endif
         </div>

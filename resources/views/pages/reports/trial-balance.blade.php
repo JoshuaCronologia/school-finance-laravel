@@ -9,7 +9,7 @@
 @endphp
 
 <x-page-header title="Trial Balance">
-    <x-slot:actions>
+    <x-slot name="actions">
         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold {{ $isBalanced ? 'bg-success-50 text-success-700' : 'bg-danger-50 text-danger-700' }}">
             <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 @if($isBalanced)
@@ -20,7 +20,7 @@
             </svg>
             {{ $isBalanced ? 'Balanced' : 'Unbalanced' }}
         </span>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 {{-- Filters --}}

@@ -4,9 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class AddMissingForeignKeysAndIndexes extends Migration
 {
-    public function up(): void
+    public function up()
     {
         // ---------------------------------------------------------------
         // 1. Foreign keys on user_id columns that were missing constraints
@@ -74,7 +74,7 @@ return new class extends Migration
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::table('notifications', function (Blueprint $table) {
             $table->dropForeign(['user_id']);
@@ -123,4 +123,4 @@ return new class extends Migration
             $table->dropIndex('disbursement_payments_status_payment_date_index');
         });
     }
-};
+}

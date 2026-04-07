@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\DB;
 
 class SampleDataSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
         $this->command->info('Creating sample data for all modules...');
 

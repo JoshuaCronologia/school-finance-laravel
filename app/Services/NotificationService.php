@@ -25,7 +25,7 @@ class NotificationService
     /**
      * Send a notification to all users (broadcast).
      */
-    public static function broadcast(string $type, string $title, ?string $message = null, ?string $url = null, ?array $extra = []): void
+    public static function broadcast(string $type, string $title, ?string $message = null, ?string $url = null, ?array $extra = [])
     {
         $currentUserId = Auth::id();
 
@@ -37,7 +37,7 @@ class NotificationService
     /**
      * Send notification to all users with a specific role.
      */
-    public static function sendToRole(string $role, string $type, string $title, ?string $message = null, ?string $url = null): void
+    public static function sendToRole(string $role, string $type, string $title, ?string $message = null, ?string $url = null)
     {
         User::role($role)->where('id', '!=', Auth::id())->each(function ($user) use ($type, $title, $message, $url) {
             self::send($user->id, $type, $title, $message, $url);
@@ -48,7 +48,7 @@ class NotificationService
     // Pre-built notification events
     // =================================================================
 
-    public static function budgetCreated($budget): void
+    public static function budgetCreated($budget)
     {
         self::broadcast('info', 'New Budget Created',
             "Budget \"{$budget->budget_name}\" (₱" . number_format($budget->annual_budget, 2) . ") was created.",
@@ -56,7 +56,7 @@ class NotificationService
         );
     }
 
-    public static function disbursementSubmitted($disbursement): void
+    public static function disbursementSubmitted($disbursement)
     {
         self::broadcast('warning', 'Disbursement Pending Approval',
             "{$disbursement->request_number} — ₱" . number_format($disbursement->amount, 2) . " from {$disbursement->payee_name}",
@@ -64,7 +64,7 @@ class NotificationService
         );
     }
 
-    public static function disbursementApproved($disbursement): void
+    public static function disbursementApproved($disbursement)
     {
         if ($disbursement->created_by) {
             self::send($disbursement->created_by, 'success', 'Disbursement Approved',
@@ -74,7 +74,7 @@ class NotificationService
         }
     }
 
-    public static function disbursementRejected($disbursement, ?string $reason = null): void
+    public static function disbursementRejected($disbursement, ?string $reason = null)
     {
         if ($disbursement->created_by) {
             self::send($disbursement->created_by, 'danger', 'Disbursement Rejected',
@@ -84,7 +84,7 @@ class NotificationService
         }
     }
 
-    public static function paymentProcessed($payment): void
+    public static function paymentProcessed($payment)
     {
         self::broadcast('success', 'Payment Processed',
             "Voucher {$payment->voucher_number} — ₱" . number_format($payment->net_amount, 2) . " paid.",
@@ -92,7 +92,7 @@ class NotificationService
         );
     }
 
-    public static function invoiceCreated($invoice): void
+    public static function invoiceCreated($invoice)
     {
         $customerName = optional($invoice->customer)->name ?? 'customer';
         self::broadcast('info', 'New Invoice Created',
@@ -101,7 +101,7 @@ class NotificationService
         );
     }
 
-    public static function collectionReceived($collection): void
+    public static function collectionReceived($collection)
     {
         $customerName = optional($collection->customer)->name ?? 'customer';
         self::broadcast('success', 'Collection Received',
@@ -110,7 +110,7 @@ class NotificationService
         );
     }
 
-    public static function journalEntryPosted($je): void
+    public static function journalEntryPosted($je)
     {
         self::broadcast('info', 'Journal Entry Posted',
             "{$je->entry_number} — {$je->description}",
@@ -118,7 +118,7 @@ class NotificationService
         );
     }
 
-    public static function billCreated($bill): void
+    public static function billCreated($bill)
     {
         self::broadcast('info', 'New Bill Recorded',
             "{$bill->bill_number} — ₱" . number_format($bill->gross_amount, 2) . ' from ' . (optional($bill->vendor)->name ?? 'vendor'),

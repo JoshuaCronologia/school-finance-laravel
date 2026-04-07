@@ -15,9 +15,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class BudgetExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnFormats, WithTitle
 {
-    protected ?string $schoolYear;
-    protected ?int $departmentId;
-    protected ?string $status;
+    protected $schoolYear;
+    protected $departmentId;
+    protected $status;
 
     public function __construct(?string $schoolYear = null, ?int $departmentId = null, ?string $status = null)
     {
@@ -66,8 +66,8 @@ class BudgetExport implements FromCollection, WithHeadings, WithMapping, WithSty
     {
         return [
             $budget->budget_name,
-            $budget->department?->name ?? '-',
-            $budget->costCenter?->name ?? '-',
+            $budgetoptional($budget->department)->name ?? '-',
+            $budgetoptional($budget->costCenter)->name ?? '-',
             $budget->annual_budget,
             $budget->committed,
             $budget->actual,

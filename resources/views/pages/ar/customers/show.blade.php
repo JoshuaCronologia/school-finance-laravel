@@ -3,13 +3,13 @@
 
 @section('content')
 <x-page-header :title="$customer->name" :subtitle="$customer->customer_code . ' — ' . ucfirst($customer->customer_type ?? 'Customer')">
-    <x-slot:actions>
+    <x-slot name="actions">
         <a href="{{ route('ar.customers.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back
         </a>
         <a href="{{ route('ar.soa.detail', $customer) }}" class="btn-secondary">Statement of Account</a>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 {{-- Info + Stats --}}

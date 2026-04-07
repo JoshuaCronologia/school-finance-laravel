@@ -63,8 +63,8 @@ class DashboardController extends Controller
                 ->take(5)
                 ->get();
 
-            $categoryLabels = $categoryRows->map(fn ($r) => $r->category->name ?? 'Uncategorized')->values();
-            $categoryValues = $categoryRows->pluck('total')->map(fn ($v) => (float) $v)->values();
+            $categoryLabels = $categoryRows->map(function ($r) { return $r->category->name ?? 'Uncategorized'; })->values();
+            $categoryValues = $categoryRows->pluck('total')->map(function ($v) { return (float) $v; })->values();
 
             $departmentRows = Budget::with('department')
                 ->select(
@@ -76,17 +76,17 @@ class DashboardController extends Controller
                 ->groupBy('department_id')
                 ->get();
 
-            $departmentLabels = $departmentRows->map(fn ($r) => $r->department->name ?? 'Unknown')->values();
+            $departmentLabels = $departmentRows->map(function ($r) { return $r->department->name ?? 'Unknown'; })->values();
             $departmentDatasets = [
-                ['label' => 'Budget',    'data' => $departmentRows->pluck('budget')->map(fn ($v) => (float) $v)->values()],
-                ['label' => 'Actual',    'data' => $departmentRows->pluck('actual')->map(fn ($v) => (float) $v)->values()],
-                ['label' => 'Committed', 'data' => $departmentRows->pluck('committed')->map(fn ($v) => (float) $v)->values()],
+                ['label' => 'Budget',    'data' => $departmentRows->pluck('budget')->map(function ($v) { return (float) $v; })->values()],
+                ['label' => 'Actual',    'data' => $departmentRows->pluck('actual')->map(function ($v) { return (float) $v; })->values()],
+                ['label' => 'Committed', 'data' => $departmentRows->pluck('committed')->map(function ($v) { return (float) $v; })->values()],
             ];
 
             $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            $monthlyLabels = $monthlyExpenses->map(fn ($r) => $months[$r->month - 1] ?? $r->month)->values();
+            $monthlyLabels = $monthlyExpenses->map(function ($r) { return $months[$r->month - 1] ?? $r->month; })->values();
             $monthlyDatasets = [
-                ['label' => 'Expenses', 'data' => $monthlyExpenses->pluck('total')->map(fn ($v) => (float) $v)->values()],
+                ['label' => 'Expenses', 'data' => $monthlyExpenses->pluck('total')->map(function ($v) { return (float) $v; })->values()],
             ];
 
             return compact(

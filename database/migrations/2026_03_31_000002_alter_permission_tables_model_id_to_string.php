@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\DB;
  * Change model_id from unsignedBigInteger to varchar
  * to support UUID-based models like BranchUser with Spatie permissions.
  */
-return new class extends Migration
+class AlterPermissionTablesModelIdToString extends Migration
 {
-    public function up(): void
+    public function up()
     {
         $driver = DB::connection()->getDriverName();
 
@@ -23,7 +23,7 @@ return new class extends Migration
         }
     }
 
-    public function down(): void
+    public function down()
     {
         $driver = DB::connection()->getDriverName();
 
@@ -35,4 +35,4 @@ return new class extends Migration
             DB::statement('ALTER TABLE model_has_roles ALTER COLUMN model_id TYPE BIGINT USING model_id::BIGINT');
         }
     }
-};
+}

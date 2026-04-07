@@ -1,6 +1,6 @@
 <template>
   <div class="relative" :style="{ height: height }">
-    <Line v-if="loaded" :data="chartData" :options="chartOptions" />
+    <Line v-if="loaded && hasData" :data="chartData" :options="chartOptions" />
   </div>
 </template>
 
@@ -24,8 +24,8 @@ export default {
   name: 'LineChart',
   components: { Line },
   props: {
-    labels:   { type: Array, required: true },
-    datasets: { type: Array, required: true },
+    labels:   { type: Array, default: function () { return []; } },
+    datasets: { type: Array, default: function () { return []; } },
     title:    { type: String, default: '' },
     height:   { type: String, default: '300px' },
     currency: { type: Boolean, default: false },
@@ -35,7 +35,11 @@ export default {
     return { loaded: false };
   },
   computed: {
+    hasData() {
+      return this.datasets && this.datasets.length > 0;
+    },
     chartData() {
+      if (!this.hasData) return { labels: [], datasets: [] };
       const defaultColors = [
         { line: '#2563eb', bg: 'rgba(37, 99, 235, 0.1)' },
         { line: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },

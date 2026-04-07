@@ -10,7 +10,7 @@ class CacheService
      * Clear dashboard and related caches when financial data changes.
      * Call this after any create/update/delete on budgets, bills, invoices, payments, JEs, etc.
      */
-    public static function clearFinancialCaches(): void
+    public static function clearFinancialCaches()
     {
         $keys = [
             'dashboard:finance',
@@ -37,7 +37,7 @@ class CacheService
     /**
      * Clear AP-specific caches (vendor aging, etc.)
      */
-    public static function clearAPCaches(): void
+    public static function clearAPCaches()
     {
         Cache::forget('ap:aging:' . now()->toDateString());
     }

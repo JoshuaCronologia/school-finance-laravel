@@ -179,9 +179,9 @@ class PaymentController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('voucher_number', 'ilike', "%{$search}%")
-                  ->orWhereHas('disbursement', fn ($d) => $d->where('request_number', 'ilike', "%{$search}%")
-                      ->orWhere('payee_name', 'ilike', "%{$search}%"));
+                $q->where('voucher_number', 'like', "%{$search}%")
+                  ->orWhereHas('disbursement', function ($d) { return $d->where('request_number', 'like', "%{$search}%")
+                      ->orWhere('payee_name', 'like', "%{$search}%"); });
             });
         }
 

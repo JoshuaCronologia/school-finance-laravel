@@ -36,7 +36,7 @@ class SupplierPaymentController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('payment_number', 'like', "%{$search}%")
                   ->orWhere('check_number', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', fn($v) => $v->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('vendor', function ($v) { return $v->where('name', 'like', "%{$search}%"); });
             });
         }
 

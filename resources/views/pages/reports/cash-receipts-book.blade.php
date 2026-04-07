@@ -3,7 +3,7 @@
 
 @section('content')
 <x-page-header title="Cash Receipts Book (CRB)" subtitle="All cash/bank receipts (debits to cash accounts)">
-    <x-slot:actions><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot:actions>
+    <x-slot name="actions"><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot>
 </x-page-header>
 
 <x-filter-bar action="{{ route('reports.cash-receipts-book') }}">

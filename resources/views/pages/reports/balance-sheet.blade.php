@@ -16,9 +16,9 @@
 @endphp
 
 <x-page-header title="Balance Sheet" :subtitle="'As of ' . \Carbon\Carbon::parse($asOfDate)->format('F d, Y')">
-    <x-slot:actions>
+    <x-slot name="actions">
         <button onclick="window.print()" class="btn-secondary text-sm">Print</button>
-    </x-slot:actions>
+    </x-slot>
 </x-page-header>
 
 <div class="card mb-6">
