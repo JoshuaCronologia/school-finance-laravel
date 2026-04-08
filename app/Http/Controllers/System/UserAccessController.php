@@ -125,41 +125,61 @@ class UserAccessController extends Controller
 
     // ─── K-12 & College Employee Pages ─────────────────────────
 
-    public function kto12Employees(Request $request)
+    public function branchEmployees(Request $request, $platform)
     {
-        $search = $request->input('search', '');
-        $branches = \App\Libraries\Branch::get("", false, false, false);
-        $employees = collect();
-        $branchCode = '';
+        $platformMap = ['kto12' => ['name' => 'K-12', 'index' => 0], 'college' => ['name' => 'College', 'index' => 1]];
+        $platformSlug = $platform;
+        $platformName = $platformMap[$platform]['name'];
+        $platformIndex = $platformMap[$platform]['index'];
 
-        foreach ($branches as $branch) {
-            if (!isset($branch->platforms[0])) continue;
-            $con = $branch->platforms[0]['id'];
-            $branchCode = $branch->id;
+        $search = $request->input('search', '');
+        $branchCodes = $this->getBranchCodes();
+        $branchCode = $request->input('branch', $branchCodes[0] ?? '');
+
+        $employees = collect();
+
+        if ($branchCode) {
+            $branch = \App\Libraries\Branch::get($branchCode, false, false, true);
+            $con = $branch[$platformIndex] ?? null;
 
             try {
-                $query = \Illuminate\Support\Facades\DB::connection($con)
-                    ->table('employee_db')
-                    ->where('isdeleted', 0)
-                    ->select('id', 'employee_id', 'firstname', 'middlename', 'lastname', 'email');
+                if ($platformSlug === 'kto12') {
+                    $query = \Illuminate\Support\Facades\DB::connection($con)
+                        ->table('employee_db')
+                        ->where('isdeleted', 0)
+                        ->select('id', 'employee_id', 'firstname', 'middlename', 'lastname', 'email');
 
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('firstname', 'like', "%{$search}%")
-                          ->orWhere('lastname', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhere('employee_id', 'like', "%{$search}%");
-                    });
+                    if ($search) {
+                        $query->where(function ($q) use ($search) {
+                            $q->where('firstname', 'like', "%{$search}%")
+                              ->orWhere('lastname', 'like', "%{$search}%")
+                              ->orWhere('email', 'like', "%{$search}%")
+                              ->orWhere('employee_id', 'like', "%{$search}%");
+                        });
+                    }
+
+                    $employees = $query->orderBy('lastname')->paginate(25)->withQueryString();
+                } else {
+                    $query = \Illuminate\Support\Facades\DB::connection($con)
+                        ->table('employees')
+                        ->where('deleted', 0)
+                        ->select('id', 'fname', 'mname', 'lname', 'email');
+
+                    if ($search) {
+                        $query->where(function ($q) use ($search) {
+                            $q->where('fname', 'like', "%{$search}%")
+                              ->orWhere('lname', 'like', "%{$search}%")
+                              ->orWhere('email', 'like', "%{$search}%");
+                        });
+                    }
+
+                    $employees = $query->orderBy('lname')->paginate(25)->withQueryString();
                 }
-
-                $employees = $query->orderBy('lastname')->paginate(25)->withQueryString();
             } catch (\Exception $e) {
                 $employees = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
             }
-            break;
         }
 
-        // Get existing BranchUser IDs for this branch
         $existingIds = BranchUser::where('branch_code', $branchCode)
             ->where('parent_type', \App\Models\Employee::class)
             ->pluck('parent_id')
@@ -168,54 +188,11 @@ class UserAccessController extends Controller
 
         $ssoPermissions = config('acl.permissions', []);
 
-        return view('pages.system.branch-employees', compact(
-            'employees', 'search', 'existingIds', 'ssoPermissions', 'branchCode'
-        ))->with('platform', 'K-12');
-    }
-
-    public function collegeEmployees(Request $request)
-    {
-        $search = $request->input('search', '');
-        $branches = \App\Libraries\Branch::get("", false, false, false);
-        $employees = collect();
-        $branchCode = '';
-
-        foreach ($branches as $branch) {
-            if (!isset($branch->platforms[1])) continue;
-            $con = $branch->platforms[1]['id'];
-            $branchCode = $branch->id;
-
-            try {
-                $query = \Illuminate\Support\Facades\DB::connection($con)
-                    ->table('employees')
-                    ->where('deleted', 0)
-                    ->select('id', 'fname', 'mname', 'lname', 'email');
-
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('fname', 'like', "%{$search}%")
-                          ->orWhere('lname', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%");
-                    });
-                }
-
-                $employees = $query->orderBy('lname')->paginate(25)->withQueryString();
-            } catch (\Exception $e) {
-                $employees = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
-            }
-            break;
-        }
-
-        $existingIds = BranchUser::where('branch_code', $branchCode)
-            ->where('parent_type', \App\Models\Employee::class)
-            ->pluck('parent_id')
-            ->toArray();
-
-        $ssoPermissions = config('acl.permissions', []);
+        $platform = $platformName;
 
         return view('pages.system.branch-employees', compact(
-            'employees', 'search', 'existingIds', 'ssoPermissions', 'branchCode'
-        ))->with('platform', 'College');
+            'employees', 'search', 'existingIds', 'ssoPermissions', 'branchCode', 'branchCodes', 'platform', 'platformSlug'
+        ));
     }
 
     public function grantAccess(Request $request)

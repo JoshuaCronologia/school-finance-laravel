@@ -38,13 +38,25 @@
 {{-- Search --}}
 <div class="card mb-4">
     <form method="GET" class="p-4 flex flex-wrap items-end gap-3">
+        @if($branchCodes && count($branchCodes) > 1)
+        <div class="min-w-[180px]">
+            <label class="form-label">Branch</label>
+            <select name="branch" class="form-input" onchange="this.form.submit()">
+                @foreach($branchCodes as $code)
+                    <option value="{{ $code }}" {{ $branchCode === $code ? 'selected' : '' }}>
+                        {{ strtoupper($code) }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        @endif
         <div class="flex-1 min-w-[200px]">
             <label class="form-label">Search</label>
             <input type="text" name="search" class="form-input" placeholder="Name, email, or employee ID..." value="{{ $search }}">
         </div>
         <button type="submit" class="btn-primary">Search</button>
-        @if($search)
-            <a href="{{ $platform === 'K-12' ? url('/user-access/kto12') : url('/user-access/college') }}" class="btn-secondary">Clear</a>
+        @if($search || request('branch'))
+            <a href="{{ url('/user-access/' . $platformSlug) }}" class="btn-secondary">Clear</a>
         @endif
     </form>
 </div>

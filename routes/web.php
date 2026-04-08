@@ -229,9 +229,8 @@ Route::middleware(['check_auth'])->group(function () {
     Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit-trail');
     Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit-trail.export');
 
-    // Branch employee pages (K-12 and College)
-    Route::get('/user-access/kto12', [\App\Http\Controllers\System\UserAccessController::class, 'kto12Employees'])->name('user-access.kto12');
-    Route::get('/user-access/college', [\App\Http\Controllers\System\UserAccessController::class, 'collegeEmployees'])->name('user-access.college');
+    // Branch employee pages
+    Route::get('/user-access/{platform}', [\App\Http\Controllers\System\UserAccessController::class, 'branchEmployees'])->name('user-access.platform')->where('platform', 'kto12|college');
     Route::post('/user-access/grant-access', [\App\Http\Controllers\System\UserAccessController::class, 'grantAccess'])->name('user-access.grant-access');
 
     // Branch user (SSO) management
