@@ -84,7 +84,7 @@ cp .env.example .env
 docker-compose up -d
 docker-compose exec app composer install
 docker-compose exec app php artisan key:generate
-docker-compose exec app php artisan migrate --seed
+docker-compose exec app php artisan migrate:fresh --seed
 docker-compose exec app npm install && npm run build
 # Visit http://localhost:8000
 # Login: admin@orangeapps.edu.ph / password
@@ -98,7 +98,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 # Configure .env with your MySQL credentials
-php artisan migrate --seed
+php artisan migrate:fresh --seed
 npm install && npm run build
 php artisan serve
 ```
