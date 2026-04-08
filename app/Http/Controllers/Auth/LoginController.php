@@ -349,11 +349,28 @@ class LoginController extends Controller
                 // --- Search College Employee ---
                 if (isset($branch->platforms[1])) {
                     try {
-                        $college_users = CollegeUser::on($branch->platforms[1]['id'])->where('email', $request->email)->get();
+                        $con = $branch->platforms[1]['id'];
+
+                        // Search by email in users table
+                        $college_users = CollegeUser::on($con)->where('email', $request->email)->get();
+
+                        // Also search by employee_id (CONCAT(prefix_name, generated_id))
+                        if ($college_users->isEmpty()) {
+                            $empByGenId = CollegeEmployee::on($con)
+                                ->select('employees.id as key_id', 'employees.user_id')
+                                ->leftJoin('prefixes', 'employees.prefix_id', '=', 'prefixes.id')
+                                ->where(DB::raw('CONCAT(prefixes.prefix_name, employees.generated_id)'), $request->email)
+                                ->where('employees.deleted', 0)
+                                ->first();
+
+                            if ($empByGenId && $empByGenId->user_id) {
+                                $college_users = CollegeUser::on($con)->where('id', $empByGenId->user_id)->get();
+                            }
+                        }
 
                         foreach ($college_users as $user) {
                             if (Hash::check($request->password, $user->password)) {
-                                $employee = CollegeEmployee::on($branch->platforms[1]['id'])->select('id as key_id');
+                                $employee = CollegeEmployee::on($con)->select('id as key_id');
                                 $employee_user = $employee->where('user_id', $user->id)->first();
 
                                 if (!$employee_user) continue;

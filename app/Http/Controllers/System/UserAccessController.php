@@ -162,18 +162,27 @@ class UserAccessController extends Controller
                 } else {
                     $query = \Illuminate\Support\Facades\DB::connection($con)
                         ->table('employees')
-                        ->where('deleted', 0)
-                        ->select('id', 'fname', 'mname', 'lname', 'email');
+                        ->leftJoin('prefixes', 'employees.prefix_id', '=', 'prefixes.id')
+                        ->where('employees.deleted', 0)
+                        ->select(
+                            'employees.id',
+                            'employees.fname',
+                            'employees.mname',
+                            'employees.lname',
+                            'employees.email',
+                            \Illuminate\Support\Facades\DB::raw('CONCAT(prefixes.prefix_name, employees.generated_id) as employee_id')
+                        );
 
                     if ($search) {
                         $query->where(function ($q) use ($search) {
-                            $q->where('fname', 'like', "%{$search}%")
-                              ->orWhere('lname', 'like', "%{$search}%")
-                              ->orWhere('email', 'like', "%{$search}%");
+                            $q->where('employees.fname', 'like', "%{$search}%")
+                              ->orWhere('employees.lname', 'like', "%{$search}%")
+                              ->orWhere('employees.email', 'like', "%{$search}%")
+                              ->orWhere(\Illuminate\Support\Facades\DB::raw('CONCAT(prefixes.prefix_name, employees.generated_id)'), 'like', "%{$search}%");
                         });
                     }
 
-                    $employees = $query->orderBy('lname')->paginate(25)->withQueryString();
+                    $employees = $query->orderBy('employees.lname')->paginate(25)->withQueryString();
                 }
             } catch (\Exception $e) {
                 $employees = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 25);
@@ -202,7 +211,6 @@ class UserAccessController extends Controller
             'branch_code'  => 'required|string',
             'name'         => 'required|string',
             'email'        => 'nullable|string',
-            'new_password' => 'nullable|string|min:4',
             'permissions'  => 'nullable|array',
         ]);
 
@@ -228,17 +236,8 @@ class UserAccessController extends Controller
             $branchUser->syncPermissions($validated['permissions']);
         }
 
-        // Update password in branch database if provided
-        if (!empty($validated['new_password'])) {
-            $this->updateBranchPassword(
-                $validated['parent_id'],
-                $validated['branch_code'],
-                $validated['new_password']
-            );
-        }
-
         $perms = !empty($validated['permissions']) ? implode(', ', $validated['permissions']) : 'none';
-        (new AuditService)->log('create', 'user_access', $branchUser, null, "Granted branch access to {$validated['name']} ({$validated['branch_code']}), permissions: {$perms}" . (!empty($validated['new_password']) ? ', password set' : ''));
+        (new AuditService)->log('create', 'user_access', $branchUser, null, "Granted branch access to {$validated['name']} ({$validated['branch_code']}), permissions: {$perms}");
 
         return back()->with('success', "Access granted to {$validated['name']}.");
     }

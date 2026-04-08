@@ -67,9 +67,7 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    @if($platform === 'K-12')
-                        <th>Employee ID</th>
-                    @endif
+                    <th>Employee ID</th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Status</th>
@@ -87,9 +85,7 @@
                     $hasAccess = in_array($empId, $existingIds);
                 @endphp
                 <tr class="{{ $hasAccess ? 'bg-green-50' : '' }}">
-                    @if($platform === 'K-12')
-                        <td class="font-mono text-sm">{{ $emp->employee_id ?? '-' }}</td>
-                    @endif
+                    <td class="font-mono text-sm">{{ $emp->employee_id ?? '-' }}</td>
                     <td class="font-medium">{{ $empName }}</td>
                     <td class="text-sm text-secondary-500">{{ $empEmail ?: '-' }}</td>
                     <td>
@@ -111,7 +107,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ $platform === 'K-12' ? 5 : 4 }}" class="text-center text-secondary-400 py-8">
+                    <td colspan="5" class="text-center text-secondary-400 py-8">
                         No employees found.
                     </td>
                 </tr>
