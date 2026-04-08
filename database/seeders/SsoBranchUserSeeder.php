@@ -22,21 +22,21 @@ class SsoBranchUserSeeder extends Seeder
                 'name'        => 'Maria Santos',
                 'email'       => 'maria.santos@school.edu.ph',
                 'branch_code' => 'main',
-                'permissions'  => ['accounting', 'request', 'announcement', 'announcement history', 'contacts'],
+                'permissions'  => ['budget', 'accounts payable', 'accounts receivable', 'reports'],
             ],
             [
                 'parent_id'   => 'EMP-002',
                 'name'        => 'Carlos Reyes',
                 'email'       => 'carlos.reyes@school.edu.ph',
                 'branch_code' => 'main',
-                'permissions'  => ['accounting', 'contacts'],
+                'permissions'  => ['budget', 'reports'],
             ],
             [
                 'parent_id'   => 'EMP-003',
                 'name'        => 'Ana Mendoza',
                 'email'       => 'ana.mendoza@school.edu.ph',
                 'branch_code' => 'main',
-                'permissions'  => ['accounting', 'request', 'announcement', 'announcement history', 'contacts', 'access rights', 'setup'],
+                'permissions'  => ['budget', 'accounts payable', 'accounts receivable', 'general ledger', 'reports', 'tax'],
             ],
         ];
 
@@ -60,14 +60,14 @@ class SsoBranchUserSeeder extends Seeder
                 'name'        => 'Juan Dela Cruz',
                 'email'       => 'juan.delacruz@student.school.edu.ph',
                 'branch_code' => 'main',
-                'permissions'  => ['test'],
+                'permissions'  => ['reports'],
             ],
             [
                 'parent_id'   => 'STU-2026-0002',
                 'name'        => 'Rizalyn Garcia',
                 'email'       => 'rizalyn.garcia@student.school.edu.ph',
                 'branch_code' => 'main',
-                'permissions'  => ['test'],
+                'permissions'  => ['reports'],
             ],
         ];
 
