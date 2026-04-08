@@ -148,12 +148,6 @@
                     <div class="text-xs text-secondary-400 mt-1">{{ $platform }} &middot; Branch: {{ strtoupper($branchCode) }}</div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label mb-2">Set Login Password</label>
-                    <input type="password" name="new_password" class="form-input" placeholder="Leave empty to keep current password">
-                    <p class="text-xs text-secondary-400 mt-1">Optional. Set a new password for this employee to login.</p>
-                </div>
-
                 <div>
                     <label class="form-label mb-2">Assign Permissions</label>
                     <div class="flex flex-wrap gap-3">
