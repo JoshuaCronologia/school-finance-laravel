@@ -139,6 +139,7 @@ class ApprovalController extends Controller
             }
 
             app(AuditService::class)->log('return', 'disbursement', $disbursement, null, "Returned: {$validated['comments']}");
+            NotificationService::disbursementReturned($disbursement, $validated['comments']);
         });
 
         return back()->with('success', "Disbursement {$disbursement->request_number} returned for revision.");

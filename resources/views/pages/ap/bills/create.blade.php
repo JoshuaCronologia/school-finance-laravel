@@ -132,19 +132,17 @@
                             <td>
                                 <select :name="'lines[' + index + '][tax_code_id]'" class="form-input text-sm" x-model="line.tax_code" @change="recalcTotals()">
                                     <option value="">None</option>
-                                    @foreach($taxCodes ?? [] as $tc)
-                                        <option value="{{ $tc->id }}">{{ $tc->code ?? $tc->name }}</option>
+                                    @foreach($taxCodes->where('type', 'vat') as $tc)
+                                        <option value="{{ $tc->id }}">{{ $tc->code }} - {{ $tc->rate }}%</option>
                                     @endforeach
                                 </select>
                             </td>
                             <td>
-                                <select :name="'lines[' + index + '][wht_code]'" class="form-input text-sm" x-model="line.wht_code" @change="recalcTotals()">
+                                <select :name="'lines[' + index + '][wht_code_id]'" class="form-input text-sm" x-model="line.wht_code" @change="recalcTotals()">
                                     <option value="">None</option>
-                                    <option value="WC010">WC010 - 1%</option>
-                                    <option value="WC020">WC020 - 2%</option>
-                                    <option value="WC050">WC050 - 5%</option>
-                                    <option value="WC100">WC100 - 10%</option>
-                                    <option value="WC150">WC150 - 15%</option>
+                                    @foreach($taxCodes->whereIn('type', ['ewt', 'final']) as $tc)
+                                        <option value="{{ $tc->id }}">{{ $tc->code }} - {{ $tc->rate }}%</option>
+                                    @endforeach
                                 </select>
                             </td>
                             <td>
@@ -204,11 +202,25 @@
 @push('scripts')
 <script>
 function billLineItems() {
+    const taxRates = {!! json_encode(
+        $taxCodes->mapWithKeys(function($tc) { return [(string)$tc->id => ['rate' => (float)$tc->rate, 'type' => $tc->type]]; })
+    ) !!};
+
     return {
         lines: {!! json_encode(
             old('lines',
                 isset($bill) && $bill->lines
-                    ? $bill->lines->map(function ($l) { return ['account_id' => $l->account_id, 'description' => $l->description, 'qty' => $l->quantity, 'unit_cost' => $l->unit_cost, 'amount' => $l->amount, 'tax_code' => $l->tax_code_id ?? '', 'wht_code' => '']; })->toArray()
+                    ? $bill->lines->map(function ($l) {
+                        return [
+                            'account_id' => $l->account_id,
+                            'description' => $l->description,
+                            'qty' => $l->quantity,
+                            'unit_cost' => $l->unit_cost,
+                            'amount' => $l->amount,
+                            'tax_code' => $l->tax_code_id ? (string) $l->tax_code_id : '',
+                            'wht_code' => $l->withholding_tax_code_id ? (string) $l->withholding_tax_code_id : '',
+                        ];
+                    })->toArray()
                     : [['account_id' => '', 'description' => '', 'qty' => 1, 'unit_cost' => 0, 'amount' => 0, 'tax_code' => '', 'wht_code' => '']]
             ),
             JSON_UNESCAPED_UNICODE
@@ -241,13 +253,12 @@ function billLineItems() {
                 const amount = parseFloat(line.amount) || 0;
                 gross += amount;
 
-                if (line.tax_code === 'VAT12') {
-                    vat += amount * 0.12;
+                if (line.tax_code && taxRates[line.tax_code] && taxRates[line.tax_code].type === 'vat') {
+                    vat += amount * (taxRates[line.tax_code].rate / 100);
                 }
 
-                const whtRates = { 'WC010': 0.01, 'WC020': 0.02, 'WC050': 0.05, 'WC100': 0.10, 'WC150': 0.15 };
-                if (whtRates[line.wht_code]) {
-                    wht += amount * whtRates[line.wht_code];
+                if (line.wht_code && taxRates[line.wht_code]) {
+                    wht += amount * (taxRates[line.wht_code].rate / 100);
                 }
             });
 

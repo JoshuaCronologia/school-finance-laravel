@@ -184,6 +184,7 @@ class JournalEntryController extends Controller
         $journalEntry->update(['status' => 'pending_approval']);
 
         app(AuditService::class)->log('submit_approval', 'journal_entry', $journalEntry, null, 'Submitted for approval');
+        \App\Services\NotificationService::journalEntrySubmitted($journalEntry);
 
         return back()->with('success', "Journal entry {$journalEntry->entry_number} submitted for approval.");
     }
@@ -203,6 +204,7 @@ class JournalEntryController extends Controller
         ]);
 
         app(AuditService::class)->log('approve', 'journal_entry', $journalEntry, null, 'Journal entry approved');
+        \App\Services\NotificationService::journalEntryApproved($journalEntry);
 
         return back()->with('success', "Journal entry {$journalEntry->entry_number} approved.");
     }

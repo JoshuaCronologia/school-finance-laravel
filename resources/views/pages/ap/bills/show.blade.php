@@ -143,6 +143,7 @@
                     <th class="text-right">Unit Cost</th>
                     <th class="text-right">Amount</th>
                     <th>Tax</th>
+                    <th>WHT</th>
                 </tr>
             </thead>
             <tbody>
@@ -154,7 +155,8 @@
                     <td class="text-right">{{ number_format($line->quantity, 0) }}</td>
                     <td class="text-right">{{ '₱' . number_format($line->unit_cost, 2) }}</td>
                     <td class="text-right font-medium">{{ '₱' . number_format($line->amount, 2) }}</td>
-                    <td>{{ $line->taxCode->code ?? $line->taxCode->name ?? '-' }}</td>
+                    <td>{{ $line->taxCode->code ?? '-' }}</td>
+                    <td>{{ $line->withholdingTaxCode->code ?? '-' }}</td>
                 </tr>
                 @endforeach
             </tbody>

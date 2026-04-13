@@ -293,6 +293,7 @@ class PaymentController extends Controller
                 }
 
                 app(AuditService::class)->log('void', 'disbursement_payment', $payment, null, 'Payment voided');
+                \App\Services\NotificationService::paymentVoided($payment);
             });
 
             return back()->with('success', "Payment {$payment->voucher_number} voided.");

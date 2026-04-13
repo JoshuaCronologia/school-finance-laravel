@@ -98,6 +98,7 @@ class BillController extends Controller
             'lines.*.unit_cost' => 'required|numeric|min:0',
             'lines.*.amount' => 'required|numeric|min:0',
             'lines.*.tax_code_id' => 'nullable|exists:tax_codes,id',
+            'lines.*.wht_code_id' => 'nullable|exists:tax_codes,id',
             'lines.*.department_id' => 'nullable|exists:departments,id',
         ]);
 
@@ -107,14 +108,31 @@ class BillController extends Controller
                 $vatAmount = 0;
                 $whtAmount = 0;
 
+                // Pre-load all referenced tax codes in one query
+                $taxCodeIds = collect($validated['lines'])->pluck('tax_code_id')
+                    ->merge(collect($validated['lines'])->pluck('wht_code_id'))
+                    ->filter()->unique()->values()->all();
+                $taxCodes = TaxCode::whereIn('id', $taxCodeIds)->get()->keyBy('id');
+
                 foreach ($validated['lines'] as $line) {
-                    if (!empty($line['tax_code_id'])) {
-                        $tax = TaxCode::find($line['tax_code_id']);
-                        if ($tax && $tax->type === 'vat') {
-                            $vatAmount += $line['amount'] * ($tax->rate / 100);
+                    $amount = (float) $line['amount'];
+
+                    if (!empty($line['tax_code_id']) && $taxCodes->has($line['tax_code_id'])) {
+                        $tax = $taxCodes[$line['tax_code_id']];
+                        if ($tax->type === 'vat') {
+                            $vatAmount += $amount * ($tax->rate / 100);
                         }
                     }
+
+                    if (!empty($line['wht_code_id']) && $taxCodes->has($line['wht_code_id'])) {
+                        $wht = $taxCodes[$line['wht_code_id']];
+                        $whtAmount += $amount * ($wht->rate / 100);
+                    }
                 }
+
+                $vatAmount = round($vatAmount, 2);
+                $whtAmount = round($whtAmount, 2);
+                $netPayable = $grossAmount + $vatAmount - $whtAmount;
 
                 $bill = ApBill::create([
                     'bill_number' => NumberingService::generate('BILL'),
@@ -132,8 +150,8 @@ class BillController extends Controller
                     'gross_amount' => $grossAmount,
                     'vat_amount' => $vatAmount,
                     'withholding_tax' => $whtAmount,
-                    'net_payable' => $grossAmount + $vatAmount - $whtAmount,
-                    'balance' => $grossAmount + $vatAmount - $whtAmount,
+                    'net_payable' => $netPayable,
+                    'balance' => $netPayable,
                     'status' => 'draft',
                     'created_by' => auth()->id(),
                 ]);
@@ -147,6 +165,7 @@ class BillController extends Controller
                         'unit_cost' => $line['unit_cost'],
                         'amount' => $line['amount'],
                         'tax_code_id' => $line['tax_code_id'] ?? null,
+                        'withholding_tax_code_id' => $line['wht_code_id'] ?? null,
                         'department_id' => $line['department_id'] ?? null,
                     ]);
                 }
@@ -167,7 +186,7 @@ class BillController extends Controller
     {
         $bill->load([
             'vendor', 'department', 'campus', 'costCenter', 'category',
-            'lines.account', 'lines.taxCode',
+            'lines.account', 'lines.taxCode', 'lines.withholdingTaxCode',
             'payments.allocations',
             'journalEntry.lines.account',
         ]);
@@ -219,12 +238,42 @@ class BillController extends Controller
             'lines.*.quantity' => 'required|numeric|min:0.01',
             'lines.*.unit_cost' => 'required|numeric|min:0',
             'lines.*.amount' => 'required|numeric|min:0',
+            'lines.*.tax_code_id' => 'nullable|exists:tax_codes,id',
+            'lines.*.wht_code_id' => 'nullable|exists:tax_codes,id',
         ]);
 
         try {
             DB::transaction(function () use ($validated, $bill) {
                 $oldValues = $bill->toArray();
                 $grossAmount = collect($validated['lines'])->sum('amount');
+                $vatAmount = 0;
+                $whtAmount = 0;
+
+                // Pre-load all referenced tax codes
+                $taxCodeIds = collect($validated['lines'])->pluck('tax_code_id')
+                    ->merge(collect($validated['lines'])->pluck('wht_code_id'))
+                    ->filter()->unique()->values()->all();
+                $taxCodes = TaxCode::whereIn('id', $taxCodeIds)->get()->keyBy('id');
+
+                foreach ($validated['lines'] as $line) {
+                    $amount = (float) $line['amount'];
+
+                    if (!empty($line['tax_code_id']) && $taxCodes->has($line['tax_code_id'])) {
+                        $tax = $taxCodes[$line['tax_code_id']];
+                        if ($tax->type === 'vat') {
+                            $vatAmount += $amount * ($tax->rate / 100);
+                        }
+                    }
+
+                    if (!empty($line['wht_code_id']) && $taxCodes->has($line['wht_code_id'])) {
+                        $wht = $taxCodes[$line['wht_code_id']];
+                        $whtAmount += $amount * ($wht->rate / 100);
+                    }
+                }
+
+                $vatAmount = round($vatAmount, 2);
+                $whtAmount = round($whtAmount, 2);
+                $netPayable = $grossAmount + $vatAmount - $whtAmount;
 
                 $bill->update([
                     'vendor_id' => $validated['vendor_id'],
@@ -236,8 +285,10 @@ class BillController extends Controller
                     'campus_id' => $validated['campus_id'] ?? null,
                     'category_id' => $validated['category_id'] ?? null,
                     'gross_amount' => $grossAmount,
-                    'net_payable' => $grossAmount,
-                    'balance' => $grossAmount,
+                    'vat_amount' => $vatAmount,
+                    'withholding_tax' => $whtAmount,
+                    'net_payable' => $netPayable,
+                    'balance' => $netPayable,
                 ]);
 
                 $bill->lines()->delete();
@@ -250,6 +301,8 @@ class BillController extends Controller
                         'quantity' => $line['quantity'],
                         'unit_cost' => $line['unit_cost'],
                         'amount' => $line['amount'],
+                        'tax_code_id' => $line['tax_code_id'] ?? null,
+                        'withholding_tax_code_id' => $line['wht_code_id'] ?? null,
                     ]);
                 }
 
@@ -275,6 +328,7 @@ class BillController extends Controller
         ]);
 
         app(AuditService::class)->log('approve', 'ap_bill', $bill, null, 'Bill approved');
+        \App\Services\NotificationService::billApproved($bill);
 
         return back()->with('success', 'Bill approved successfully.');
     }
@@ -288,6 +342,7 @@ class BillController extends Controller
         try {
             $entry = app(PostingService::class)->postBill($bill);
             app(AuditService::class)->log('post', 'ap_bill', $bill, null, "Posted to GL: {$entry->entry_number}");
+            \App\Services\NotificationService::billPosted($bill);
 
             return back()->with('success', "Bill posted to GL. Entry: {$entry->entry_number}");
         } catch (\Exception $e) {

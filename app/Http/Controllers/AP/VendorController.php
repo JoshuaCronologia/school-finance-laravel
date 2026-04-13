@@ -129,6 +129,8 @@ class VendorController extends Controller
         $validated['is_active'] = true;
         $vendor = Vendor::create($validated);
 
+        \App\Services\NotificationService::vendorCreated($vendor);
+
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'vendor' => $vendor, 'message' => 'Vendor created.']);
         }

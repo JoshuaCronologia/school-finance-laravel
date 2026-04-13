@@ -67,6 +67,8 @@ class CustomerController extends Controller
         $validated['is_active'] = true;
         $customer = Customer::create($validated);
 
+        \App\Services\NotificationService::customerCreated($customer);
+
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'customer' => $customer, 'message' => 'Customer created.']);
         }

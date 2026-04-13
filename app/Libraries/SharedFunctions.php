@@ -177,6 +177,7 @@ class SharedFunctions
         return [
             'branch_name' => $branch_name ?? '',
             'branch_account' => $branch_account ?? null,
+            'branch_user_id' => isset($branch_account) && $branch_account ? $branch_account->id : null,
             'name' => $fullname ?? '',
             'fname' => $fname ?? '',
             'mname' => $mname ?? '',

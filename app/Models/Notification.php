@@ -25,6 +25,10 @@ class Notification extends Model
         'read_at' => 'datetime',
     ];
 
+    /**
+     * user_id may point to users.id (standard) or branch_users.id (SSO).
+     * This relationship covers the standard-auth case.
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(\App\Services\Users\User::class);

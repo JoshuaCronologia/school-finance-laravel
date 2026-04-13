@@ -80,6 +80,7 @@ class PeriodClosingController extends Controller
 
             app(AuditService::class)->log('close', 'accounting_period', $period, null,
                 "Period closed: {$period->name}");
+            \App\Services\NotificationService::periodClosed($period);
         });
 
         return back()->with('success', "Period '{$period->name}' closed successfully.");
@@ -100,6 +101,7 @@ class PeriodClosingController extends Controller
 
             app(AuditService::class)->log('reopen', 'accounting_period', $period, null,
                 "Period reopened: {$period->name}");
+            \App\Services\NotificationService::periodReopened($period);
         });
 
         return back()->with('success', "Period '{$period->name}' reopened.");
