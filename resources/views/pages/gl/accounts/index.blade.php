@@ -50,45 +50,71 @@
             <th>Account Code</th>
             <th>Account Name</th>
             <th>Type</th>
-            <th>Normal Balance</th>
-            <th>Children</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th class="text-right">Balance</th>
+            <th class="w-16">Actions</th>
         </tr>
     </thead>
     <tbody>
         @forelse($accounts as $account)
-        <tr>
-            <td class="font-medium text-secondary-900">{{ $account->account_code }}</td>
-            <td class="font-medium">
-                @if($account->parent_id)
-                    <span class="text-secondary-300 mr-1">&mdash;</span>
-                @endif
+        @php
+            $_map = ['asset' => 'badge-info', 'liability' => 'badge-warning', 'equity' => 'badge-success', 'revenue' => 'badge-success', 'expense' => 'badge-danger'];
+            $typeBadge = $_map[$account->account_type ?? ''] ?? 'badge-neutral';
+            $hasChildren = $account->children && $account->children->count() > 0;
+        @endphp
+
+        @if($hasChildren)
+        {{-- Parent with children — collapsible --}}
+        <tr class="bg-gray-50/50 font-semibold cursor-pointer" onclick="document.querySelectorAll('.child-of-{{ $account->id }}').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('arrow-{{ $account->id }}');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+            <td>
+                <span class="inline-flex items-center gap-1">
+                    <svg id="arrow-{{ $account->id }}" class="w-3.5 h-3.5 text-secondary-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                    <span class="text-secondary-900">{{ $account->account_code }}</span>
+                </span>
+            </td>
+            <td>
                 {{ $account->account_name }}
+                <span class="text-xs text-secondary-400 font-normal">({{ $account->children->count() }})</span>
             </td>
-            <td>
-                @php
-                    $_map = ['asset' => 'badge-info', 'liability' => 'badge-warning', 'equity' => 'badge-success', 'revenue' => 'badge-success', 'expense' => 'badge-danger'];
-    $typeBadge = $_map[$account->account_type ?? ''] ?? 'badge-neutral';
-                @endphp
-                <span class="badge {{ $typeBadge }}">{{ ucfirst($account->account_type ?? '-') }}</span>
+            <td><span class="badge {{ $typeBadge }}">{{ ucfirst($account->account_type ?? '-') }}</span></td>
+            <td class="text-right font-medium {{ $account->balance > 0 ? 'text-green-600' : ($account->balance < 0 ? 'text-red-600' : 'text-secondary-400') }}">
+                {{ $account->balance != 0 ? '₱' . number_format(abs($account->balance), 2) : '-' }}
             </td>
-            <td>{{ ucfirst($account->normal_balance ?? '-') }}</td>
-            <td>
-                @if(($account->children_count ?? 0) > 0)
-                    <span class="text-sm text-secondary-500">{{ $account->children_count }} sub-accounts</span>
-                @else
-                    <span class="text-secondary-300">-</span>
-                @endif
-            </td>
-            <td><x-badge :status="$account->status ?? 'active'" /></td>
-            <td>
+            <td onclick="event.stopPropagation()">
                 <button @click="$dispatch('open-modal', 'edit-account-{{ $account->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
             </td>
         </tr>
+        {{-- Children rows (hidden by default) --}}
+        @foreach($account->children->sortBy('account_code') as $child)
+        @php $childBadge = $_map[$child->account_type ?? ''] ?? 'badge-neutral'; @endphp
+        <tr class="child-of-{{ $account->id }} cursor-pointer hover:bg-primary-50/50" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $child) }}'">
+            <td class="pl-10 font-mono text-sm">{{ $child->account_code }}</td>
+            <td>{{ $child->account_name }}</td>
+            <td><span class="badge {{ $childBadge }}">{{ ucfirst($child->account_type ?? '-') }}</span></td>
+            <td class="text-right font-medium {{ $child->balance > 0 ? 'text-green-600' : ($child->balance < 0 ? 'text-red-600' : 'text-secondary-400') }}">
+                {{ $child->balance != 0 ? '₱' . number_format(abs($child->balance), 2) : '-' }}
+            </td>
+            <td onclick="event.stopPropagation()">
+                <button @click="$dispatch('open-modal', 'edit-account-{{ $child->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
+            </td>
+        </tr>
+        @endforeach
+        @else
+        {{-- Standalone account (no children) --}}
+        <tr class="cursor-pointer hover:bg-primary-50/50" onclick="window.location='{{ route('gl.accounts.show', $account) }}'">
+            <td class="font-medium text-secondary-900">{{ $account->account_code }}</td>
+            <td class="font-medium">{{ $account->account_name }}</td>
+            <td><span class="badge {{ $typeBadge }}">{{ ucfirst($account->account_type ?? '-') }}</span></td>
+            <td class="text-right font-medium {{ $account->balance > 0 ? 'text-green-600' : ($account->balance < 0 ? 'text-red-600' : 'text-secondary-400') }}">
+                {{ $account->balance != 0 ? '₱' . number_format(abs($account->balance), 2) : '-' }}
+            </td>
+            <td onclick="event.stopPropagation()">
+                <button @click="$dispatch('open-modal', 'edit-account-{{ $account->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
+            </td>
+        </tr>
+        @endif
         @empty
         <tr>
-            <td colspan="7" class="text-center text-secondary-400 py-8">
+            <td colspan="5" class="text-center text-secondary-400 py-8">
                 <svg class="w-8 h-8 mx-auto mb-2 text-secondary-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" /></svg>
                 No accounts found. Click "+ Add Account" to create one.
             </td>

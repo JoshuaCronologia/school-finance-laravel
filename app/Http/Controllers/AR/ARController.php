@@ -22,11 +22,11 @@ class ARController extends Controller
             // Single SQL query for customer aging buckets instead of loading all invoices
             $rows = DB::select("
                 SELECT c.id as customer_id, c.name as customer_name, c.customer_code,
-                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date <= 0 THEN i.balance END), 0) as current,
-                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 1 AND 30 THEN i.balance END), 0) as days_1_30,
-                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 31 AND 60 THEN i.balance END), 0) as days_31_60,
-                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 61 AND 90 THEN i.balance END), 0) as days_61_90,
-                    COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date > 90 THEN i.balance END), 0) as over_90,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) <= 0 THEN i.balance END), 0) as current,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 1 AND 30 THEN i.balance END), 0) as days_1_30,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 31 AND 60 THEN i.balance END), 0) as days_31_60,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 61 AND 90 THEN i.balance END), 0) as days_61_90,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) > 90 THEN i.balance END), 0) as over_90,
                     COALESCE(SUM(i.balance), 0) as total
                 FROM customers c
                 JOIN ar_invoices i ON i.customer_id = c.id

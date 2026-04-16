@@ -177,6 +177,13 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/general-journal', [ReportController::class, 'generalJournal'])->name('general-journal');
         Route::get('/cash-receipts-book', [ReportController::class, 'cashReceiptsBook'])->name('cash-receipts-book');
         Route::get('/cash-disbursements-book', [ReportController::class, 'cashDisbursementsBook'])->name('cash-disbursements-book');
+        Route::get('/budget-performance', [ReportController::class, 'budgetPerformance'])->name('budget-performance');
+        Route::get('/fee-collections', [ReportController::class, 'feeCollections'])->name('fee-collections');
+        Route::get('/fee-receipts', [ReportController::class, 'feeReceipts'])->name('fee-receipts');
+        Route::get('/fee-receipts/{id}', [ReportController::class, 'feeReceiptDetail'])->name('fee-receipt-detail');
+        Route::get('/fee-account-mappings', [ReportController::class, 'feeAccountMappings'])->name('fee-account-mappings');
+        Route::post('/fee-account-mappings', [ReportController::class, 'saveFeeAccountMappings'])->name('fee-account-mappings.save');
+        Route::post('/fee-account-mappings/auto-generate', [ReportController::class, 'autoGenerateFeeAccounts'])->name('fee-account-mappings.auto-generate');
 
         // Export endpoints
         Route::get('/trial-balance/export/{format}', [ReportController::class, 'exportTrialBalance'])->name('trial-balance.export');

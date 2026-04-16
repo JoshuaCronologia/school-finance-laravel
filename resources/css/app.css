@@ -363,14 +363,61 @@
         size: letter portrait;
     }
 
-    /* Keep tables from breaking across pages */
+    /* Allow tables to break across pages (prevents blank pages) */
     table, tr, td, th {
-        page-break-inside: avoid;
+        page-break-inside: auto;
+    }
+    thead {
+        display: table-header-group;
     }
 
     /* Ensure font colors print properly */
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+
+    /* Show all collapsed rows/tables when printing */
+    tr[style*="display: none"],
+    tr[style*="display:none"] {
+        display: table-row !important;
+    }
+    table[style*="display: none"],
+    table[style*="display:none"] {
+        display: table !important;
+    }
+
+    /* Hide collapse arrows in print */
+    svg[id^="is-arrow-"],
+    svg[id^="bs-arrow-"],
+    svg[id^="arrow-"] {
+        display: none !important;
+    }
+
+    /* Reduce spacing for print */
+    .card-header, .card-body {
+        padding: 4px 8px !important;
+    }
+    .mb-6, .mb-4 {
+        margin-bottom: 4px !important;
+    }
+    .py-2 {
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+    }
+    .py-1, .py-1\.5 {
+        padding-top: 1px !important;
+        padding-bottom: 1px !important;
+    }
+
+    /* Hide page header component on print (print-only header replaces it) */
+    [class*="page-header"],
+    .x-page-header {
+        display: none !important;
+    }
+
+    /* Tighter font for print */
+    table {
+        font-size: 9px !important;
     }
 }

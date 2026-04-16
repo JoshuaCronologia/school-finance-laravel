@@ -5,14 +5,18 @@ namespace App\Http\Controllers\GL;
 use App\Http\Controllers\Controller;
 use App\Models\Campus;
 use App\Models\ChartOfAccount;
+use App\Models\JournalEntryLine;
 use App\Services\AuditService;
+use App\Services\FinanceFeeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ChartOfAccountsController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ChartOfAccount::with('parent', 'children');
+        $query = ChartOfAccount::with('parent');
+        $isFiltered = $request->filled('account_type') || $request->filled('search') || $request->filled('status');
 
         if ($request->filled('account_type')) {
             $query->where('account_type', $request->account_type);
@@ -24,12 +28,89 @@ class ChartOfAccountsController extends Controller
                   ->orWhere('account_name', 'like', "%{$search}%");
             });
         }
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
         }
 
-        // Show hierarchy: parent accounts first, then children
+        // When not filtered, show hierarchical (parent + children collapsible)
+        if (!$isFiltered) {
+            $query->whereNull('parent_id');
+        }
+
         $accounts = $query->orderBy('account_code')->paginate(50);
+
+        // Eager load children with counts for hierarchical view
+        if (!$isFiltered) {
+            $accounts->load('children');
+        }
+
+        // Collect ALL account IDs (parents + children) for balance query
+        $allIds = $accounts->pluck('id')->all();
+        if (!$isFiltered) {
+            foreach ($accounts as $acct) {
+                if ($acct->children) {
+                    $allIds = array_merge($allIds, $acct->children->pluck('id')->all());
+                }
+            }
+        }
+        $allIds = array_unique($allIds);
+
+        // Compute balances from JE lines
+        $jeBalances = [];
+        if (!empty($allIds)) {
+            $rows = JournalEntryLine::select(
+                    'journal_entry_lines.account_id',
+                    DB::raw('COALESCE(SUM(journal_entry_lines.debit), 0) - COALESCE(SUM(journal_entry_lines.credit), 0) as balance')
+                )
+                ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                ->where('je.status', 'posted')
+                ->whereIn('journal_entry_lines.account_id', $allIds)
+                ->groupBy('journal_entry_lines.account_id')
+                ->get();
+
+            foreach ($rows as $row) {
+                $jeBalances[$row->account_id] = (float) $row->balance;
+            }
+        }
+
+        // Add finance fee balances for mapped revenue accounts
+        $feeBalances = [];
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue('2000-01-01', now()->toDateString());
+            foreach ($feeRevenue as $fee) {
+                $feeBalances[$fee->account_id] = (float) $fee->total_amount;
+            }
+        } catch (\Exception $e) {
+            // Finance DB unavailable
+        }
+
+        // Helper to compute balance for a single account
+        $computeBalance = function ($account) use ($jeBalances, $feeBalances) {
+            $jeBalance = $jeBalances[$account->id] ?? 0;
+            $feeBalance = $feeBalances[$account->id] ?? 0;
+            if ($account->normal_balance === 'credit') {
+                return -$jeBalance + $feeBalance;
+            }
+            return $jeBalance + $feeBalance;
+        };
+
+        // Attach balances to accounts and children
+        $accounts->getCollection()->transform(function ($account) use ($computeBalance) {
+            $account->balance = $computeBalance($account);
+
+            // Compute children balances + sum for parent total
+            $childrenTotal = 0;
+            if ($account->children && $account->children->count() > 0) {
+                $account->children->transform(function ($child) use ($computeBalance, &$childrenTotal) {
+                    $child->balance = $computeBalance($child);
+                    $childrenTotal += $child->balance;
+                    return $child;
+                });
+            }
+            $account->balance += $childrenTotal;
+
+            return $account;
+        });
 
         $parentAccounts = ChartOfAccount::whereNull('parent_id')
             ->orWhere('is_postable', false)
@@ -73,7 +154,67 @@ class ChartOfAccountsController extends Controller
 
     public function show(ChartOfAccount $account)
     {
-        return redirect()->route('gl.accounts.index', ['search' => $account->account_code]);
+        $account->load('parent', 'children');
+
+        // JE balance
+        $jeData = JournalEntryLine::select(
+                DB::raw('COALESCE(SUM(debit), 0) as total_debit'),
+                DB::raw('COALESCE(SUM(credit), 0) as total_credit')
+            )
+            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->where('je.status', 'posted')
+            ->where('journal_entry_lines.account_id', $account->id)
+            ->first();
+
+        $totalDebit = (float) $jeData->total_debit;
+        $totalCredit = (float) $jeData->total_credit;
+
+        // Finance fee balance (for mapped revenue accounts)
+        $feeBalance = 0;
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue('2000-01-01', now()->toDateString());
+            $match = $feeRevenue->firstWhere('account_id', $account->id);
+            if ($match) {
+                $feeBalance = (float) $match->total_amount;
+            }
+        } catch (\Exception $e) {}
+
+        // Compute balance
+        if ($account->normal_balance === 'credit') {
+            $balance = ($totalCredit - $totalDebit) + $feeBalance;
+        } else {
+            $balance = ($totalDebit - $totalCredit) + $feeBalance;
+        }
+
+        // Recent transactions (last 20 from JE)
+        $recentTransactions = JournalEntryLine::select(
+                'journal_entry_lines.*',
+                'je.entry_number', 'je.posting_date', 'je.description as je_description', 'je.reference_number'
+            )
+            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->where('je.status', 'posted')
+            ->where('journal_entry_lines.account_id', $account->id)
+            ->orderByDesc('je.posting_date')
+            ->limit(20)
+            ->get();
+
+        // Recent finance fee entries (if mapped)
+        $feeTransactions = collect();
+        try {
+            $feeEntries = FinanceFeeService::glEntries(
+                now()->subMonths(3)->toDateString(),
+                now()->toDateString(),
+                $account->id
+            );
+            if ($feeEntries->isNotEmpty()) {
+                $feeTransactions = $feeEntries->first()->sortByDesc('posting_date')->take(20);
+            }
+        } catch (\Exception $e) {}
+
+        return view('pages.gl.accounts.show', compact(
+            'account', 'balance', 'totalDebit', 'totalCredit', 'feeBalance',
+            'recentTransactions', 'feeTransactions'
+        ));
     }
 
     public function update(Request $request, ChartOfAccount $account)

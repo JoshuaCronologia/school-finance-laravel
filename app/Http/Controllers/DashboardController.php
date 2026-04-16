@@ -11,6 +11,7 @@ use App\Models\DisbursementRequest;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Vendor;
+use App\Services\FinanceFeeService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -105,7 +106,16 @@ class DashboardController extends Controller
                 ->get();
         });
 
-        return view('pages.dashboard.finance', array_merge($data, compact('recentDisbursements')));
+        // Fee collections from Finance DB
+        $feeCollections = Cache::remember('dashboard:finance:fee_collections', 300, function () {
+            try {
+                return FinanceFeeService::dashboardSummary(date('Y'));
+            } catch (\Exception $e) {
+                return null;
+            }
+        });
+
+        return view('pages.dashboard.finance', array_merge($data, compact('recentDisbursements', 'feeCollections')));
     }
 
     /**
@@ -211,11 +221,11 @@ class DashboardController extends Controller
     {
         $row = DB::selectOne("
             SELECT
-                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date <= 0 THEN balance END), 0) as current,
-                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN balance END), 0) as days_30,
-                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN balance END), 0) as days_60,
-                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN balance END), 0) as days_90,
-                COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date > 90 THEN balance END), 0) as days_over_90,
+                COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) <= 0 THEN balance END), 0) as current,
+                COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) BETWEEN 1 AND 30 THEN balance END), 0) as days_30,
+                COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) BETWEEN 31 AND 60 THEN balance END), 0) as days_60,
+                COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) BETWEEN 61 AND 90 THEN balance END), 0) as days_90,
+                COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), due_date) > 90 THEN balance END), 0) as days_over_90,
                 COALESCE(SUM(balance), 0) as total
             FROM {$table}
             WHERE status NOT IN ('cancelled', 'voided', 'paid')

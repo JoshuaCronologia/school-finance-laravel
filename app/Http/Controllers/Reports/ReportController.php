@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Budget;
 use App\Models\ChartOfAccount;
 use App\Models\Department;
+use App\Models\FeeAccountMapping;
 use App\Models\JournalEntryLine;
 use App\Models\Setting;
+use App\Services\FinanceFeeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -65,6 +67,45 @@ class ReportController extends Controller
 
         $balances = $this->getAccountBalances($asOfDate);
 
+        // Add finance fee collections to revenue and cash
+        $financeRevenue = 0;
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue('2000-01-01', $asOfDate);
+            foreach ($feeRevenue as $fee) {
+                // Add to revenue accounts
+                $existing = $balances->firstWhere('id', $fee->account_id);
+                if ($existing) {
+                    $existing->balance = abs($existing->balance) + $fee->total_amount;
+                }
+                $financeRevenue += $fee->total_amount;
+            }
+
+            // Add total finance collections to Cash on Hand (1010)
+            if ($financeRevenue > 0) {
+                $cashAccount = $balances->first(function ($a) {
+                    return $a->account_code === '1010';
+                });
+                if ($cashAccount) {
+                    $cashAccount->balance += $financeRevenue;
+                } else {
+                    // Cash account not in balances yet, add it
+                    $cashAcct = ChartOfAccount::where('account_code', '1010')->first();
+                    if ($cashAcct) {
+                        $balances->push((object) [
+                            'id' => $cashAcct->id,
+                            'account_code' => '1010',
+                            'account_name' => $cashAcct->account_name,
+                            'account_type' => 'asset',
+                            'normal_balance' => 'debit',
+                            'balance' => $financeRevenue,
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Finance DB unavailable
+        }
+
         $assets = $balances->where('account_type', 'asset');
         $liabilities = $balances->where('account_type', 'liability');
         $equity = $balances->where('account_type', 'equity');
@@ -73,15 +114,70 @@ class ReportController extends Controller
         $totalLiabilities = $liabilities->sum(function ($a) { return abs($a->balance); });
         $totalEquity = $equity->sum(function ($a) { return abs($a->balance); });
 
-        // Net Income = Revenue - Expenses
+        // Net Income = Revenue - Expenses (revenue already includes finance fees)
         $revenue = $balances->where('account_type', 'revenue')->sum(function ($a) { return abs($a->balance); });
         $expenses = $balances->where('account_type', 'expense')->sum('balance');
         $netIncome = $revenue - $expenses;
 
         $totalEquityWithNI = $totalEquity + $netIncome;
 
+        // Group accounts by code prefix for collapsible sections
+        $bsGroups = [
+            'asset' => [
+                '10' => 'Cash & Cash Equivalents',
+                '11' => 'Receivables',
+                '12' => 'Prepaid Expenses',
+                '13' => 'Inventories',
+                '15' => 'Property & Equipment',
+                '16' => 'Accumulated Depreciation',
+                '22' => 'Other Current Assets',
+            ],
+            'liability' => [
+                '20' => 'Accounts Payable',
+                '21' => 'Tax Payables',
+                '22' => 'VAT',
+                '23' => 'Government Contributions',
+                '24' => 'Accrued Liabilities',
+                '25' => 'Deferred Revenue',
+                '26' => 'Current Loans',
+                '27' => 'Long-Term Debt',
+            ],
+        ];
+
+        $groupAccounts = function ($accounts, $groupDefs) {
+            $groups = [];
+            $used = [];
+            foreach ($groupDefs as $prefix => $label) {
+                $pfx = (string) $prefix;
+                $items = $accounts->filter(function ($a) use ($pfx) {
+                    return substr($a->account_code, 0, strlen($pfx)) === $pfx;
+                });
+                if ($items->isNotEmpty()) {
+                    $groups[] = (object) [
+                        'label' => $label,
+                        'total' => $items->sum(function ($a) { return abs($a->balance); }),
+                        'accounts' => $items->values(),
+                    ];
+                    foreach ($items as $item) $used[] = $item->id;
+                }
+            }
+            // Catch ungrouped
+            $remaining = $accounts->whereNotIn('id', $used);
+            if ($remaining->isNotEmpty()) {
+                $groups[] = (object) [
+                    'label' => 'Other',
+                    'total' => $remaining->sum(function ($a) { return abs($a->balance); }),
+                    'accounts' => $remaining->values(),
+                ];
+            }
+            return $groups;
+        };
+
+        $assetGroups = $groupAccounts($assets, $bsGroups['asset']);
+        $liabilityGroups = $groupAccounts($liabilities, $bsGroups['liability']);
+
         return view('pages.reports.balance-sheet', compact(
-            'assets', 'liabilities', 'equity',
+            'assetGroups', 'liabilityGroups', 'equity',
             'totalAssets', 'totalLiabilities', 'totalEquity',
             'netIncome', 'totalEquityWithNI', 'asOfDate'
         ));
@@ -98,24 +194,142 @@ class ReportController extends Controller
         $revenueAccounts = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo);
         $expenseAccounts = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo);
 
+        // Merge finance fee collections into revenue (mapped fees only)
+        $feeRevenue = collect();
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue($dateFrom, $dateTo);
+        } catch (\Exception $e) {
+            // Finance DB unavailable, skip
+        }
+
+        // Add fee revenue to existing revenue accounts or create new entries
+        foreach ($feeRevenue as $fee) {
+            $existing = $revenueAccounts->firstWhere('id', $fee->account_id);
+            if ($existing) {
+                $existing->balance = abs($existing->balance) + $fee->total_amount;
+                $existing->from_finance = true;
+            } else {
+                // Lookup parent_id from COA for proper grouping
+                $coaAccount = ChartOfAccount::find($fee->account_id);
+                $revenueAccounts->push((object) [
+                    'id' => $fee->account_id,
+                    'account_code' => $fee->account_code,
+                    'account_name' => $fee->account_name,
+                    'account_type' => 'revenue',
+                    'normal_balance' => 'credit',
+                    'parent_id' => $coaAccount ? $coaAccount->parent_id : null,
+                    'balance' => $fee->total_amount,
+                    'from_finance' => true,
+                ]);
+            }
+        }
+
+        // Re-sort by account code
+        $revenueAccounts = $revenueAccounts->sortBy('account_code')->values();
+
         $totalRevenue = $revenueAccounts->sum(function ($a) { return abs($a->balance); });
         $totalExpenses = $expenseAccounts->sum('balance');
         $netIncome = $totalRevenue - $totalExpenses;
         $netIncomeMargin = $totalRevenue > 0 ? ($netIncome / $totalRevenue) * 100 : 0;
 
-        // Add percentage to each account
-        $revenueAccounts = $revenueAccounts->map(function ($a) use ($totalRevenue) {
-            $a->percentage = $totalRevenue > 0 ? (abs($a->balance) / $totalRevenue) * 100 : 0;
-            return $a;
-        });
+        // Group revenue: parent accounts with children are collapsible groups
+        $parentIds = ChartOfAccount::where('account_type', 'revenue')
+            ->whereNotNull('parent_id')
+            ->pluck('parent_id')
+            ->unique()
+            ->all();
 
-        $expenseAccounts = $expenseAccounts->map(function ($a) use ($totalRevenue) {
-            $a->percentage = $totalRevenue > 0 ? ($a->balance / $totalRevenue) * 100 : 0;
-            return $a;
-        });
+        $revenueGroups = [];
+        $standaloneRevenue = [];
+
+        foreach ($revenueAccounts as $account) {
+            $acctId = $account->id;
+            $parentId = $account->parent_id ?? null;
+
+            if ($parentId && in_array($parentId, $parentIds)) {
+                // This is a child — add to parent group
+                if (!isset($revenueGroups[$parentId])) {
+                    $parent = ChartOfAccount::find($parentId);
+                    $revenueGroups[$parentId] = (object) [
+                        'id' => $parentId,
+                        'account_code' => $parent->account_code ?? '',
+                        'account_name' => $parent->account_name ?? 'Other',
+                        'total' => 0,
+                        'children' => [],
+                    ];
+                }
+                $revenueGroups[$parentId]->total += abs($account->balance);
+                $revenueGroups[$parentId]->children[] = $account;
+            } elseif (in_array($acctId, $parentIds)) {
+                // This is a parent that has children — skip as standalone, handled via group
+                if (!isset($revenueGroups[$acctId])) {
+                    $revenueGroups[$acctId] = (object) [
+                        'id' => $acctId,
+                        'account_code' => $account->account_code,
+                        'account_name' => $account->account_name,
+                        'total' => abs($account->balance),
+                        'children' => [],
+                    ];
+                } else {
+                    $revenueGroups[$acctId]->total += abs($account->balance);
+                }
+            } else {
+                // Standalone account (no parent, no children)
+                $standaloneRevenue[] = $account;
+            }
+        }
+
+        // Sort groups by account code
+        uasort($revenueGroups, function ($a, $b) { return strcmp($a->account_code, $b->account_code); });
+
+        // Group expenses by parent too
+        $expParentIds = ChartOfAccount::where('account_type', 'expense')
+            ->whereNotNull('parent_id')
+            ->pluck('parent_id')
+            ->unique()
+            ->all();
+
+        $expenseGroups = [];
+        $standaloneExpense = [];
+
+        foreach ($expenseAccounts as $account) {
+            $acctId = $account->id;
+            $parentId = $account->parent_id ?? null;
+
+            if ($parentId && in_array($parentId, $expParentIds)) {
+                if (!isset($expenseGroups[$parentId])) {
+                    $parent = ChartOfAccount::find($parentId);
+                    $expenseGroups[$parentId] = (object) [
+                        'id' => $parentId,
+                        'account_code' => $parent->account_code ?? '',
+                        'account_name' => $parent->account_name ?? 'Other',
+                        'total' => 0,
+                        'children' => [],
+                    ];
+                }
+                $expenseGroups[$parentId]->total += abs($account->balance);
+                $expenseGroups[$parentId]->children[] = $account;
+            } elseif (in_array($acctId, $expParentIds)) {
+                if (!isset($expenseGroups[$acctId])) {
+                    $expenseGroups[$acctId] = (object) [
+                        'id' => $acctId,
+                        'account_code' => $account->account_code,
+                        'account_name' => $account->account_name,
+                        'total' => abs($account->balance),
+                        'children' => [],
+                    ];
+                } else {
+                    $expenseGroups[$acctId]->total += abs($account->balance);
+                }
+            } else {
+                $standaloneExpense[] = $account;
+            }
+        }
+
+        uasort($expenseGroups, function ($a, $b) { return strcmp($a->account_code, $b->account_code); });
 
         return view('pages.reports.income-statement', compact(
-            'revenueAccounts', 'expenseAccounts',
+            'revenueGroups', 'standaloneRevenue', 'expenseGroups', 'standaloneExpense',
             'totalRevenue', 'totalExpenses', 'netIncome', 'netIncomeMargin',
             'dateFrom', 'dateTo'
         ));
@@ -173,8 +387,8 @@ class ReportController extends Controller
      */
     public function generalLedger(Request $request)
     {
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        $dateFrom = $request->input('date_from') ?: now()->startOfMonth()->toDateString();
+        $dateTo = $request->input('date_to') ?: now()->toDateString();
         $accountId = $request->input('account_id');
 
         $allAccounts = ChartOfAccount::active()->orderBy('account_code')->get();
@@ -220,6 +434,20 @@ class ReportController extends Controller
             }
         }
 
+        // Merge finance fee collections as virtual GL entries
+        try {
+            $feeEntries = FinanceFeeService::glEntries($dateFrom, $dateTo, $accountId);
+            foreach ($feeEntries as $feeAcctId => $feeTransactions) {
+                if ($entries->has($feeAcctId)) {
+                    $entries[$feeAcctId] = $entries[$feeAcctId]->merge($feeTransactions)->sortBy('posting_date')->values();
+                } else {
+                    $entries[$feeAcctId] = $feeTransactions;
+                }
+            }
+        } catch (\Exception $e) {
+            // Finance DB unavailable, skip
+        }
+
         // Build structured account data with opening balance and transactions
         $accounts = collect();
         foreach ($entries as $acctId => $transactions) {
@@ -256,6 +484,8 @@ class ReportController extends Controller
 
             $accounts->push($account);
         }
+
+        $accounts = $accounts->sortBy('account_code')->values();
 
         return view('pages.reports.general-ledger', compact(
             'accounts', 'allAccounts', 'dateFrom', 'dateTo', 'accountId'
@@ -669,6 +899,339 @@ class ReportController extends Controller
             'groupedData', 'itemizedData', 'monthlyChartData', 'monthLabels',
             'totals', 'departments', 'departmentId', 'selectedMonth', 'selectedMonthName'
         ));
+    }
+
+    /**
+     * Fee Collections Report — data from Finance DB.
+     */
+    public function feeCollections(Request $request)
+    {
+        $schoolYears = FinanceFeeService::schoolYears();
+        $selectedYear = $request->input('school_year', date('Y'));
+
+        $feeSummary = FinanceFeeService::summaryByFee($selectedYear);
+        $totalCollected = $feeSummary->sum('total_amount');
+        $totalTransactions = $feeSummary->sum('txn_count');
+
+        return view('pages.reports.fee-collections', compact(
+            'schoolYears', 'selectedYear', 'feeSummary', 'totalCollected', 'totalTransactions'
+        ));
+    }
+
+    /**
+     * Fee collection receipts — browse individual OR transactions.
+     */
+    public function feeReceipts(Request $request)
+    {
+        $schoolYears = FinanceFeeService::schoolYears();
+        $selectedYear = $request->input('school_year');
+        $search = $request->input('search');
+
+        $receipts = FinanceFeeService::receipts($selectedYear, $search);
+
+        return view('pages.reports.fee-receipts', compact('receipts', 'schoolYears', 'selectedYear', 'search'));
+    }
+
+    /**
+     * Single receipt detail — itemized fee breakdown.
+     */
+    public function feeReceiptDetail($id)
+    {
+        $receipt = FinanceFeeService::receiptDetail($id);
+
+        if (!$receipt) {
+            return back()->with('error', 'Receipt not found.');
+        }
+
+        return view('pages.reports.fee-receipt-detail', compact('receipt'));
+    }
+
+    /**
+     * Fee Account Mapping — settings page to map finance fees to accounting revenue accounts.
+     */
+    public function feeAccountMappings()
+    {
+        $financeFees = DB::connection('finance')->table('chart_of_accounts')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id']);
+
+        // Finance parent groups (for auto-generate)
+        $financeGroups = DB::connection('finance')->table('chart_of_accounts')
+            ->whereNull('deleted_at')
+            ->whereNull('parent_id')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        // Add child count per group
+        $financeGroups = $financeGroups->map(function ($g) use ($financeFees) {
+            $g->child_count = $financeFees->where('parent_id', $g->id)->count();
+            return $g;
+        })->filter(function ($g) {
+            return $g->child_count > 0;
+        });
+
+        // All postable accounting accounts (not just revenue — could be expense too)
+        $allAccounts = ChartOfAccount::whereNull('parent_id')
+            ->orderBy('account_code')
+            ->get(['id', 'account_code', 'account_name', 'account_type']);
+
+        $revenueAccounts = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
+            ->orderBy('account_code')
+            ->get(['id', 'account_code', 'account_name', 'account_type']);
+
+        $mappings = FeeAccountMapping::all()->keyBy('finance_fee_id');
+
+        return view('pages.reports.fee-account-mappings', compact(
+            'financeFees', 'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
+        ));
+    }
+
+    /**
+     * Auto-generate COA sub-accounts from finance fees, grouped by finance parent category.
+     * Maps finance parent groups to accounting parent accounts based on group_mapping input.
+     */
+    public function autoGenerateFeeAccounts(Request $request)
+    {
+        $groupMappings = $request->input('group_mappings', []);
+
+        if (empty($groupMappings)) {
+            return back()->with('error', 'Please select at least one accounting account for the groups.');
+        }
+
+        // Get all finance fees with their parent info
+        $financeFees = DB::connection('finance')->table('chart_of_accounts')
+            ->whereNull('deleted_at')
+            ->whereNotNull('parent_id')
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id']);
+
+        if ($financeFees->isEmpty()) {
+            return back()->with('error', 'No fees found in finance database.');
+        }
+
+        $existingMappings = FeeAccountMapping::pluck('finance_fee_id')->toArray();
+
+        // Track sub-account counters per parent
+        $counters = [];
+
+        $created = 0;
+        $skipped = 0;
+
+        DB::transaction(function () use ($financeFees, $groupMappings, $existingMappings, &$counters, &$created, &$skipped) {
+            foreach ($financeFees as $fee) {
+                if (in_array($fee->id, $existingMappings)) {
+                    $skipped++;
+                    continue;
+                }
+
+                $financeParentId = (string) $fee->parent_id;
+
+                // Skip if no mapping defined for this finance parent group
+                if (empty($groupMappings[$financeParentId])) {
+                    $skipped++;
+                    continue;
+                }
+
+                $acctParentId = $groupMappings[$financeParentId];
+                $acctParent = ChartOfAccount::find($acctParentId);
+                if (!$acctParent) continue;
+
+                // Get or init counter for this parent
+                if (!isset($counters[$acctParentId])) {
+                    $lastSub = ChartOfAccount::where('account_code', 'like', $acctParent->account_code . '-%')
+                        ->orderByDesc('account_code')->first();
+                    $counters[$acctParentId] = $lastSub
+                        ? (int) str_replace($acctParent->account_code . '-', '', $lastSub->account_code)
+                        : 0;
+                }
+
+                $counters[$acctParentId]++;
+                $subCode = $acctParent->account_code . '-' . str_pad($counters[$acctParentId], 3, '0', STR_PAD_LEFT);
+
+                // Determine account type from parent
+                $accountType = $acctParent->account_type;
+                $normalBalance = $acctParent->normal_balance;
+
+                $account = ChartOfAccount::create([
+                    'account_code' => $subCode,
+                    'account_name' => $fee->name,
+                    'account_type' => $accountType,
+                    'parent_id' => $acctParentId,
+                    'normal_balance' => $normalBalance,
+                    'is_active' => true,
+                    'is_postable' => true,
+                ]);
+
+                FeeAccountMapping::create([
+                    'finance_fee_id' => $fee->id,
+                    'finance_fee_name' => $fee->name,
+                    'account_id' => $account->id,
+                ]);
+
+                $created++;
+            }
+        });
+
+        return back()->with('success', "{$created} sub-accounts created and mapped. {$skipped} skipped (already mapped or no group selected).");
+    }
+
+    /**
+     * Save fee account mappings.
+     */
+    public function saveFeeAccountMappings(Request $request)
+    {
+        $validated = $request->validate([
+            'mappings' => 'required|array',
+            'mappings.*.finance_fee_id' => 'required|integer',
+            'mappings.*.finance_fee_name' => 'required|string',
+            'mappings.*.account_id' => 'nullable|exists:chart_of_accounts,id',
+        ]);
+
+        foreach ($validated['mappings'] as $mapping) {
+            if (!empty($mapping['account_id'])) {
+                FeeAccountMapping::updateOrCreate(
+                    ['finance_fee_id' => $mapping['finance_fee_id']],
+                    [
+                        'finance_fee_name' => $mapping['finance_fee_name'],
+                        'account_id' => $mapping['account_id'],
+                    ]
+                );
+            } else {
+                FeeAccountMapping::where('finance_fee_id', $mapping['finance_fee_id'])->delete();
+            }
+        }
+
+        return back()->with('success', 'Fee account mappings saved successfully.');
+    }
+
+    /**
+     * Budget Performance Report — Revenue & Expenses with budget vs actual, collapsible.
+     */
+    public function budgetPerformance(Request $request)
+    {
+        $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
+        $dateTo = $request->input('date_to') ?: now()->toDateString();
+
+        // === REVENUE (from finance fees + JE) ===
+        $revenueAccounts = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo);
+
+        // Merge finance fee revenue
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue($dateFrom, $dateTo);
+            foreach ($feeRevenue as $fee) {
+                $existing = $revenueAccounts->firstWhere('id', $fee->account_id);
+                if ($existing) {
+                    $existing->balance = abs($existing->balance) + $fee->total_amount;
+                } else {
+                    $coaAccount = ChartOfAccount::find($fee->account_id);
+                    $revenueAccounts->push((object) [
+                        'id' => $fee->account_id,
+                        'account_code' => $fee->account_code,
+                        'account_name' => $fee->account_name,
+                        'account_type' => 'revenue',
+                        'normal_balance' => 'credit',
+                        'parent_id' => $coaAccount ? $coaAccount->parent_id : null,
+                        'balance' => $fee->total_amount,
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {}
+
+        $revenueAccounts = $revenueAccounts->sortBy('account_code')->values();
+        $totalRevenue = $revenueAccounts->sum(function ($a) { return abs($a->balance); });
+
+        // Group revenue by parent
+        $revenueGroups = $this->groupByParent($revenueAccounts, 'revenue');
+
+        // === EXPENSES (from JE + budget data) ===
+        $expenseAccounts = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo);
+        $totalExpenses = $expenseAccounts->sum('balance');
+
+        // Get budget data grouped by category
+        $budgets = \App\Models\Budget::with('category', 'department')
+            ->whereIn('status', ['active', 'approved'])
+            ->get();
+
+        $totalBudget = (float) $budgets->sum('annual_budget');
+        $totalCommitted = (float) $budgets->sum('committed');
+        $totalActual = (float) $budgets->sum('actual');
+
+        // Budget by category
+        $budgetByCategory = $budgets->groupBy(function ($b) {
+            return $b->category->name ?? 'Uncategorized';
+        })->map(function ($items, $category) {
+            return (object) [
+                'category' => $category,
+                'budget' => (float) $items->sum('annual_budget'),
+                'committed' => (float) $items->sum('committed'),
+                'actual' => (float) $items->sum('actual'),
+                'items' => $items,
+            ];
+        })->sortByDesc('budget')->values();
+
+        $netIncome = $totalRevenue - $totalExpenses;
+
+        return view('pages.reports.budget-performance', compact(
+            'revenueGroups', 'totalRevenue',
+            'expenseAccounts', 'totalExpenses',
+            'totalBudget', 'totalCommitted', 'totalActual',
+            'budgetByCategory', 'netIncome',
+            'dateFrom', 'dateTo'
+        ));
+    }
+
+    /**
+     * Group accounts by parent_id for collapsible display.
+     */
+    private function groupByParent($accounts, $type)
+    {
+        $parentIds = ChartOfAccount::where('account_type', $type)
+            ->whereNotNull('parent_id')
+            ->pluck('parent_id')
+            ->unique()
+            ->all();
+
+        $groups = [];
+        $standalone = [];
+
+        foreach ($accounts as $account) {
+            $acctId = $account->id;
+            $parentId = $account->parent_id ?? null;
+
+            if ($parentId && in_array($parentId, $parentIds)) {
+                if (!isset($groups[$parentId])) {
+                    $parent = ChartOfAccount::find($parentId);
+                    $groups[$parentId] = (object) [
+                        'id' => $parentId,
+                        'account_code' => $parent->account_code ?? '',
+                        'account_name' => $parent->account_name ?? 'Other',
+                        'total' => 0,
+                        'children' => [],
+                    ];
+                }
+                $groups[$parentId]->total += abs($account->balance);
+                $groups[$parentId]->children[] = $account;
+            } elseif (in_array($acctId, $parentIds)) {
+                if (!isset($groups[$acctId])) {
+                    $groups[$acctId] = (object) [
+                        'id' => $acctId,
+                        'account_code' => $account->account_code,
+                        'account_name' => $account->account_name,
+                        'total' => abs($account->balance),
+                        'children' => [],
+                    ];
+                } else {
+                    $groups[$acctId]->total += abs($account->balance);
+                }
+            } else {
+                $standalone[] = $account;
+            }
+        }
+
+        uasort($groups, function ($a, $b) { return strcmp($a->account_code, $b->account_code); });
+
+        return ['groups' => $groups, 'standalone' => $standalone];
     }
 
     // ---------------------------------------------------------------

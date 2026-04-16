@@ -29,14 +29,6 @@
             @endforeach
         </select>
     </div>
-    <div>
-        <label class="form-label">From</label>
-        <input type="date" name="date_from" class="form-input w-40" value="{{ $dateFrom }}">
-    </div>
-    <div>
-        <label class="form-label">To</label>
-        <input type="date" name="date_to" class="form-input w-40" value="{{ $dateTo }}">
-    </div>
 </x-filter-bar>
 
 {{-- Per-Account Ledger Sections (T-Account style) --}}

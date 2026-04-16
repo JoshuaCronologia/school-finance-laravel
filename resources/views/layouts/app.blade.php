@@ -110,7 +110,7 @@
             </a>
 
             {{-- Budget Reports (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/budget-vs-actual') || str_starts_with($currentRoute, '/reports/monthly-variance') || str_starts_with($currentRoute, '/reports/budget-performance') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
@@ -121,6 +121,7 @@
                 <div x-show="open" x-collapse class="ml-3 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-3">
                     <a href="{{ url('/reports/budget-vs-actual') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-vs-actual' ? 'sidebar-link--active' : '' }}">Budget vs Actual</a>
                     <a href="{{ url('/reports/monthly-variance') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/monthly-variance' ? 'sidebar-link--active' : '' }}">Monthly Variance</a>
+                    <a href="{{ url('/reports/budget-performance') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/budget-performance' ? 'sidebar-link--active' : '' }}">Budget Performance</a>
                 </div>
             </div>
 
@@ -262,6 +263,7 @@
                     <a href="{{ url('/tax/special-journals') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/special-journals' ? 'sidebar-link--active' : '' }}">Special Journals</a>
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Other Reports</p>
                     <a href="{{ url('/reports/expense-schedule') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/expense-schedule' ? 'sidebar-link--active' : '' }}">Expense Schedule</a>
+                    <a href="{{ url('/reports/fee-collections') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fee-collections' ? 'sidebar-link--active' : '' }}">Fee Collections</a>
                 </div>
             </div>
 

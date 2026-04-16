@@ -25,11 +25,11 @@ class VendorController extends Controller
             $rows = \Illuminate\Support\Facades\DB::select("
                 SELECT
                     v.id as vendor_id, v.name as vendor_name, v.vendor_code,
-                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date <= 0 THEN b.balance END), 0) as current,
-                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 1 AND 30 THEN b.balance END), 0) as days_1_30,
-                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 31 AND 60 THEN b.balance END), 0) as days_31_60,
-                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date BETWEEN 61 AND 90 THEN b.balance END), 0) as days_61_90,
-                    COALESCE(SUM(CASE WHEN ? ::date - b.due_date > 90 THEN b.balance END), 0) as over_90,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CAST(? AS DATE), b.due_date) <= 0 THEN b.balance END), 0) as current,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CAST(? AS DATE), b.due_date) BETWEEN 1 AND 30 THEN b.balance END), 0) as days_1_30,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CAST(? AS DATE), b.due_date) BETWEEN 31 AND 60 THEN b.balance END), 0) as days_31_60,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CAST(? AS DATE), b.due_date) BETWEEN 61 AND 90 THEN b.balance END), 0) as days_61_90,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CAST(? AS DATE), b.due_date) > 90 THEN b.balance END), 0) as over_90,
                     COALESCE(SUM(b.balance), 0) as total
                 FROM vendors v
                 JOIN ap_bills b ON b.vendor_id = v.id

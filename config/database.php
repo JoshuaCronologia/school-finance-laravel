@@ -117,13 +117,18 @@ if (file_exists($cred_path)) {
             $db_config['connections']['inventory'] = connection_template($config['databases']['inventory'], $driver);
         }
 
+        // Finance database (optional)
+        if (isset($config['databases']['finance'])) {
+            $db_config['connections']['finance'] = connection_template($config['databases']['finance'], $driver);
+        }
+
         // Branch databases (SIS)
         foreach ($config['databases']['branches'] ?? [] as $branch) {
             $code = $branch['code'];
             if (in_array('1', $branch['school_types'] ?? [])) {
                 $db_config['connections'][$code . '_kto12'] = connection_template($branch['kto12'], $driver);
             }
-            if (in_array('2', $branch['school_types'] ?? [])) {
+            if (in_array('2', $branch['school_types'] ?? []) && isset($branch['college'])) {
                 $db_config['connections'][$code . '_college'] = connection_template($branch['college'], $driver);
             }
         }
