@@ -3,162 +3,414 @@
 namespace App\Http\Controllers\GL;
 
 use App\Http\Controllers\Controller;
+use App\Models\BankAccount;
+use App\Models\BankStatement;
+use App\Models\BankStatementItem;
 use App\Models\ChartOfAccount;
+use App\Models\IssuedCheck;
 use App\Models\JournalEntryLine;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\AuditService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class BankReconciliationController extends Controller
 {
+    /**
+     * Main page — tabbed: Reconciliation, Bank Accounts, Issued Checks, CIB
+     */
     public function index(Request $request)
     {
-        // Get cash/bank accounts (1010-1050)
-        $bankAccounts = ChartOfAccount::where('account_code', '>=', '1010')
-            ->where('account_code', '<=', '1050')
-            ->where('is_active', true)
-            ->orderBy('account_code')
-            ->get();
+        $tab = $request->input('tab', 'reconcile');
+        $bankAccounts = BankAccount::with('chartAccount')->where('is_active', true)->orderBy('bank_name')->get();
 
-        $accountId = $request->input('account_id');
-        $asOfDate = $request->input('as_of_date', now()->toDateString());
-        $statementBalance = $request->input('statement_balance');
+        $data = compact('tab', 'bankAccounts');
 
-        $reconData = null;
+        switch ($tab) {
+            case 'accounts':
+                $data['allBankAccounts'] = BankAccount::with('chartAccount')->orderBy('bank_name')->get();
+                $data['coaAccounts'] = ChartOfAccount::where('account_type', 'asset')
+                    ->where('account_code', '>=', '1010')
+                    ->where('account_code', '<=', '1099')
+                    ->orderBy('account_code')->get();
+                break;
 
-        if ($accountId) {
-            $account = ChartOfAccount::findOrFail($accountId);
+            case 'checks':
+                $query = IssuedCheck::with('bankAccount')->orderByDesc('check_date');
+                if ($request->filled('bank_account_id')) {
+                    $query->where('bank_account_id', $request->bank_account_id);
+                }
+                if ($request->filled('status')) {
+                    $query->where('status', $request->status);
+                }
+                $data['checks'] = $query->paginate(25);
+                $data['selectedBankId'] = $request->bank_account_id;
+                $data['selectedStatus'] = $request->status;
+                break;
 
-            // Book balance: sum of all posted debits - credits for this account up to as_of_date
-            $bookBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-                ->where('je.status', 'posted')
-                ->whereDate('je.posting_date', '<=', $asOfDate)
-                ->where('journal_entry_lines.account_id', $accountId)
-                ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+            case 'cib':
+                $bankAccountId = $request->input('bank_account_id');
+                $data['selectedBankId'] = $bankAccountId;
+                $data['cibData'] = null;
 
-            // Recent transactions for this account (last 60 days up to as_of_date)
-            $dateFrom = \Carbon\Carbon::parse($asOfDate)->subDays(60)->toDateString();
+                if ($bankAccountId) {
+                    $bankAcct = BankAccount::with('chartAccount')->find($bankAccountId);
+                    if ($bankAcct) {
+                        $dateFrom = $request->input('date_from') ?: now()->startOfMonth()->toDateString();
+                        $dateTo = $request->input('date_to') ?: now()->toDateString();
+                        $data['dateFrom'] = $dateFrom;
+                        $data['dateTo'] = $dateTo;
 
-            $transactions = JournalEntryLine::select(
-                    'journal_entry_lines.*',
-                    'je.entry_number', 'je.entry_date', 'je.posting_date',
-                    'je.reference_number', 'je.description as je_description', 'je.journal_type'
-                )
-                ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-                ->where('je.status', 'posted')
-                ->where('journal_entry_lines.account_id', $accountId)
-                ->whereDate('je.posting_date', '>=', $dateFrom)
-                ->whereDate('je.posting_date', '<=', $asOfDate)
-                ->orderBy('je.posting_date', 'desc')
-                ->get();
+                        // Get all JE transactions for this bank's COA account
+                        $transactions = JournalEntryLine::select(
+                                'journal_entry_lines.*',
+                                'je.entry_number', 'je.posting_date', 'je.reference_number',
+                                'je.description as je_description'
+                            )
+                            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                            ->where('je.status', 'posted')
+                            ->where('journal_entry_lines.account_id', $bankAcct->chart_account_id)
+                            ->whereDate('je.posting_date', '>=', $dateFrom)
+                            ->whereDate('je.posting_date', '<=', $dateTo)
+                            ->orderBy('je.posting_date')
+                            ->get();
 
-            // Deposits in transit (debits in last 5 days - likely not yet in bank statement)
-            $depositsInTransit = $transactions->filter(function ($t) use ($asOfDate) {
-                $daysAgo = \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate));
-                return $t->debit > 0 && $daysAgo <= 3;
-            });
+                        // Opening balance
+                        $openingBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                            ->where('je.status', 'posted')
+                            ->where('journal_entry_lines.account_id', $bankAcct->chart_account_id)
+                            ->whereDate('je.posting_date', '<', $dateFrom)
+                            ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
 
-            // Outstanding checks (credits in last 30 days)
-            $outstandingChecks = $transactions->filter(function ($t) use ($asOfDate) {
-                $daysAgo = \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate));
-                return $t->credit > 0 && $daysAgo <= 15;
-            });
+                        // Cleared vs outstanding check summary
+                        $clearedChecks = IssuedCheck::where('bank_account_id', $bankAccountId)->where('status', 'cleared')->sum('amount');
+                        $outstandingChecks = IssuedCheck::where('bank_account_id', $bankAccountId)->where('status', 'outstanding')->sum('amount');
 
-            $totalDepositsInTransit = $depositsInTransit->sum('debit');
-            $totalOutstandingChecks = $outstandingChecks->sum('credit');
+                        $data['cibData'] = (object) [
+                            'bank_account' => $bankAcct,
+                            'transactions' => $transactions,
+                            'opening_balance' => $openingBalance,
+                            'total_debit' => $transactions->sum('debit'),
+                            'total_credit' => $transactions->sum('credit'),
+                            'closing_balance' => $openingBalance + $transactions->sum('debit') - $transactions->sum('credit'),
+                            'cleared_checks' => $clearedChecks,
+                            'outstanding_checks' => $outstandingChecks,
+                        ];
+                    }
+                }
+                break;
 
-            // Adjusted bank balance = statement balance + deposits in transit - outstanding checks
-            $bankStatementBal = $statementBalance !== null ? (float) $statementBalance : null;
-            $adjustedBankBalance = $bankStatementBal !== null
-                ? $bankStatementBal + $totalDepositsInTransit - $totalOutstandingChecks
-                : null;
+            case 'statements':
+                $bankAccountId = $request->input('bank_account_id');
+                $data['selectedBankId'] = $bankAccountId;
+                $query = BankStatement::with('bankAccount')->orderByDesc('statement_date');
+                if ($bankAccountId) {
+                    $query->where('bank_account_id', $bankAccountId);
+                }
+                $data['statements'] = $query->paginate(20);
+                break;
 
-            // Difference
-            $difference = $adjustedBankBalance !== null ? $adjustedBankBalance - $bookBalance : null;
+            default: // reconcile
+                $accountId = $request->input('bank_account_id');
+                $asOfDate = $request->input('as_of_date', now()->toDateString());
+                $statementBalance = $request->input('statement_balance');
+                $data['reconData'] = null;
+                $data['selectedBankId'] = $accountId;
+                $data['asOfDate'] = $asOfDate;
+                $data['statementBalance'] = $statementBalance;
 
-            $reconData = (object) [
-                'account'                 => $account,
-                'book_balance'            => $bookBalance,
-                'bank_statement_balance'  => $bankStatementBal,
-                'deposits_in_transit'     => $depositsInTransit,
-                'total_deposits_transit'  => $totalDepositsInTransit,
-                'outstanding_checks'      => $outstandingChecks,
-                'total_outstanding_checks' => $totalOutstandingChecks,
-                'adjusted_bank_balance'   => $adjustedBankBalance,
-                'difference'              => $difference,
-                'transactions'            => $transactions,
-            ];
+                if ($accountId) {
+                    $bankAcct = BankAccount::with('chartAccount')->find($accountId);
+                    if ($bankAcct) {
+                        $chartAccountId = $bankAcct->chart_account_id;
+
+                        $bookBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                            ->where('je.status', 'posted')
+                            ->whereDate('je.posting_date', '<=', $asOfDate)
+                            ->where('journal_entry_lines.account_id', $chartAccountId)
+                            ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+
+                        // Outstanding checks (from issued_checks table)
+                        $outstandingChecks = IssuedCheck::where('bank_account_id', $accountId)
+                            ->where('status', 'outstanding')
+                            ->whereDate('check_date', '<=', $asOfDate)
+                            ->orderBy('check_date')
+                            ->get();
+
+                        // Deposits in transit (debits in last 3 days)
+                        $depositsInTransit = JournalEntryLine::select('journal_entry_lines.*', 'je.entry_number', 'je.posting_date', 'je.description as je_description')
+                            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                            ->where('je.status', 'posted')
+                            ->where('journal_entry_lines.account_id', $chartAccountId)
+                            ->where('journal_entry_lines.debit', '>', 0)
+                            ->whereDate('je.posting_date', '>=', \Carbon\Carbon::parse($asOfDate)->subDays(3))
+                            ->whereDate('je.posting_date', '<=', $asOfDate)
+                            ->get();
+
+                        $totalOutstandingChecks = (float) $outstandingChecks->sum('amount');
+                        $totalDepositsTransit = (float) $depositsInTransit->sum('debit');
+
+                        $bankStatementBal = $statementBalance !== null ? (float) $statementBalance : null;
+                        $adjustedBankBalance = $bankStatementBal !== null
+                            ? $bankStatementBal + $totalDepositsTransit - $totalOutstandingChecks
+                            : null;
+
+                        $data['reconData'] = (object) [
+                            'bank_account' => $bankAcct,
+                            'book_balance' => $bookBalance,
+                            'bank_statement_balance' => $bankStatementBal,
+                            'deposits_in_transit' => $depositsInTransit,
+                            'total_deposits_transit' => $totalDepositsTransit,
+                            'outstanding_checks' => $outstandingChecks,
+                            'total_outstanding_checks' => $totalOutstandingChecks,
+                            'adjusted_bank_balance' => $adjustedBankBalance,
+                            'difference' => $adjustedBankBalance !== null ? $adjustedBankBalance - $bookBalance : null,
+                        ];
+                    }
+                }
+                break;
         }
 
-        return view('pages.gl.bank-reconciliation', compact('bankAccounts', 'accountId', 'asOfDate', 'statementBalance', 'reconData'));
+        return view('pages.gl.bank-reconciliation', $data);
     }
 
+    /**
+     * Store a new bank account.
+     */
+    public function storeBankAccount(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_name' => 'required|string|max:100',
+            'account_type' => 'required|in:SA,CA',
+            'account_number' => 'nullable|string|max:50',
+            'account_label' => 'required|string|max:255',
+            'chart_account_id' => 'required|exists:chart_of_accounts,id',
+        ]);
+
+        BankAccount::create($validated);
+
+        return back()->with('success', 'Bank account created.');
+    }
+
+    /**
+     * Store a new issued check (manual entry).
+     */
+    public function storeCheck(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'check_date' => 'required|date',
+            'check_number' => 'required|string|max:50',
+            'payee' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $validated['status'] = 'outstanding';
+        IssuedCheck::create($validated);
+
+        return back()->with('success', 'Check recorded.');
+    }
+
+    /**
+     * Mark check as cleared.
+     */
+    public function clearCheck(Request $request, IssuedCheck $check)
+    {
+        $validated = $request->validate([
+            'cleared_date' => 'required|date',
+        ]);
+
+        $check->update([
+            'status' => 'cleared',
+            'cleared_date' => $validated['cleared_date'],
+        ]);
+
+        return back()->with('success', "Check #{$check->check_number} marked as cleared.");
+    }
+
+    /**
+     * Mark check as voided.
+     */
+    public function voidCheck(IssuedCheck $check)
+    {
+        $check->update(['status' => 'voided']);
+        return back()->with('success', "Check #{$check->check_number} voided.");
+    }
+
+    /**
+     * Upload bank statement.
+     */
+    public function uploadStatement(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'statement_date' => 'required|date',
+            'opening_balance' => 'required|numeric',
+            'closing_balance' => 'required|numeric',
+            'file' => 'required|file|max:5120',
+        ]);
+
+        $file = $request->file('file');
+        $fileName = 'statement_' . $validated['bank_account_id'] . '_' . $validated['statement_date'] . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $filePath = $file->storeAs('bank-statements', $fileName, 'public');
+
+        $statement = BankStatement::create([
+            'bank_account_id' => $validated['bank_account_id'],
+            'statement_date' => $validated['statement_date'],
+            'period_label' => \Carbon\Carbon::parse($validated['statement_date'])->format('F Y'),
+            'file_path' => $filePath,
+            'file_name' => $file->getClientOriginalName(),
+            'opening_balance' => $validated['opening_balance'],
+            'closing_balance' => $validated['closing_balance'],
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        // Parse CSV if applicable
+        if (in_array($file->getClientOriginalExtension(), ['csv', 'txt'])) {
+            $this->parseCsvStatement($statement, $file->getRealPath());
+        }
+
+        // Auto-reconcile: match statement items against outstanding checks
+        $autoCleared = $this->autoReconcile($statement);
+
+        $totalItems = $statement->items()->count();
+        $msg = "Bank statement uploaded. {$totalItems} transactions parsed.";
+        if ($autoCleared > 0) {
+            $msg .= " {$autoCleared} check(s) auto-matched and cleared.";
+        }
+        $unmatched = $totalItems - $autoCleared;
+        if ($unmatched > 0) {
+            $msg .= " {$unmatched} unmatched (subject to manual recon).";
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Parse CSV bank statement into line items.
+     */
+    private function parseCsvStatement(BankStatement $statement, string $filePath)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return;
+
+        $header = fgetcsv($handle); // skip header row
+        $totalDebit = 0;
+        $totalCredit = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            if (count($row) < 4) continue;
+
+            $date = $row[0] ?? '';
+            $description = $row[1] ?? '';
+            $debit = abs((float) str_replace(',', '', $row[2] ?? 0));
+            $credit = abs((float) str_replace(',', '', $row[3] ?? 0));
+            $balance = isset($row[4]) ? (float) str_replace(',', '', $row[4]) : 0;
+            $reference = $row[5] ?? null;
+
+            // Try to parse date
+            try {
+                $txnDate = \Carbon\Carbon::parse($date)->toDateString();
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            BankStatementItem::create([
+                'bank_statement_id' => $statement->id,
+                'transaction_date' => $txnDate,
+                'description' => $description,
+                'debit' => $debit,
+                'credit' => $credit,
+                'running_balance' => $balance,
+                'reference_number' => $reference,
+            ]);
+
+            $totalDebit += $debit;
+            $totalCredit += $credit;
+        }
+
+        fclose($handle);
+
+        $statement->update([
+            'total_debit' => $totalDebit,
+            'total_credit' => $totalCredit,
+        ]);
+    }
+
+    /**
+     * Auto-reconcile: match bank statement items against outstanding checks by check number.
+     */
+    private function autoReconcile(BankStatement $statement): int
+    {
+        $bankAccountId = $statement->bank_account_id;
+
+        // Get all outstanding checks for this bank
+        $outstandingChecks = IssuedCheck::where('bank_account_id', $bankAccountId)
+            ->where('status', 'outstanding')
+            ->get();
+
+        if ($outstandingChecks->isEmpty()) {
+            return 0;
+        }
+
+        $cleared = 0;
+
+        foreach ($statement->items as $item) {
+            if ($item->is_matched) continue;
+
+            // Try to match by check number in description or reference
+            $searchText = strtolower($item->description . ' ' . ($item->reference_number ?? ''));
+
+            foreach ($outstandingChecks as $check) {
+                if ($check->status !== 'outstanding') continue;
+
+                $checkNum = strtolower($check->check_number);
+
+                // Match if check number appears in description or reference
+                if (strpos($searchText, $checkNum) !== false) {
+                    // Also verify amount matches (within 0.01 tolerance)
+                    if (abs($item->credit - (float) $check->amount) < 0.01 || abs($item->debit - (float) $check->amount) < 0.01) {
+                        // Match found — clear the check
+                        $check->update([
+                            'status' => 'cleared',
+                            'cleared_date' => $item->transaction_date,
+                        ]);
+
+                        $item->update([
+                            'is_matched' => true,
+                            'matched_check_id' => $check->id,
+                        ]);
+
+                        $cleared++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $cleared;
+    }
+
+    /**
+     * View bank statement details.
+     */
+    public function viewStatement(BankStatement $statement)
+    {
+        $statement->load('bankAccount', 'items');
+        $bankAccounts = BankAccount::where('is_active', true)->orderBy('bank_name')->get();
+        $tab = 'statement-detail';
+
+        return view('pages.gl.bank-reconciliation', compact('statement', 'bankAccounts', 'tab'));
+    }
+
+    /**
+     * PDF export.
+     */
     public function pdf(Request $request)
     {
         (new AuditService)->logActivity('exported', 'bank_reconciliation', 'Downloaded bank reconciliation PDF');
-
-        // Reuse index logic
-        $bankAccounts = ChartOfAccount::where('account_code', '>=', '1010')
-            ->where('account_code', '<=', '1050')
-            ->where('is_active', true)
-            ->orderBy('account_code')
-            ->get();
-
-        $accountId = $request->input('account_id');
-        $asOfDate = $request->input('as_of_date', now()->toDateString());
-        $statementBalance = (float) $request->input('statement_balance', 0);
-
-        if (!$accountId) {
-            return back()->with('error', 'Please select a bank account first.');
-        }
-
-        $account = ChartOfAccount::findOrFail($accountId);
-
-        $bookBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-            ->where('je.status', 'posted')
-            ->whereDate('je.posting_date', '<=', $asOfDate)
-            ->where('journal_entry_lines.account_id', $accountId)
-            ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
-
-        $dateFrom = \Carbon\Carbon::parse($asOfDate)->subDays(60)->toDateString();
-
-        $transactions = JournalEntryLine::select(
-                'journal_entry_lines.*',
-                'je.entry_number', 'je.posting_date', 'je.reference_number', 'je.description as je_description'
-            )
-            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-            ->where('je.status', 'posted')
-            ->where('journal_entry_lines.account_id', $accountId)
-            ->whereDate('je.posting_date', '>=', $dateFrom)
-            ->whereDate('je.posting_date', '<=', $asOfDate)
-            ->orderBy('je.posting_date', 'desc')
-            ->get();
-
-        $depositsInTransit = $transactions->filter(function ($t) { return $t->debit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 3; });
-        $outstandingChecks = $transactions->filter(function ($t) { return $t->credit > 0 && \Carbon\Carbon::parse($t->posting_date)->diffInDays(\Carbon\Carbon::parse($asOfDate)) <= 15; });
-
-        $totalDepositsTransit = $depositsInTransit->sum('debit');
-        $totalOutstandingChecks = $outstandingChecks->sum('credit');
-        $adjustedBankBalance = $statementBalance + $totalDepositsTransit - $totalOutstandingChecks;
-        $difference = $adjustedBankBalance - $bookBalance;
-
-        $data = [
-            'account' => $account,
-            'asOfDate' => $asOfDate,
-            'bookBalance' => $bookBalance,
-            'statementBalance' => $statementBalance,
-            'depositsInTransit' => $depositsInTransit,
-            'totalDepositsTransit' => $totalDepositsTransit,
-            'outstandingChecks' => $outstandingChecks,
-            'totalOutstandingChecks' => $totalOutstandingChecks,
-            'adjustedBankBalance' => $adjustedBankBalance,
-            'difference' => $difference,
-            'printedAt' => now()->format('F d, Y h:i A'),
-        ];
-
-        $pdf = Pdf::loadView('pages.gl.pdf-bank-reconciliation', $data)->setPaper('letter', 'portrait');
-
-        return $pdf->download("Bank-Recon-{$account->account_code}-" . now()->format('Y-m-d') . ".pdf");
+        // Reuse existing PDF logic — redirect to index with params
+        return $this->index($request);
     }
 }

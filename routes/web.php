@@ -156,6 +156,12 @@ Route::middleware(['check_auth'])->group(function () {
         Route::post('/recurring/{template}/generate', [JournalEntryController::class, 'generateRecurring'])->name('recurring.generate');
         Route::get('/bank-reconciliation', [\App\Http\Controllers\GL\BankReconciliationController::class, 'index'])->name('bank-reconciliation');
         Route::get('/bank-reconciliation/pdf', [\App\Http\Controllers\GL\BankReconciliationController::class, 'pdf'])->name('bank-reconciliation.pdf');
+        Route::post('/bank-reconciliation/bank-account', [\App\Http\Controllers\GL\BankReconciliationController::class, 'storeBankAccount'])->name('bank-reconciliation.store-bank-account');
+        Route::post('/bank-reconciliation/check', [\App\Http\Controllers\GL\BankReconciliationController::class, 'storeCheck'])->name('bank-reconciliation.store-check');
+        Route::post('/bank-reconciliation/check/{check}/clear', [\App\Http\Controllers\GL\BankReconciliationController::class, 'clearCheck'])->name('bank-reconciliation.clear-check');
+        Route::post('/bank-reconciliation/check/{check}/void', [\App\Http\Controllers\GL\BankReconciliationController::class, 'voidCheck'])->name('bank-reconciliation.void-check');
+        Route::post('/bank-reconciliation/statement', [\App\Http\Controllers\GL\BankReconciliationController::class, 'uploadStatement'])->name('bank-reconciliation.upload-statement');
+        Route::get('/bank-reconciliation/statement/{statement}', [\App\Http\Controllers\GL\BankReconciliationController::class, 'viewStatement'])->name('bank-reconciliation.view-statement');
         Route::get('/ledger-inquiry', [GLController::class, 'ledgerInquiry'])->name('ledger-inquiry');
         Route::get('/period-closing', [PeriodClosingController::class, 'index'])->name('period-closing');
         Route::post('/period-closing/{period}/close', [PeriodClosingController::class, 'close'])->name('period-closing.close');
@@ -209,6 +215,7 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/special-journals', [TaxController::class, 'specialJournals'])->name('special-journals');
         Route::get('/check-writer', [TaxController::class, 'checkWriter'])->name('check-writer');
         Route::post('/check-writer/print', [TaxController::class, 'printCheck'])->name('check-writer.print');
+        Route::post('/check-writer/batch-clear', [TaxController::class, 'batchClearChecks'])->name('check-writer.batch-clear');
         // BIR Forms
         Route::get('/bir-0619e', [TaxController::class, 'bir0619e'])->name('bir-0619e');
         Route::get('/bir-0619f', [TaxController::class, 'bir0619f'])->name('bir-0619f');

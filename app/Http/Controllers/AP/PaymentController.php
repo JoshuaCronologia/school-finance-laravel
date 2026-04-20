@@ -141,6 +141,22 @@ class PaymentController extends Controller
                     // Post to GL
                     app(PostingService::class)->postDisbursement($payment);
 
+                    // Auto-create issued check record
+                    if ($checkNumber) {
+                        $bankAcct = \App\Models\BankAccount::first();
+                        if ($bankAcct) {
+                            \App\Models\IssuedCheck::create([
+                                'bank_account_id' => $bankAcct->id,
+                                'check_date' => $validated['payment_date'],
+                                'check_number' => $checkNumber,
+                                'payee' => $disbursement->payee_name,
+                                'amount' => $netAmount,
+                                'status' => 'outstanding',
+                                'disbursement_payment_id' => $payment->id,
+                            ]);
+                        }
+                    }
+
                     app(AuditService::class)->log('payment', 'disbursement', $disbursement, null,
                         "Batch payment processed: {$payment->voucher_number}");
 
@@ -257,6 +273,22 @@ class PaymentController extends Controller
 
                 // Post to GL
                 app(PostingService::class)->postDisbursement($payment);
+
+                // Auto-create issued check record if payment method is check
+                if ($validated['payment_method'] === 'check' && $checkNumber) {
+                    $bankAcct = \App\Models\BankAccount::first();
+                    if ($bankAcct) {
+                        \App\Models\IssuedCheck::create([
+                            'bank_account_id' => $bankAcct->id,
+                            'check_date' => $validated['payment_date'],
+                            'check_number' => $checkNumber,
+                            'payee' => $disbursement->payee_name,
+                            'amount' => $netAmount,
+                            'status' => 'outstanding',
+                            'disbursement_payment_id' => $payment->id,
+                        ]);
+                    }
+                }
 
                 app(AuditService::class)->log('payment', 'disbursement', $disbursement, null,
                     "Payment processed: {$payment->voucher_number}");

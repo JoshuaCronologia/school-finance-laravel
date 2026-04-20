@@ -144,12 +144,11 @@
                     <label class="form-label">Bank Account <span class="text-danger-500">*</span></label>
                     <select name="bank_account" class="form-input text-sm" required>
                         <option value="">Select Bank...</option>
-                        <option value="BDO" {{ ($lastCheckUsed->bank_account ?? '') === 'BDO' ? 'selected' : '' }}>BDO Unibank</option>
-                        <option value="BPI" {{ ($lastCheckUsed->bank_account ?? '') === 'BPI' ? 'selected' : '' }}>Bank of the Philippine Islands</option>
-                        <option value="Metrobank" {{ ($lastCheckUsed->bank_account ?? '') === 'Metrobank' ? 'selected' : '' }}>Metropolitan Bank</option>
-                        <option value="Landbank" {{ ($lastCheckUsed->bank_account ?? '') === 'Landbank' ? 'selected' : '' }}>Land Bank of the Philippines</option>
-                        <option value="PNB" {{ ($lastCheckUsed->bank_account ?? '') === 'PNB' ? 'selected' : '' }}>Philippine National Bank</option>
-                        <option value="RCBC" {{ ($lastCheckUsed->bank_account ?? '') === 'RCBC' ? 'selected' : '' }}>Rizal Commercial Banking Corp</option>
+                        @foreach(\App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get() as $ba)
+                            <option value="{{ $ba->account_label }}" {{ ($lastCheckUsed->bank_account ?? '') === $ba->account_label ? 'selected' : '' }}>
+                                {{ $ba->account_label }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
                 <div>

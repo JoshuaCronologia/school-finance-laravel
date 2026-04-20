@@ -260,6 +260,7 @@
                     <a href="{{ url('/reports/general-journal') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/general-journal' ? 'sidebar-link--active' : '' }}">General Journal</a>
                     <a href="{{ url('/reports/cash-receipts-book') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-receipts-book' ? 'sidebar-link--active' : '' }}">Cash Receipts Book</a>
                     <a href="{{ url('/reports/cash-disbursements-book') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-disbursements-book' ? 'sidebar-link--active' : '' }}">Cash Disbursements Book</a>
+                    <a href="{{ url('/gl/bank-reconciliation?tab=statements') }}" class="sidebar-link text-xs {{ $currentRoute === '/gl/bank-reconciliation' && request('tab') === 'statements' ? 'sidebar-link--active' : '' }}">Bank Statements</a>
                     <a href="{{ url('/tax/special-journals') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/special-journals' ? 'sidebar-link--active' : '' }}">Special Journals</a>
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Other Reports</p>
                     <a href="{{ url('/reports/expense-schedule') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/expense-schedule' ? 'sidebar-link--active' : '' }}">Expense Schedule</a>

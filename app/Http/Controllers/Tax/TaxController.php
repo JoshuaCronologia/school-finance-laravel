@@ -405,23 +405,66 @@ class TaxController extends Controller
 
     public function checkWriter(Request $request)
     {
-        $checkPayments = DisbursementPayment::with('disbursement')
-            ->where('payment_method', 'check')
-            ->where('status', 'completed')
-            ->latest('payment_date')
-            ->paginate(20);
+        $filter = $request->input('filter', 'all');
 
-        // Pending = checks that have been generated but not yet printed (check_number exists)
-        $pendingChecks = DisbursementPayment::where('payment_method', 'check')
+        // Sync: auto-create issued_checks for disbursement payments that don't have one
+        $unsyncedPayments = DisbursementPayment::where('payment_method', 'check')
             ->where('status', 'completed')
             ->whereNotNull('check_number')
-            ->count();
+            ->whereNotIn('id', \App\Models\IssuedCheck::whereNotNull('disbursement_payment_id')->pluck('disbursement_payment_id'))
+            ->get();
 
-        $totalAmount = DisbursementPayment::where('payment_method', 'check')
-            ->where('status', 'completed')
-            ->sum('net_amount');
+        foreach ($unsyncedPayments as $p) {
+            $bankAcct = \App\Models\BankAccount::first();
+            if ($bankAcct) {
+                \App\Models\IssuedCheck::create([
+                    'bank_account_id' => $bankAcct->id,
+                    'check_date' => $p->payment_date,
+                    'check_number' => $p->check_number,
+                    'payee' => $p->disbursement->payee_name ?? 'Unknown',
+                    'amount' => $p->net_amount,
+                    'status' => 'outstanding',
+                    'disbursement_payment_id' => $p->id,
+                ]);
+            }
+        }
 
-        return view('pages.tax.check-writer', compact('checkPayments', 'pendingChecks', 'totalAmount'));
+        // Query issued_checks directly (includes both disbursement-linked AND manually added)
+        $query = \App\Models\IssuedCheck::with('bankAccount')
+            ->orderByDesc('check_date');
+
+        if ($filter === 'ic') {
+            $query->where('status', 'outstanding');
+        } elseif ($filter === 'cc') {
+            $query->where('status', 'cleared');
+        }
+
+        $checks = $query->paginate(20);
+
+        $totalIssued = \App\Models\IssuedCheck::where('status', 'outstanding')->count();
+        $totalCleared = \App\Models\IssuedCheck::where('status', 'cleared')->count();
+        $totalAmount = \App\Models\IssuedCheck::whereIn('status', ['outstanding', 'cleared'])->sum('amount');
+
+        return view('pages.tax.check-writer', compact(
+            'checks', 'totalIssued', 'totalCleared', 'totalAmount', 'filter'
+        ));
+    }
+
+    public function batchClearChecks(Request $request)
+    {
+        $validated = $request->validate([
+            'check_ids' => 'required|array|min:1',
+            'check_ids.*' => 'exists:issued_checks,id',
+        ]);
+
+        $count = \App\Models\IssuedCheck::whereIn('id', $validated['check_ids'])
+            ->where('status', 'outstanding')
+            ->update([
+                'status' => 'cleared',
+                'cleared_date' => now()->toDateString(),
+            ]);
+
+        return back()->with('success', "{$count} check(s) marked as cleared.");
     }
 
     public function printCheck(Request $request)
