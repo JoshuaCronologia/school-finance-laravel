@@ -393,15 +393,88 @@ class BankReconciliationController extends Controller
     }
 
     /**
-     * View bank statement details.
+     * View bank statement details with manual match UI.
      */
     public function viewStatement(BankStatement $statement)
     {
         $statement->load('bankAccount', 'items');
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('bank_name')->get();
+
+        // Outstanding checks for this bank (for manual matching dropdown)
+        $outstandingChecks = IssuedCheck::where('bank_account_id', $statement->bank_account_id)
+            ->where('status', 'outstanding')
+            ->orderBy('check_date')
+            ->get();
+
+        // Summary totals
+        $totalCleared = $statement->items->where('is_matched', true)->sum(function ($i) {
+            return max($i->debit, $i->credit);
+        });
+        $totalUnmatched = $statement->items->where('is_matched', false)->sum(function ($i) {
+            return max($i->debit, $i->credit);
+        });
+
+        // Balance check: bank statement closing balance vs book balance
+        $bookBalance = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+            ->where('je.status', 'posted')
+            ->whereDate('je.posting_date', '<=', $statement->statement_date)
+            ->where('journal_entry_lines.account_id', $statement->bankAccount->chart_account_id)
+            ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
+
+        $outstandingTotal = (float) IssuedCheck::where('bank_account_id', $statement->bank_account_id)
+            ->where('status', 'outstanding')
+            ->sum('amount');
+
+        $adjustedBankBalance = (float) $statement->closing_balance - $outstandingTotal;
+        $difference = $adjustedBankBalance - $bookBalance;
+
         $tab = 'statement-detail';
 
-        return view('pages.gl.bank-reconciliation', compact('statement', 'bankAccounts', 'tab'));
+        return view('pages.gl.bank-reconciliation', compact(
+            'statement', 'bankAccounts', 'tab', 'outstandingChecks',
+            'totalCleared', 'totalUnmatched', 'bookBalance', 'adjustedBankBalance', 'difference', 'outstandingTotal'
+        ));
+    }
+
+    /**
+     * Manually match a statement item to an issued check.
+     */
+    public function manualMatch(Request $request, BankStatementItem $item)
+    {
+        $validated = $request->validate([
+            'check_id' => 'required|exists:issued_checks,id',
+        ]);
+
+        $check = IssuedCheck::findOrFail($validated['check_id']);
+
+        $item->update([
+            'is_matched' => true,
+            'matched_check_id' => $check->id,
+        ]);
+
+        $check->update([
+            'status' => 'cleared',
+            'cleared_date' => $item->transaction_date,
+        ]);
+
+        return back()->with('success', "Statement item matched to check #{$check->check_number} and marked as cleared.");
+    }
+
+    /**
+     * Unmatch a statement item (undo match).
+     */
+    public function unmatch(BankStatementItem $item)
+    {
+        if ($item->matched_check_id) {
+            $check = IssuedCheck::find($item->matched_check_id);
+            if ($check) {
+                $check->update(['status' => 'outstanding', 'cleared_date' => null]);
+            }
+        }
+
+        $item->update(['is_matched' => false, 'matched_check_id' => null]);
+
+        return back()->with('success', 'Match removed. Check is back to outstanding.');
     }
 
     /**

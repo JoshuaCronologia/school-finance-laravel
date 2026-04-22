@@ -162,6 +162,8 @@ Route::middleware(['check_auth'])->group(function () {
         Route::post('/bank-reconciliation/check/{check}/void', [\App\Http\Controllers\GL\BankReconciliationController::class, 'voidCheck'])->name('bank-reconciliation.void-check');
         Route::post('/bank-reconciliation/statement', [\App\Http\Controllers\GL\BankReconciliationController::class, 'uploadStatement'])->name('bank-reconciliation.upload-statement');
         Route::get('/bank-reconciliation/statement/{statement}', [\App\Http\Controllers\GL\BankReconciliationController::class, 'viewStatement'])->name('bank-reconciliation.view-statement');
+        Route::post('/bank-reconciliation/item/{item}/match', [\App\Http\Controllers\GL\BankReconciliationController::class, 'manualMatch'])->name('bank-reconciliation.manual-match');
+        Route::post('/bank-reconciliation/item/{item}/unmatch', [\App\Http\Controllers\GL\BankReconciliationController::class, 'unmatch'])->name('bank-reconciliation.unmatch');
         Route::get('/ledger-inquiry', [GLController::class, 'ledgerInquiry'])->name('ledger-inquiry');
         Route::get('/period-closing', [PeriodClosingController::class, 'index'])->name('period-closing');
         Route::post('/period-closing/{period}/close', [PeriodClosingController::class, 'close'])->name('period-closing.close');

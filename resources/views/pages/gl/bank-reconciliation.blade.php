@@ -439,7 +439,7 @@
             </thead>
             <tbody>
                 @forelse($statements as $stmt)
-                <tr>
+                <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('gl.bank-reconciliation.view-statement', $stmt) }}'">
                     <td>{{ $stmt->statement_date->format('M d, Y') }}</td>
                     <td>{{ $stmt->bankAccount->full_label ?? '-' }}</td>
                     <td>{{ $stmt->period_label }}</td>
@@ -537,18 +537,58 @@
 {{-- TAB: STATEMENT DETAIL --}}
 {{-- ============================================================ --}}
 @elseif($tab === 'statement-detail' && isset($statement))
+
+{{-- Summary Cards --}}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="card"><div class="card-body text-center">
+        <span class="text-xs text-secondary-500 uppercase">Statement Closing</span>
+        <p class="font-bold text-lg">₱{{ number_format($statement->closing_balance, 2) }}</p>
+    </div></div>
+    <div class="card"><div class="card-body text-center">
+        <span class="text-xs text-green-600 uppercase">Total Matched/Cleared</span>
+        <p class="font-bold text-lg text-green-600">₱{{ number_format($totalCleared, 2) }}</p>
+    </div></div>
+    <div class="card"><div class="card-body text-center">
+        <span class="text-xs text-amber-600 uppercase">Total Unmatched</span>
+        <p class="font-bold text-lg text-amber-600">₱{{ number_format($totalUnmatched, 2) }}</p>
+    </div></div>
+    <div class="card"><div class="card-body text-center">
+        <span class="text-xs text-red-600 uppercase">Outstanding Checks</span>
+        <p class="font-bold text-lg text-red-600">₱{{ number_format($outstandingTotal, 2) }}</p>
+    </div></div>
+</div>
+
+{{-- Balance Check --}}
+<div class="card mb-6 {{ abs($difference) < 0.01 ? 'border-green-300' : 'border-red-300' }} border-2">
+    <div class="card-header"><h3 class="card-title">Balance Check</h3></div>
+    <div class="card-body">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div class="p-3 bg-blue-50 rounded-lg">
+                <span class="text-xs text-blue-600 uppercase">Bank Statement Closing</span>
+                <p class="font-semibold text-lg">₱{{ number_format($statement->closing_balance, 2) }}</p>
+                <p class="text-xs text-secondary-500">Less: Outstanding Checks ₱{{ number_format($outstandingTotal, 2) }}</p>
+                <p class="font-semibold">= Adjusted Bank: ₱{{ number_format($adjustedBankBalance, 2) }}</p>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg">
+                <span class="text-xs text-green-600 uppercase">Book Balance (GL)</span>
+                <p class="font-semibold text-lg">₱{{ number_format($bookBalance, 2) }}</p>
+                <p class="text-xs text-secondary-500">As of {{ $statement->statement_date->format('M d, Y') }}</p>
+            </div>
+            <div class="p-3 {{ abs($difference) < 0.01 ? 'bg-green-50' : 'bg-red-50' }} rounded-lg">
+                <span class="text-xs uppercase {{ abs($difference) < 0.01 ? 'text-green-600' : 'text-red-600' }}">Difference</span>
+                <p class="font-bold text-xl {{ abs($difference) < 0.01 ? 'text-green-700' : 'text-red-700' }}">₱{{ number_format(abs($difference), 2) }}</p>
+                <p class="text-sm font-semibold {{ abs($difference) < 0.01 ? 'text-green-700' : 'text-red-700' }}">
+                    {{ abs($difference) < 0.01 ? '✓ RECONCILED' : '✗ UNRECONCILED' }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">{{ $statement->bankAccount->full_label }} - {{ $statement->period_label }}</h3>
         <a href="{{ route('gl.bank-reconciliation', ['tab' => 'statements']) }}" class="text-sm text-primary-600">Back to Statements</a>
-    </div>
-    <div class="card-body">
-        <div class="grid grid-cols-4 gap-4 mb-4 text-sm">
-            <div><span class="text-secondary-500">Opening:</span> <strong>₱{{ number_format($statement->opening_balance, 2) }}</strong></div>
-            <div><span class="text-secondary-500">Closing:</span> <strong>₱{{ number_format($statement->closing_balance, 2) }}</strong></div>
-            <div><span class="text-secondary-500">Total Debit:</span> <strong>₱{{ number_format($statement->total_debit, 2) }}</strong></div>
-            <div><span class="text-secondary-500">Total Credit:</span> <strong>₱{{ number_format($statement->total_credit, 2) }}</strong></div>
-        </div>
     </div>
     <div class="overflow-x-auto">
         <table class="data-table">
@@ -559,24 +599,49 @@
                     <th>Reference</th>
                     <th class="text-right">Debit</th>
                     <th class="text-right">Credit</th>
-                    <th class="text-right">Balance</th>
-                    <th>Matched</th>
+                    <th>Status</th>
+                    <th class="w-64">Manual Match</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($statement->items as $item)
-                <tr>
+                <tr class="{{ $item->is_matched ? 'bg-green-50/30' : '' }}">
                     <td>{{ $item->transaction_date->format('M d, Y') }}</td>
-                    <td>{{ $item->description }}</td>
+                    <td class="text-sm">{{ $item->description }}</td>
                     <td class="font-mono text-sm">{{ $item->reference_number ?? '-' }}</td>
                     <td class="text-right font-mono">{{ $item->debit > 0 ? '₱' . number_format($item->debit, 2) : '' }}</td>
                     <td class="text-right font-mono">{{ $item->credit > 0 ? '₱' . number_format($item->credit, 2) : '' }}</td>
-                    <td class="text-right font-mono">₱{{ number_format($item->running_balance, 2) }}</td>
                     <td>
                         @if($item->is_matched)
-                            <span class="badge badge-success">Matched</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">✓ Matched</span>
+                            @if($item->matched_check_id)
+                                <div class="text-xs text-secondary-500 mt-1">#{{ optional(\App\Models\IssuedCheck::find($item->matched_check_id))->check_number }}</div>
+                            @endif
                         @else
-                            <span class="badge badge-warning">Unmatched</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Unmatched</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($item->is_matched)
+                            <form action="{{ route('gl.bank-reconciliation.unmatch', $item) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="text-red-600 hover:text-red-700 text-sm" onclick="return confirm('Unmatch this item?')">Unmatch</button>
+                            </form>
+                        @else
+                            @if($outstandingChecks->count() > 0)
+                            <form action="{{ route('gl.bank-reconciliation.manual-match', $item) }}" method="POST" class="flex items-center gap-2">
+                                @csrf
+                                <select name="check_id" class="form-input text-xs flex-1" required>
+                                    <option value="">Select check...</option>
+                                    @foreach($outstandingChecks as $chk)
+                                        <option value="{{ $chk->id }}">#{{ $chk->check_number }} - {{ $chk->payee }} (₱{{ number_format($chk->amount, 2) }})</option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn-primary text-xs py-1 px-2">Match</button>
+                            </form>
+                            @else
+                            <span class="text-xs text-secondary-400">No outstanding checks</span>
+                            @endif
                         @endif
                     </td>
                 </tr>
