@@ -162,6 +162,109 @@ class JournalEntryController extends Controller
         }
     }
 
+    public function edit(JournalEntry $journalEntry)
+    {
+        if ($journalEntry->status !== 'draft') {
+            return redirect()->route('gl.journal-entries.show', $journalEntry)
+                ->with('error', 'Only draft entries can be edited.');
+        }
+
+        $journalEntry->load('lines');
+
+        $accounts = ChartOfAccount::active()->postable()->orderBy('account_code')->get();
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $campuses = \App\Models\Campus::where('is_active', true)->get();
+        $costCenters = \App\Models\CostCenter::where('is_active', true)->get();
+
+        return view('pages.gl.journal-entries.create', compact('journalEntry', 'accounts', 'departments', 'campuses', 'costCenters'));
+    }
+
+    public function update(Request $request, JournalEntry $journalEntry)
+    {
+        if ($journalEntry->status !== 'draft') {
+            return back()->with('error', 'Only draft entries can be edited.');
+        }
+
+        $validated = $request->validate([
+            'entry_date' => 'required|date',
+            'journal_type' => 'required|in:general,adjusting,closing,reversing,revenue,expense,payroll',
+            'description' => 'required|string',
+            'reference_number' => 'nullable|string|max:100',
+            'campus_id' => 'nullable|exists:campuses,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'school_year' => 'nullable|string|max:20',
+            'lines' => 'required|array|min:2',
+            'lines.*.account_id' => 'required|exists:chart_of_accounts,id',
+            'lines.*.description' => 'required|string',
+            'lines.*.debit' => 'required|numeric|min:0',
+            'lines.*.credit' => 'required|numeric|min:0',
+            'lines.*.department_id' => 'nullable|exists:departments,id',
+            'lines.*.cost_center_id' => 'nullable|exists:cost_centers,id',
+            'lines.*.fund_source_id' => 'nullable|exists:fund_sources,id',
+            'lines.*.project' => 'nullable|string|max:100',
+        ]);
+
+        $totalDebit = collect($validated['lines'])->sum('debit');
+        $totalCredit = collect($validated['lines'])->sum('credit');
+
+        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
+            return back()->withInput()->with('error',
+                "Journal entry must be balanced. Debits (₱" . number_format($totalDebit, 2) . ") and credits (₱" . number_format($totalCredit, 2) . ") do not match.");
+        }
+
+        foreach ($validated['lines'] as $i => $line) {
+            if ($line['debit'] == 0 && $line['credit'] == 0) {
+                return back()->withInput()->with('error', "Line " . ($i + 1) . " must have either a debit or credit amount.");
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($validated, $journalEntry, $request) {
+                $oldValues = $journalEntry->toArray();
+
+                $journalEntry->update([
+                    'entry_date' => $validated['entry_date'],
+                    'posting_date' => $validated['entry_date'],
+                    'journal_type' => $validated['journal_type'],
+                    'description' => $validated['description'],
+                    'reference_number' => $validated['reference_number'] ?? null,
+                    'campus_id' => $validated['campus_id'] ?? null,
+                    'department_id' => $validated['department_id'] ?? null,
+                    'school_year' => $validated['school_year'] ?? null,
+                ]);
+
+                // Replace lines
+                $journalEntry->lines()->delete();
+                foreach ($validated['lines'] as $i => $line) {
+                    JournalEntryLine::create([
+                        'journal_entry_id' => $journalEntry->id,
+                        'line_number' => $i + 1,
+                        'account_id' => $line['account_id'],
+                        'description' => $line['description'],
+                        'debit' => $line['debit'],
+                        'credit' => $line['credit'],
+                        'department_id' => $line['department_id'] ?? null,
+                        'cost_center_id' => $line['cost_center_id'] ?? null,
+                        'fund_source_id' => $line['fund_source_id'] ?? null,
+                        'project' => $line['project'] ?? null,
+                    ]);
+                }
+
+                app(AuditService::class)->log('update', 'journal_entry', $journalEntry, $oldValues, 'Journal entry updated');
+
+                if ($request->input('action') === 'submit_approval') {
+                    $journalEntry->update(['status' => 'pending_approval']);
+                    app(AuditService::class)->log('submit_approval', 'journal_entry', $journalEntry, null, 'Submitted for approval');
+                }
+            });
+
+            return redirect()->route('gl.journal-entries.show', $journalEntry)
+                ->with('success', "Journal entry {$journalEntry->entry_number} updated successfully.");
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'Failed to update journal entry: ' . $e->getMessage());
+        }
+    }
+
     public function show(JournalEntry $journalEntry)
     {
         $journalEntry->load('lines.account', 'lines.department', 'lines.costCenter', 'campus', 'department');
@@ -347,13 +450,73 @@ class JournalEntryController extends Controller
     /**
      * List recurring journal templates.
      */
-    public function recurring()
+    public function recurring(Request $request)
     {
-        $templates = RecurringJournalTemplate::with('lines.account')->get();
-        $accounts = ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
-        $departments = Department::where('is_active', true)->get();
+        // Browse posted JEs only (excludes reversed and draft)
+        $query = JournalEntry::with('lines.account')
+            ->where('status', 'posted')
+            ->orderByDesc('created_at')
+            ->orderByDesc('posting_date');
 
-        return view('pages.gl.recurring', compact('templates', 'accounts', 'departments'));
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('entry_number', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('reference_number', 'like', "%{$search}%");
+            });
+        }
+        if ($request->filled('journal_type')) {
+            $query->where('journal_type', $request->journal_type);
+        }
+
+        $entries = $query->paginate(20);
+
+        return view('pages.gl.recurring', compact('entries'));
+    }
+
+    /**
+     * Memorize — copy an existing JE as a new draft.
+     */
+    public function memorizeJournal(JournalEntry $journalEntry)
+    {
+        $journalEntry->load('lines');
+
+        $newJe = DB::transaction(function () use ($journalEntry) {
+            $entry = JournalEntry::create([
+                'entry_number' => NumberingService::generate('JE'),
+                'entry_date' => now(),
+                'posting_date' => now(),
+                'reference_number' => $journalEntry->reference_number,
+                'journal_type' => $journalEntry->journal_type,
+                'description' => $journalEntry->description,
+                'campus_id' => $journalEntry->campus_id,
+                'department_id' => $journalEntry->department_id,
+                'school_year' => $journalEntry->school_year,
+                'status' => 'draft',
+                'created_by' => auth()->id(),
+            ]);
+
+            foreach ($journalEntry->lines as $line) {
+                JournalEntryLine::create([
+                    'journal_entry_id' => $entry->id,
+                    'line_number' => $line->line_number,
+                    'account_id' => $line->account_id,
+                    'description' => $line->description,
+                    'debit' => $line->debit,
+                    'credit' => $line->credit,
+                    'department_id' => $line->department_id,
+                    'cost_center_id' => $line->cost_center_id,
+                    'fund_source_id' => $line->fund_source_id,
+                    'project' => $line->project,
+                ]);
+            }
+
+            return $entry;
+        });
+
+        return redirect()->route('gl.journal-entries.show', $newJe)
+            ->with('success', "Memorized {$journalEntry->entry_number} as new draft {$newJe->entry_number}. Click Edit if you need to modify any details.");
     }
 
     /**

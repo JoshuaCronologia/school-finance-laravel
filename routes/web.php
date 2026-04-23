@@ -82,7 +82,11 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/allocation', [BudgetController::class, 'allocation'])->name('allocation');
         Route::get('/budget-vs-actual/pdf', [BudgetController::class, 'budgetVsActualPdf'])->name('budget-vs-actual.pdf');
         Route::post('/planning', [BudgetController::class, 'storePlan'])->name('planning.store');
+        Route::get('/check', [BudgetController::class, 'checkBudget'])->name('check');
+        Route::get('/planning/{plan}', [BudgetController::class, 'show'])->name('planning.show');
         Route::put('/planning/{plan}', [BudgetController::class, 'updatePlan'])->name('planning.update');
+        Route::post('/planning/{plan}/approve', [BudgetController::class, 'approve'])->name('planning.approve');
+        Route::post('/planning/{plan}/revert', [BudgetController::class, 'revertToDraft'])->name('planning.revert');
         Route::post('/planning/copy-previous', [BudgetController::class, 'copyFromPreviousYear'])->name('planning.copy-previous');
         Route::get('/planning/export', [BudgetController::class, 'export'])->name('planning.export');
         Route::post('/allocation', [BudgetController::class, 'storeAllocation'])->name('allocation.store');
@@ -98,6 +102,8 @@ Route::middleware(['check_auth'])->group(function () {
         Route::post('/bills/{bill}/approve', [BillController::class, 'approve'])->name('bills.approve');
         Route::post('/bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
         Route::get('disbursements/export', [DisbursementController::class, 'export'])->name('disbursements.export');
+        Route::get('/disbursements-recurring', [DisbursementController::class, 'recurring'])->name('disbursements.recurring');
+        Route::post('/disbursements-recurring/{disbursement}/memorize', [DisbursementController::class, 'memorizeDisbursement'])->name('disbursements.recurring.memorize');
         Route::resource('disbursements', DisbursementController::class);
         Route::post('/disbursements/{disbursement}/submit', [DisbursementController::class, 'submit'])->name('disbursements.submit');
         Route::get('/approval-queue', [ApprovalController::class, 'index'])->name('approval-queue');
@@ -151,6 +157,7 @@ Route::middleware(['check_auth'])->group(function () {
         Route::post('/journal-entries/{journal_entry}/reverse', [JournalEntryController::class, 'reverse'])->name('journal-entries.reverse');
         Route::get('/journal-entries/{journal_entry}/print', [JournalEntryController::class, 'printVoucher'])->name('journal-entries.print');
         Route::get('/recurring', [JournalEntryController::class, 'recurring'])->name('recurring');
+        Route::post('/recurring/{journalEntry}/memorize', [JournalEntryController::class, 'memorizeJournal'])->name('recurring.memorize');
         Route::post('/recurring', [JournalEntryController::class, 'storeRecurring'])->name('recurring.store');
         Route::put('/recurring/{template}', [JournalEntryController::class, 'updateRecurring'])->name('recurring.update');
         Route::post('/recurring/{template}/generate', [JournalEntryController::class, 'generateRecurring'])->name('recurring.generate');

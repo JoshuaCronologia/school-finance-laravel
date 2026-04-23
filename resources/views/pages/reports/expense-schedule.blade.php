@@ -31,32 +31,8 @@
         <div class="card-header">
             <h3 class="text-sm font-semibold text-secondary-900">Expense Distribution</h3>
         </div>
-        <div class="card-body" x-data="{}" x-init="
-            if (typeof Chart !== 'undefined') {
-                const ctx = $refs.expenseChart.getContext('2d');
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: {!! json_encode($expenses->pluck('category_name')->toArray()) !!},
-                        datasets: [{
-                            data: {!! json_encode($expenses->pluck('amount')->toArray()) !!},
-                            backgroundColor: ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48'],
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        cutout: '60%',
-                        plugins: {
-                            legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } },
-                            tooltip: { callbacks: { label: ctx => ctx.label + ': ₱' + ctx.parsed.toLocaleString() } }
-                        }
-                    }
-                });
-            }
-        ">
-            <canvas x-ref="expenseChart" height="300"></canvas>
+        <div class="card-body">
+            <canvas id="expenseChart" height="300"></canvas>
         </div>
     </div>
 
@@ -114,4 +90,36 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var canvas = document.getElementById('expenseChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    var labels = @json($expenses->pluck('category_name')->toArray());
+    var data = @json($expenses->pluck('amount')->toArray());
+
+    if (!labels.length) return;
+
+    new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#14b8a6','#e11d48'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '60%',
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } },
+                tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ₱' + ctx.parsed.toLocaleString(); } } }
+            }
+        }
+    });
+});
+</script>
 @endpush

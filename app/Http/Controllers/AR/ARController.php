@@ -18,59 +18,37 @@ class ARController extends Controller
      */
     public function aging(Request $request)
     {
-        $result = Cache::remember('ar:aging', 300, function () {
-            // Single SQL query for customer aging buckets instead of loading all invoices
-            $rows = DB::select("
-                SELECT c.id as customer_id, c.name as customer_name, c.customer_code,
-                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) <= 0 THEN i.balance END), 0) as current,
-                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 1 AND 30 THEN i.balance END), 0) as days_1_30,
-                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 31 AND 60 THEN i.balance END), 0) as days_31_60,
-                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) BETWEEN 61 AND 90 THEN i.balance END), 0) as days_61_90,
-                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), i.due_date) > 90 THEN i.balance END), 0) as over_90,
-                    COALESCE(SUM(i.balance), 0) as total
-                FROM customers c
-                JOIN ar_invoices i ON i.customer_id = c.id
-                WHERE i.status NOT IN ('cancelled', 'voided', 'paid') AND i.balance > 0
-                GROUP BY c.id, c.name, c.customer_code
-                ORDER BY total DESC
-            ");
+        $asOfDate = $request->input('as_of_date', now()->toDateString());
 
-            $agingBuckets = [
-                'current' => ['label' => 'Current', 'items' => collect(), 'total' => 0],
-                '1_30' => ['label' => '1-30 Days', 'items' => collect(), 'total' => 0],
-                '31_60' => ['label' => '31-60 Days', 'items' => collect(), 'total' => 0],
-                '61_90' => ['label' => '61-90 Days', 'items' => collect(), 'total' => 0],
-                'over_90' => ['label' => 'Over 90 Days', 'items' => collect(), 'total' => 0],
+        $rows = DB::select("
+            SELECT c.id as customer_id, c.name as customer_name, c.customer_code,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, i.due_date) <= 0 THEN i.balance END), 0) as `current`,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, i.due_date) BETWEEN 1 AND 30 THEN i.balance END), 0) as days_30,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, i.due_date) BETWEEN 31 AND 60 THEN i.balance END), 0) as days_60,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, i.due_date) BETWEEN 61 AND 90 THEN i.balance END), 0) as days_90,
+                COALESCE(SUM(CASE WHEN DATEDIFF(?, i.due_date) > 90 THEN i.balance END), 0) as days_90_plus,
+                COALESCE(SUM(i.balance), 0) as total
+            FROM customers c
+            JOIN ar_invoices i ON i.customer_id = c.id
+            WHERE i.status NOT IN ('cancelled', 'voided', 'paid') AND i.balance > 0
+            GROUP BY c.id, c.name, c.customer_code
+            HAVING total > 0
+            ORDER BY total DESC
+        ", [$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate]);
+
+        $aging = collect($rows)->map(function ($r) {
+            return (object) [
+                'customer_code' => $r->customer_code,
+                'customer_name' => $r->customer_name,
+                'current' => (float) $r->current,
+                'days_30' => (float) $r->days_30,
+                'days_60' => (float) $r->days_60,
+                'days_90' => (float) $r->days_90,
+                'days_90_plus' => (float) $r->days_90_plus,
             ];
-
-            $customerAging = [];
-            $grandTotal = 0;
-
-            foreach ($rows as $row) {
-                $customer = (object) ['id' => $row->customer_id, 'name' => $row->customer_name, 'customer_code' => $row->customer_code];
-                $customerAging[] = [
-                    'customer' => $customer,
-                    'current' => (float) $row->current,
-                    '1_30' => (float) $row->days_1_30,
-                    '31_60' => (float) $row->days_31_60,
-                    '61_90' => (float) $row->days_61_90,
-                    'over_90' => (float) $row->over_90,
-                    'total' => (float) $row->total,
-                ];
-                $agingBuckets['current']['total'] += (float) $row->current;
-                $agingBuckets['1_30']['total'] += (float) $row->days_1_30;
-                $agingBuckets['31_60']['total'] += (float) $row->days_31_60;
-                $agingBuckets['61_90']['total'] += (float) $row->days_61_90;
-                $agingBuckets['over_90']['total'] += (float) $row->over_90;
-                $grandTotal += (float) $row->total;
-            }
-
-            $customerAging = collect($customerAging)->values();
-
-            return compact('agingBuckets', 'customerAging', 'grandTotal');
         });
 
-        return view('pages.ar.aging', $result);
+        return view('pages.ar.aging', compact('aging', 'asOfDate'));
     }
 
     /**

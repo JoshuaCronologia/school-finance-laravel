@@ -34,7 +34,7 @@
     {{-- Cash Receipts Journal --}}
     <div x-show="activeTab === 'receipts'" x-transition>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <x-stat-card label="Total Amount" :value="'₱' . number_format($cashReceipts->sum('amount'), 2)" color="green" />
+            <x-stat-card label="Total Amount" :value="'₱' . number_format(($cashReceipts->sum('debit') + $cashReceipts->sum('credit')), 2)" color="green" />
             <x-stat-card label="Entry Count" :value="number_format($cashReceipts->count())" color="blue" />
         </div>
         <div class="flex items-center gap-2 mb-4">
@@ -80,7 +80,7 @@
     {{-- Cash Disbursements Journal --}}
     <div x-show="activeTab === 'disbursements'" x-transition x-cloak>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <x-stat-card label="Total Amount" :value="'₱' . number_format($cashDisbursements->sum('amount'), 2)" color="red" />
+            <x-stat-card label="Total Amount" :value="'₱' . number_format(($cashDisbursements->sum('debit') + $cashDisbursements->sum('credit')), 2)" color="red" />
             <x-stat-card label="Entry Count" :value="number_format($cashDisbursements->count())" color="blue" />
         </div>
         <div class="flex items-center gap-2 mb-4">
@@ -128,7 +128,7 @@
     {{-- Sales Journal --}}
     <div x-show="activeTab === 'sales'" x-transition x-cloak>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <x-stat-card label="Total Amount" :value="'₱' . number_format($salesJournal->sum('amount'), 2)" color="green" />
+            <x-stat-card label="Total Amount" :value="'₱' . number_format(($salesJournal->sum('debit') + $salesJournal->sum('credit')), 2)" color="green" />
             <x-stat-card label="Entry Count" :value="number_format($salesJournal->count())" color="blue" />
         </div>
         <div class="flex items-center gap-2 mb-4">
@@ -170,7 +170,7 @@
     {{-- Purchases Journal --}}
     <div x-show="activeTab === 'purchases'" x-transition x-cloak>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <x-stat-card label="Total Amount" :value="'₱' . number_format($purchasesJournal->sum('amount'), 2)" color="red" />
+            <x-stat-card label="Total Amount" :value="'₱' . number_format(($purchasesJournal->sum('debit') + $purchasesJournal->sum('credit')), 2)" color="red" />
             <x-stat-card label="Entry Count" :value="number_format($purchasesJournal->count())" color="blue" />
         </div>
         <div class="flex items-center gap-2 mb-4">

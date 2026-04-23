@@ -67,6 +67,85 @@ class DisbursementController extends Controller
         return view('pages.ap.disbursements.create', $this->formData());
     }
 
+    /**
+     * Recurring Disbursements page — browse past disbursements to memorize/copy as new.
+     */
+    public function recurring(Request $request)
+    {
+        // Only show approved+ disbursements (draft/pending not eligible for memorizing)
+        $query = DisbursementRequest::with('department', 'category')
+            ->whereIn('status', ['approved', 'paid'])
+            ->orderByDesc('created_at')
+            ->latest('request_date');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('request_number', 'like', "%{$search}%")
+                  ->orWhere('payee_name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $disbursements = $query->paginate(20);
+
+        return view('pages.ap.disbursements.recurring', compact('disbursements'));
+    }
+
+    /**
+     * Memorize — copy an existing disbursement as a new draft.
+     * Preserves all fields: payee, department, items, tax codes, remarks, attachments, description.
+     */
+    public function memorizeDisbursement(DisbursementRequest $disbursement)
+    {
+        $disbursement->load('items');
+
+        $newDr = DB::transaction(function () use ($disbursement) {
+            $dr = DisbursementRequest::create([
+                'request_number' => \App\Services\NumberingService::generate('DR'),
+                'request_date' => now(),
+                'due_date' => $disbursement->due_date,
+                'payee_type' => $disbursement->payee_type,
+                'payee_id' => $disbursement->payee_id,
+                'payee_name' => $disbursement->payee_name,
+                'description' => $disbursement->description,
+                'amount' => $disbursement->amount,
+                'department_id' => $disbursement->department_id,
+                'category_id' => $disbursement->category_id,
+                'cost_center_id' => $disbursement->cost_center_id,
+                'project' => $disbursement->project,
+                'budget_id' => $disbursement->budget_id,
+                'payment_method' => $disbursement->payment_method,
+                'attachments' => $disbursement->attachments, // carry over attachment references
+                'status' => 'draft',
+                'requested_by' => auth()->id(),
+            ]);
+
+            foreach ($disbursement->items as $item) {
+                \App\Models\DisbursementItem::create([
+                    'disbursement_id' => $dr->id,
+                    'description' => $item->description,
+                    'quantity' => $item->quantity ?? 1,
+                    'unit_cost' => $item->unit_cost ?? $item->amount,
+                    'amount' => $item->amount,
+                    'account_id' => $item->account_id,
+                    'account_code' => $item->account_code,
+                    'tax_code_id' => $item->tax_code_id,
+                    'tax_code' => $item->tax_code,
+                    'remarks' => $item->remarks,
+                ]);
+            }
+
+            return $dr;
+        });
+
+        return redirect()->route('ap.disbursements.show', $newDr)
+            ->with('success', "Memorized {$disbursement->request_number} as new draft {$newDr->request_number}. Click Edit if you need to modify any details.");
+    }
+
     public function edit(DisbursementRequest $disbursement)
     {
         if ($disbursement->status !== 'draft') {
@@ -193,6 +272,106 @@ class DisbursementController extends Controller
                 ->with('success', 'Disbursement request created successfully.');
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Failed to create disbursement: ' . $e->getMessage());
+        }
+    }
+
+    public function update(Request $request, DisbursementRequest $disbursement)
+    {
+        if ($disbursement->status !== 'draft') {
+            return back()->with('error', 'Only draft requests can be edited.');
+        }
+
+        $validated = $request->validate([
+            'request_date' => 'required|date',
+            'due_date' => 'nullable|date',
+            'payee_type' => 'required|in:vendor,employee,other',
+            'payee_id' => 'nullable|integer',
+            'payee_name' => 'required|string|max:255',
+            'department_id' => 'required|exists:departments,id',
+            'category_id' => 'nullable|exists:expense_categories,id',
+            'cost_center_id' => 'nullable|exists:cost_centers,id',
+            'project' => 'nullable|string|max:100',
+            'payment_method' => 'nullable|in:cash,check,bank_transfer,online',
+            'description' => 'required|string',
+            'budget_id' => 'nullable|exists:budgets,id',
+            'items' => 'required|array|min:1',
+            'items.*.description' => 'required|string',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_cost' => 'required|numeric|min:0',
+            'items.*.amount' => 'required|numeric|min:0',
+            'items.*.account_code' => 'nullable|string|max:20',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
+            'remove_attachments' => 'nullable|array',
+        ]);
+
+        $totalAmount = collect($validated['items'])->sum('amount');
+
+        try {
+            DB::transaction(function () use ($validated, $totalAmount, $disbursement, $request) {
+                $oldValues = $disbursement->toArray();
+
+                $disbursement->update([
+                    'request_date' => $validated['request_date'],
+                    'due_date' => $validated['due_date'] ?? null,
+                    'payee_type' => $validated['payee_type'],
+                    'payee_id' => $validated['payee_id'] ?? null,
+                    'payee_name' => $validated['payee_name'],
+                    'department_id' => $validated['department_id'],
+                    'category_id' => $validated['category_id'] ?? null,
+                    'cost_center_id' => $validated['cost_center_id'] ?? null,
+                    'project' => $validated['project'] ?? null,
+                    'amount' => $totalAmount,
+                    'payment_method' => $validated['payment_method'],
+                    'description' => $validated['description'],
+                    'budget_id' => $validated['budget_id'] ?? null,
+                ]);
+
+                // Replace line items
+                $disbursement->items()->delete();
+                foreach ($validated['items'] as $item) {
+                    DisbursementItem::create([
+                        'disbursement_id' => $disbursement->id,
+                        'description' => $item['description'],
+                        'quantity' => $item['quantity'],
+                        'unit_cost' => $item['unit_cost'],
+                        'amount' => $item['amount'],
+                        'account_code' => $item['account_code'] ?? null,
+                        'tax_code' => $item['tax_code'] ?? null,
+                        'remarks' => $item['remarks'] ?? null,
+                    ]);
+                }
+
+                // Handle attachments
+                $existing = is_array($disbursement->attachments) ? $disbursement->attachments
+                    : (json_decode($disbursement->attachments ?? '[]', true) ?: []);
+
+                // Remove selected
+                if (!empty($validated['remove_attachments'])) {
+                    $existing = array_values(array_diff_key($existing, array_flip($validated['remove_attachments'])));
+                }
+
+                // Add new uploads
+                if (isset($validated['attachments']) && is_writable(storage_path('app/public'))) {
+                    foreach ($validated['attachments'] as $file) {
+                        $path = $file->store("disbursements/{$disbursement->id}", 'public');
+                        $existing[] = [
+                            'filename' => $file->getClientOriginalName(),
+                            'path' => $path,
+                            'size' => $file->getSize(),
+                        ];
+                    }
+                }
+
+                $disbursement->update(['attachments' => json_encode($existing)]);
+
+                app(AuditService::class)->log('update', 'disbursement', $disbursement, $oldValues, 'Disbursement request updated');
+            });
+
+            return redirect()->route('ap.disbursements.show', $disbursement)
+                ->with('success', 'Disbursement request updated successfully.');
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'Failed to update disbursement: ' . $e->getMessage());
         }
     }
 

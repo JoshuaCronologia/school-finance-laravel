@@ -173,6 +173,11 @@ class BudgetController extends Controller
      */
     public function update(Request $request, Budget $budget)
     {
+        // Lock approved budgets — cannot edit core fields once approved
+        if (in_array($budget->status, ['approved', 'active'])) {
+            return back()->with('error', 'Approved budgets cannot be edited. Only draft budgets can be modified.');
+        }
+
         $validated = $request->validate([
             'budget_name' => 'required|string|max:255',
             'school_year' => 'required|string|max:20',
@@ -191,6 +196,101 @@ class BudgetController extends Controller
         app(AuditService::class)->log('update', 'budget', $budget, $oldValues, 'Budget updated');
 
         return redirect()->route('budget.planning')->with('success', 'Budget updated successfully.');
+    }
+
+    /**
+     * Find matching budget by department + category for a disbursement form.
+     * Returns id, budget, committed, actual, remaining — used to auto-link budget_id.
+     */
+    public function checkBudget(Request $request)
+    {
+        $deptId = $request->input('department_id');
+        $catId = $request->input('category_id');
+
+        if (!$deptId || !$catId) {
+            return response()->json(['loaded' => false]);
+        }
+
+        $budget = Budget::where('department_id', $deptId)
+            ->where('category_id', $catId)
+            ->whereIn('status', ['draft', 'approved', 'active'])
+            ->orderByDesc('school_year')
+            ->first();
+
+        if (!$budget) {
+            return response()->json(['loaded' => false]);
+        }
+
+        $remaining = (float) $budget->annual_budget - (float) $budget->committed - (float) $budget->actual;
+
+        return response()->json([
+            'id' => $budget->id,
+            'budget' => (float) $budget->annual_budget,
+            'committed' => (float) $budget->committed,
+            'actual' => (float) $budget->actual,
+            'remaining' => $remaining,
+        ]);
+    }
+
+    /**
+     * Show budget detail with list of disbursements using this budget.
+     */
+    public function show(Budget $plan)
+    {
+        $budget = $plan;
+        $budget->load('department', 'category', 'costCenter', 'allocations');
+
+        // Get all disbursements that used this budget
+        $disbursements = \App\Models\DisbursementRequest::with('department', 'category', 'payment')
+            ->where('budget_id', $budget->id)
+            ->orderByDesc('request_date')
+            ->get();
+
+        $approvedTotal = $disbursements->where('status', 'approved')->sum('amount');
+        $paidTotal = $disbursements->where('status', 'paid')->sum('amount');
+        $pendingTotal = $disbursements->whereIn('status', ['draft', 'pending_approval'])->sum('amount');
+
+        $available = (float) $budget->annual_budget - (float) $budget->committed - (float) $budget->actual;
+
+        return view('pages.budget.show', compact(
+            'budget', 'disbursements', 'approvedTotal', 'paidTotal', 'pendingTotal', 'available'
+        ));
+    }
+
+    /**
+     * Approve a draft budget — locks it from further editing.
+     */
+    public function approve(Budget $plan)
+    {
+        if ($plan->status !== 'draft') {
+            return back()->with('error', 'Only draft budgets can be approved.');
+        }
+
+        $plan->update(['status' => 'approved']);
+
+        app(AuditService::class)->log('approve', 'budget', $plan, null, 'Budget approved');
+
+        return back()->with('success', "Budget '{$plan->budget_name}' approved and locked.");
+    }
+
+    /**
+     * Revert approved budget back to draft.
+     */
+    public function revertToDraft(Budget $plan)
+    {
+        if ($plan->status === 'draft') {
+            return back()->with('error', 'Budget is already in draft status.');
+        }
+
+        if ($plan->actual > 0 || $plan->committed > 0) {
+            return back()->with('error', 'Cannot revert budget with existing commitments or actual spending.');
+        }
+
+        $plan->update(['status' => 'draft']);
+
+        app(AuditService::class)->log('revert', 'budget', $plan, null, 'Budget reverted to draft');
+
+        return back()->with('success', "Budget '{$plan->budget_name}' reverted to draft.");
     }
 
     /**
@@ -240,6 +340,15 @@ class BudgetController extends Controller
             'month' => 'required|integer|min:1|max:12',
             'amount' => 'required|numeric|min:0',
         ]);
+
+        // Lock approved budget allocations
+        $budget = Budget::find($validated['budget_id']);
+        if ($budget && in_array($budget->status, ['approved', 'active'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Approved budgets cannot be modified.',
+            ], 403);
+        }
 
         $allocation = BudgetAllocation::updateOrCreate(
             ['budget_id' => $validated['budget_id'], 'month' => $validated['month']],

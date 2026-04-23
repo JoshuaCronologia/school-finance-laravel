@@ -2,196 +2,168 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Payment Voucher - {{ $payment->voucher_number }}</title>
+    <title>Check Voucher - {{ $payment->voucher_number }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10px; color: #1a1a1a; padding: 30px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-        .header h2 { font-size: 14px; font-weight: normal; color: #555; border-bottom: 2px solid #333; padding-bottom: 8px; }
-        .meta-table { width: 100%; margin-bottom: 15px; border: none; }
-        .meta-table td { padding: 3px 8px; font-size: 10px; border: none; vertical-align: top; }
-        .meta-label { font-weight: bold; color: #555; width: 130px; }
-        .meta-value { color: #1a1a1a; }
-        table.items { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        table.items th { background-color: #2c3e50; color: #fff; padding: 6px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; }
-        table.items td { border: 1px solid #ddd; padding: 5px 8px; font-size: 10px; }
-        table.items tfoot td { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid #333; }
-        .text-right { text-align: right; }
+        @page { margin: 0.5in 0.6in; size: letter portrait; }
+        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10px; color: #000; }
+
+        /* School Header - compact */
+        .school-header { text-align: center; margin-bottom: 8px; }
+        .school-name { font-size: 13px; font-weight: bold; font-style: italic; }
+        .school-address { font-size: 9px; color: #000; margin-top: 1px; }
+
+        .voucher-title { font-size: 12px; font-weight: bold; text-align: center; margin: 6px 0 10px; letter-spacing: 1px; }
+
+        /* Top info section - compact */
+        .top-info { width: 100%; margin-bottom: 8px; }
+        .top-info td { padding: 2px 0; font-size: 10px; vertical-align: bottom; }
+        .top-info .value { border-bottom: 1px solid #000; padding: 0 4px 1px; }
+        .top-info .right-col { text-align: right; padding-right: 4px; }
+
+        /* Main accounts table */
+        table.accounts { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        table.accounts th { padding: 3px 4px; font-size: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #000; border-top: 1px solid #000; }
+        table.accounts td { padding: 2px 4px; font-size: 10px; vertical-align: top; }
+        table.accounts .account-col { width: 56%; }
+        table.accounts .debit-col, table.accounts .credit-col { width: 22%; text-align: right; font-family: "Courier New", monospace; }
+
+        /* Received section - compact */
+        .received-section { margin-top: 10px; border-top: 1px solid #000; padding-top: 6px; font-size: 10px; line-height: 1.6; }
+        .received-section .amount-line { border-bottom: 1px solid #000; display: inline-block; min-width: 120px; padding: 0 4px; font-family: "Courier New", monospace; text-align: right; }
+
+        /* Signature grid - boxed layout like sample */
+        .signatures { width: 100%; margin-top: 15px; border-collapse: collapse; border: 1px solid #000; }
+        .signatures td { padding: 22px 14px 4px; vertical-align: bottom; text-align: center; font-size: 9px; width: 25%; border-right: 1px solid #000; }
+        .signatures td:last-child { border-right: none; }
+        .signatures .date-received-row td { padding: 22px 14px 4px; border-top: 1px solid #000; }
+
+        /* Text utilities */
         .text-center { text-align: center; }
-        .summary-box { margin-bottom: 15px; float: right; width: 280px; }
-        .summary-box table { width: 100%; border: 1px solid #ddd; }
-        .summary-box td { padding: 4px 10px; font-size: 10px; border-bottom: 1px solid #eee; }
-        .summary-box .total-row td { background-color: #f0f4f8; font-weight: bold; font-size: 11px; border-top: 2px solid #333; }
-        .description-box { margin-bottom: 15px; padding: 8px 10px; border: 1px solid #ddd; background: #f9fafb; font-size: 10px; clear: both; }
-        .description-box .label { font-weight: bold; color: #555; }
-        .signature-section { margin-top: 40px; clear: both; }
-        .signature-section table { width: 100%; border: none; }
-        .signature-section td { border: none; padding: 5px 20px; text-align: center; vertical-align: bottom; width: 33.33%; }
-        .signature-line { border-top: 1px solid #333; margin-top: 35px; padding-top: 4px; font-size: 9px; color: #555; }
-        .signature-name { font-size: 10px; font-weight: bold; margin-top: 2px; }
-        .footer { margin-top: 20px; font-size: 8px; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: 5px; clear: both; }
-        .status-badge { display: inline-block; padding: 2px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; border-radius: 3px; background: #d4edda; color: #155724; }
-        .clearfix::after { content: ""; display: table; clear: both; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
+        .uppercase { text-transform: uppercase; }
     </style>
 </head>
 <body>
     @php
         $d = $payment->disbursement;
+        $schoolName = \App\Models\Setting::where('key', 'school_name')->value('value') ?? 'OrangeApps School Finance ERP';
+        $schoolAddress = \App\Models\Setting::where('key', 'school_address')->value('value') ?? '';
+
+        // Compute total debit and credit lines
+        $totalDebit = $payment->gross_amount;
+        $wht = (float) ($payment->withholding_tax ?? 0);
+        $netAmount = $payment->net_amount;
     @endphp
 
-    <div class="header">
-        <h1>Disbursement Voucher</h1>
-        <h2>{{ $payment->voucher_number }}</h2>
+    {{-- School Header --}}
+    <div class="school-header">
+        <div class="school-name">{{ $schoolName }}</div>
+        @if($schoolAddress)
+        <div class="school-address">{{ $schoolAddress }}</div>
+        @endif
     </div>
 
-    {{-- Voucher Metadata --}}
-    <table class="meta-table">
+    <div class="voucher-title">CHECK VOUCHER</div>
+
+    {{-- Top Info Section --}}
+    <table class="top-info">
         <tr>
-            <td class="meta-label">Voucher Number:</td>
-            <td class="meta-value">{{ $payment->voucher_number }}</td>
-            <td class="meta-label">Payment Date:</td>
-            <td class="meta-value">{{ \Carbon\Carbon::parse($payment->payment_date)->format('F d, Y') }}</td>
+            <td style="width: 13%;">PAY TO:</td>
+            <td style="width: 57%;" class="value text-bold uppercase">{{ $d->payee_name ?? '' }}</td>
+            <td style="width: 10%;" class="right-col">NO.</td>
+            <td style="width: 20%;" class="value text-bold text-center">{{ $payment->voucher_number }}</td>
         </tr>
         <tr>
-            <td class="meta-label">Request Number:</td>
-            <td class="meta-value">{{ $d->request_number ?? '-' }}</td>
-            <td class="meta-label">Request Date:</td>
-            <td class="meta-value">{{ $d->request_date ? $d->request_date->format('F d, Y') : '-' }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">Payee:</td>
-            <td class="meta-value"><strong>{{ $d->payee_name ?? '-' }}</strong></td>
-            <td class="meta-label">Payee Type:</td>
-            <td class="meta-value">{{ ucfirst($d->payee_type ?? '-') }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">Department:</td>
-            <td class="meta-value">{{ $d->department->name ?? '-' }}</td>
-            <td class="meta-label">Category:</td>
-            <td class="meta-value">{{ $d->category->name ?? '-' }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">Payment Method:</td>
-            <td class="meta-value">{{ ucfirst(str_replace('_', ' ', $payment->payment_method ?? '-')) }}</td>
-            <td class="meta-label">Check/Ref #:</td>
-            <td class="meta-value">{{ $payment->check_number ?? $payment->reference_number ?? '-' }}</td>
-        </tr>
-        <tr>
-            <td class="meta-label">Bank Account:</td>
-            <td class="meta-value">{{ $payment->bank_account ?? '-' }}</td>
-            <td class="meta-label">Status:</td>
-            <td class="meta-value"><span class="status-badge">{{ strtoupper($payment->status) }}</span></td>
+            <td>EXPLANATION:</td>
+            <td class="value">{{ $d->description ?? '' }}</td>
+            <td class="right-col">DATE:</td>
+            <td class="value text-center">{{ \Carbon\Carbon::parse($payment->payment_date)->format('m/d/Y') }}</td>
         </tr>
     </table>
 
-    {{-- Description --}}
-    @if($d->description)
-    <div class="description-box">
-        <span class="label">Purpose/Description:</span> {{ $d->description }}
-    </div>
-    @endif
-
-    {{-- Line Items --}}
-    <table class="items">
+    {{-- Accounts Table --}}
+    <table class="accounts">
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 35%;">Description</th>
-                <th class="text-right" style="width: 10%;">Qty</th>
-                <th class="text-right" style="width: 15%;">Unit Cost</th>
-                <th class="text-right" style="width: 15%;">Amount</th>
-                <th style="width: 10%;">Account</th>
-                <th style="width: 10%;">Remarks</th>
+                <th class="account-col">ACCOUNT TITLE</th>
+                <th class="debit-col">DEBIT</th>
+                <th class="credit-col">CREDIT</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($d->items ?? [] as $i => $item)
+            {{-- Debit: Each expense account from line items --}}
+            @foreach($d->items ?? [] as $item)
             <tr>
-                <td class="text-center">{{ $i + 1 }}</td>
-                <td>{{ $item->description ?? '-' }}</td>
-                <td class="text-right">{{ number_format($item->quantity, 0) }}</td>
-                <td class="text-right">{{ '₱' . number_format($item->unit_cost, 2) }}</td>
-                <td class="text-right">{{ '₱' . number_format($item->amount, 2) }}</td>
-                <td>{{ $item->account_code ?? '-' }}</td>
-                <td>{{ $item->remarks ?? '-' }}</td>
+                <td class="account-col">
+                    @if($item->account_code)
+                        {{ $item->account_code }} - {{ $item->description ?? '' }}
+                    @else
+                        {{ $item->description ?? '' }}
+                    @endif
+                </td>
+                <td class="debit-col">{{ number_format($item->amount, 2) }}</td>
+                <td class="credit-col"></td>
             </tr>
             @endforeach
+
+            {{-- Credit: WHT (if applicable) --}}
+            @if($wht > 0)
+            <tr>
+                <td class="account-col">2502-00: WTAX Expanded</td>
+                <td class="debit-col"></td>
+                <td class="credit-col">{{ number_format($wht, 2) }}</td>
+            </tr>
+            @endif
+
+            {{-- Credit: Cash/Bank --}}
+            <tr>
+                <td class="account-col">
+                    @if($payment->bank_account)
+                        1105-00: {{ $payment->bank_account }}
+                    @else
+                        1100-00: Cash in Bank
+                    @endif
+                </td>
+                <td class="debit-col"></td>
+                <td class="credit-col">{{ number_format($netAmount, 2) }}</td>
+            </tr>
+
+            {{-- Totals --}}
+            <tr style="border-top: 1px solid #000;">
+                <td class="account-col text-bold" style="padding-top: 6px;">TOTAL</td>
+                <td class="debit-col text-bold" style="padding-top: 6px; border-top: 1px solid #000; border-bottom: 2px solid #000;">{{ number_format($totalDebit, 2) }}</td>
+                <td class="credit-col text-bold" style="padding-top: 6px; border-top: 1px solid #000; border-bottom: 2px solid #000;">{{ number_format($totalDebit, 2) }}</td>
+            </tr>
         </tbody>
     </table>
 
-    {{-- Amount Summary --}}
-    <div class="summary-box">
-        <table>
-            <tr>
-                <td>Gross Amount</td>
-                <td class="text-right">{{ '₱' . number_format($payment->gross_amount, 2) }}</td>
-            </tr>
-            @if($payment->withholding_tax > 0)
-            <tr>
-                <td>Less: Withholding Tax</td>
-                <td class="text-right" style="color: #c0392b;">({{ '₱' . number_format($payment->withholding_tax, 2) }})</td>
-            </tr>
-            @endif
-            <tr class="total-row">
-                <td>Net Amount Paid</td>
-                <td class="text-right">{{ '₱' . number_format($payment->net_amount, 2) }}</td>
-            </tr>
-        </table>
+    {{-- Received Section --}}
+    <div class="received-section">
+        <p style="margin-bottom: 8px;">
+            RECEIVED FROM <strong>{{ strtoupper($schoolName) }}</strong> THE SUM OF PESOS
+            <span class="amount-line">{{ number_format($netAmount, 2) }}</span>
+            &nbsp;IN PAYMENT OF
+        </p>
+        <p>
+            THE ABOVE DESCRIBED ACCOUNT AS PER CHECK NO.
+            <span class="amount-line" style="min-width: 100px;">{{ $payment->check_number ?? $payment->reference_number ?? '' }}</span>
+        </p>
     </div>
 
-    <div class="clearfix"></div>
-
-    {{-- Signature Section with Prepared by / Approved by --}}
-    <div class="signature-section">
-        <table>
-            <tr>
-                <td>
-                    @php
-                        $preparedBy = $d->requested_by ?? null;
-                    @endphp
-                    @if($preparedBy)
-                        <div class="signature-name">{{ $preparedBy }}</div>
-                    @endif
-                    <div class="signature-line">Prepared by</div>
-                </td>
-                <td>
-                    <div class="signature-line">Checked/Reviewed by</div>
-                </td>
-                <td>
-                    @php
-                        $approvedBy = null;
-                        if ($d->approvals && $d->approvals->count() > 0) {
-                            $approval = $d->approvals->where('action', 'approved')->first();
-                            $approvedBy = $approval->approver->name ?? $approval->approver_name ?? null;
-                        }
-                    @endphp
-                    @if($approvedBy)
-                        <div class="signature-name">{{ $approvedBy }}</div>
-                    @endif
-                    <div class="signature-line">Approved by</div>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    {{-- Received by --}}
-    <div class="signature-section" style="margin-top: 25px;">
-        <table>
-            <tr>
-                <td>
-                    <div class="signature-line">Received by (Payee Signature)</div>
-                </td>
-                <td>
-                    <div class="signature-line">Date Received</div>
-                </td>
-                <td></td>
-            </tr>
-        </table>
-    </div>
-
-    <div class="footer">
-        School Finance ERP &mdash; Disbursement Voucher &mdash; Printed on {{ $printedAt }} by {{ $printedBy }}
-    </div>
+    {{-- Signatures --}}
+    <table class="signatures">
+        <tr>
+            <td>Prepared by</td>
+            <td>Checked by</td>
+            <td>Approved by</td>
+            <td>Signature over Printed Name</td>
+        </tr>
+        <tr class="date-received-row">
+            <td colspan="3"></td>
+            <td>Date Received</td>
+        </tr>
+    </table>
 </body>
 </html>

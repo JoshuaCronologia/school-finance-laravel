@@ -108,7 +108,11 @@
                     </td>
                     <td>
                         @if($check->disbursement_payment_id)
-                        <button type="button" @click="$dispatch('open-modal', 'preview-check-{{ $check->disbursement_payment_id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Print</button>
+                        <div class="flex gap-2 items-center">
+                            <a href="{{ route('ap.payments.print', $check->disbursement_payment_id) }}" class="text-blue-600 hover:text-blue-700 text-sm font-medium" target="_blank">Voucher</a>
+                            <span class="text-secondary-300">|</span>
+                            <button type="button" @click="$dispatch('open-modal', 'preview-check-{{ $check->disbursement_payment_id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Check</button>
+                        </div>
                         @endif
                     </td>
                 </tr>

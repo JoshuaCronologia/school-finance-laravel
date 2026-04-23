@@ -19,15 +19,17 @@ class GLController extends Controller
         $selectedAccount = null;
         $ledgerEntries = collect();
         $openingBalance = 0;
+        $totalDebits = 0;
+        $totalCredits = 0;
 
         if ($request->filled('account_id')) {
-            $selectedAccount = ChartOfAccount::find($request->account_id);
+            $selectedAccount = ChartOfAccount::with('parent')->find($request->account_id);
 
             if ($selectedAccount) {
                 $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
                 $dateTo = $request->input('date_to') ?: now()->toDateString();
 
-                // Calculate opening balance (all posted entries before date_from)
+                // Opening balance
                 $openingBalance = JournalEntryLine::select(
                         DB::raw('COALESCE(SUM(journal_entry_lines.debit), 0) - COALESCE(SUM(journal_entry_lines.credit), 0) as balance')
                     )
@@ -37,20 +39,21 @@ class GLController extends Controller
                     ->whereDate('journal_entries.posting_date', '<', $dateFrom)
                     ->value('balance') ?? 0;
 
-                // For credit-normal accounts, flip the sign
                 if ($selectedAccount->normal_balance === 'credit') {
                     $openingBalance = -$openingBalance;
                 }
 
-                // Get ledger entries in date range
-                $ledgerEntries = JournalEntryLine::select(
+                // JE entries in date range with full details
+                $jeEntries = JournalEntryLine::select(
                         'journal_entry_lines.*',
                         'journal_entries.entry_number',
                         'journal_entries.entry_date',
                         'journal_entries.posting_date',
                         'journal_entries.reference_number',
                         'journal_entries.journal_type',
-                        'journal_entries.description as je_description'
+                        'journal_entries.description as je_description',
+                        'journal_entries.source_module',
+                        'journal_entries.source_id'
                     )
                     ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
                     ->where('journal_entry_lines.account_id', $selectedAccount->id)
@@ -61,13 +64,37 @@ class GLController extends Controller
                     ->orderBy('journal_entries.entry_number')
                     ->get();
 
-                // Calculate running balance
+                $ledgerEntries = $jeEntries->map(function ($e) {
+                    $e->source_type = 'JE';
+                    return $e;
+                });
+
+                // Merge finance fee collections if this is a mapped revenue account
+                try {
+                    $feeEntries = \App\Services\FinanceFeeService::glEntries($dateFrom, $dateTo, $selectedAccount->id);
+                    if ($feeEntries->isNotEmpty() && $feeEntries->has($selectedAccount->id)) {
+                        foreach ($feeEntries->get($selectedAccount->id) as $fee) {
+                            $fee->source_type = 'FEE';
+                            $ledgerEntries->push($fee);
+                        }
+                    }
+                } catch (\Exception $e) {}
+
+                // Sort merged entries by date
+                $ledgerEntries = $ledgerEntries->sortBy('posting_date')->values();
+
+                // Calculate running balance + totals
                 $runningBalance = (float) $openingBalance;
-                $ledgerEntries = $ledgerEntries->map(function ($entry) use (&$runningBalance, $selectedAccount) {
+                $ledgerEntries = $ledgerEntries->map(function ($entry) use (&$runningBalance, $selectedAccount, &$totalDebits, &$totalCredits) {
+                    $debit = (float) ($entry->debit ?? 0);
+                    $credit = (float) ($entry->credit ?? 0);
+                    $totalDebits += $debit;
+                    $totalCredits += $credit;
+
                     if ($selectedAccount->normal_balance === 'debit') {
-                        $runningBalance += (float) $entry->debit - (float) $entry->credit;
+                        $runningBalance += $debit - $credit;
                     } else {
-                        $runningBalance += (float) $entry->credit - (float) $entry->debit;
+                        $runningBalance += $credit - $debit;
                     }
                     $entry->running_balance = $runningBalance;
                     return $entry;
@@ -75,8 +102,13 @@ class GLController extends Controller
             }
         }
 
+        $closingBalance = $openingBalance + ($selectedAccount && $selectedAccount->normal_balance === 'debit' ? $totalDebits - $totalCredits : $totalCredits - $totalDebits);
+
+        $ledgerData = $ledgerEntries;
+
         return view('pages.gl.ledger-inquiry', compact(
-            'accounts', 'selectedAccount', 'ledgerEntries', 'openingBalance'
+            'accounts', 'selectedAccount', 'ledgerEntries', 'ledgerData',
+            'openingBalance', 'closingBalance', 'totalDebits', 'totalCredits'
         ));
     }
 }

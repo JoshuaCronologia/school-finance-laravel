@@ -53,8 +53,14 @@ class ReportController extends Controller
         $totalCredit = $accounts->sum('total_credit');
         $isBalanced = round($totalDebit, 2) === round($totalCredit, 2);
 
+        $totals = [
+            'total_debit' => $totalDebit,
+            'total_credit' => $totalCredit,
+            'difference' => $totalDebit - $totalCredit,
+        ];
+
         return view('pages.reports.trial-balance', compact(
-            'accounts', 'totalDebit', 'totalCredit', 'isBalanced', 'asOfDate'
+            'accounts', 'totals', 'totalDebit', 'totalCredit', 'isBalanced', 'asOfDate'
         ));
     }
 
@@ -497,11 +503,11 @@ class ReportController extends Controller
      */
     public function expenseSchedule(Request $request)
     {
-        $dateFrom = $request->input('date_from', now()->startOfYear()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
+        $dateTo = $request->input('date_to') ?: now()->toDateString();
 
-        $expenses = JournalEntryLine::select(
-                'coa.account_code', 'coa.account_name',
+        $rows = JournalEntryLine::select(
+                'coa.id', 'coa.account_code', 'coa.account_name',
                 DB::raw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) as total')
             )
             ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
@@ -511,16 +517,21 @@ class ReportController extends Controller
             ->whereDate('je.posting_date', '>=', $dateFrom)
             ->whereDate('je.posting_date', '<=', $dateTo)
             ->groupBy('coa.id', 'coa.account_code', 'coa.account_name')
+            ->havingRaw('SUM(journal_entry_lines.debit - journal_entry_lines.credit) > 0')
             ->orderBy('coa.account_code')
             ->get();
 
-        $totalExpenses = $expenses->sum('total');
-
-        // Add percentages
-        $expenses = $expenses->map(function ($e) use ($totalExpenses) {
-            $e->percentage = $totalExpenses > 0 ? ($e->total / $totalExpenses) * 100 : 0;
-            return $e;
+        // Map to view-expected fields (category_name, amount)
+        $expenses = $rows->map(function ($r) {
+            return (object) [
+                'account_code' => $r->account_code,
+                'account_name' => $r->account_name,
+                'category_name' => $r->account_code . ' - ' . $r->account_name,
+                'amount' => (float) $r->total,
+            ];
         });
+
+        $totalExpenses = $expenses->sum('amount');
 
         return view('pages.reports.expense-schedule', compact('expenses', 'totalExpenses', 'dateFrom', 'dateTo'));
     }

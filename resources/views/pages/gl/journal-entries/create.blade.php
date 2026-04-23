@@ -1,8 +1,8 @@
 @extends('layouts.app')
-@section('title', 'New Journal Entry')
+@section('title', isset($journalEntry) ? 'Edit Journal Entry' : 'New Journal Entry')
 
 @section('content')
-<x-page-header title="New Journal Entry" subtitle="Create a new journal entry" />
+<x-page-header :title="isset($journalEntry) ? 'Edit Journal Entry #' . $journalEntry->entry_number : 'New Journal Entry'" :subtitle="isset($journalEntry) ? 'Edit draft entry' : 'Create a new journal entry'" />
 
 @if(session('success'))
     <x-alert type="success" :message="session('success')" class="mb-4" />
@@ -13,11 +13,23 @@
 
 <div class="card">
     <div class="card-body">
-        <form action="{{ route('gl.journal-entries.store') }}" method="POST" x-data="{
-            lines: [
-                { account_id: '', description: '', debit: 0, credit: 0 },
-                { account_id: '', description: '', debit: 0, credit: 0 }
-            ],
+        @php
+            $initialLines = isset($journalEntry) && $journalEntry->lines->count() > 0
+                ? $journalEntry->lines->map(function ($l) {
+                    return [
+                        'account_id' => (string) $l->account_id,
+                        'description' => $l->description,
+                        'debit' => (float) $l->debit,
+                        'credit' => (float) $l->credit,
+                    ];
+                })->toArray()
+                : [
+                    ['account_id' => '', 'description' => '', 'debit' => 0, 'credit' => 0],
+                    ['account_id' => '', 'description' => '', 'debit' => 0, 'credit' => 0],
+                ];
+        @endphp
+        <form action="{{ isset($journalEntry) ? route('gl.journal-entries.update', $journalEntry) : route('gl.journal-entries.store') }}" method="POST" x-data="{
+            lines: {{ json_encode($initialLines) }},
             get totalDebit() { return this.lines.reduce((s, l) => s + parseFloat(l.debit || 0), 0); },
             get totalCredit() { return this.lines.reduce((s, l) => s + parseFloat(l.credit || 0), 0); },
             get difference() { return this.totalDebit - this.totalCredit; },
@@ -25,35 +37,41 @@
             removeLine(i) { if (this.lines.length > 2) this.lines.splice(i, 1); }
         }">
             @csrf
+            @if(isset($journalEntry))
+                @method('PUT')
+            @endif
 
+            @if(!isset($journalEntry))
             <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                 <strong>JE Number:</strong> Will be auto-generated upon saving (series-based for audit trail).
             </div>
+            @endif
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div>
                     <label class="form-label">Date <span class="text-danger-500">*</span></label>
-                    <input type="date" name="entry_date" class="form-input" value="{{ old('entry_date', date('Y-m-d')) }}" required>
+                    <input type="date" name="entry_date" class="form-input" value="{{ old('entry_date', isset($journalEntry) ? $journalEntry->entry_date->format('Y-m-d') : date('Y-m-d')) }}" required>
                 </div>
                 <div>
                     <label class="form-label">Reference #</label>
-                    <input type="text" name="reference_number" class="form-input" placeholder="Check #, OR #, etc." value="{{ old('reference_number') }}">
+                    <input type="text" name="reference_number" class="form-input" placeholder="Check #, OR #, etc." value="{{ old('reference_number', $journalEntry->reference_number ?? '') }}">
                 </div>
                 <div>
                     <label class="form-label">Type <span class="text-danger-500">*</span></label>
+                    @php $currentType = old('journal_type', $journalEntry->journal_type ?? 'general'); @endphp
                     <select name="journal_type" class="form-input" required>
-                        <option value="general" {{ old('journal_type') == 'general' ? 'selected' : '' }}>General</option>
-                        <option value="adjusting" {{ old('journal_type') == 'adjusting' ? 'selected' : '' }}>Adjusting</option>
-                        <option value="closing" {{ old('journal_type') == 'closing' ? 'selected' : '' }}>Closing</option>
-                        <option value="reversing" {{ old('journal_type') == 'reversing' ? 'selected' : '' }}>Reversing</option>
-                        <option value="revenue" {{ old('journal_type') == 'revenue' ? 'selected' : '' }}>Revenue</option>
-                        <option value="expense" {{ old('journal_type') == 'expense' ? 'selected' : '' }}>Expense</option>
-                        <option value="payroll" {{ old('journal_type') == 'payroll' ? 'selected' : '' }}>Payroll</option>
+                        <option value="general" {{ $currentType == 'general' ? 'selected' : '' }}>General</option>
+                        <option value="adjusting" {{ $currentType == 'adjusting' ? 'selected' : '' }}>Adjusting</option>
+                        <option value="closing" {{ $currentType == 'closing' ? 'selected' : '' }}>Closing</option>
+                        <option value="reversing" {{ $currentType == 'reversing' ? 'selected' : '' }}>Reversing</option>
+                        <option value="revenue" {{ $currentType == 'revenue' ? 'selected' : '' }}>Revenue</option>
+                        <option value="expense" {{ $currentType == 'expense' ? 'selected' : '' }}>Expense</option>
+                        <option value="payroll" {{ $currentType == 'payroll' ? 'selected' : '' }}>Payroll</option>
                     </select>
                 </div>
                 <div>
                     <label class="form-label">Description <span class="text-danger-500">*</span></label>
-                    <input type="text" name="description" class="form-input" placeholder="e.g. Bank charges for March" value="{{ old('description') }}" required>
+                    <input type="text" name="description" class="form-input" placeholder="e.g. Bank charges for March" value="{{ old('description', $journalEntry->description ?? '') }}" required>
                 </div>
             </div>
 
@@ -112,8 +130,8 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <a href="{{ route('gl.journal-entries.index') }}" class="btn-secondary">Cancel</a>
-                <button type="submit" name="action" value="draft" class="btn-secondary" :disabled="difference !== 0">Save as Draft</button>
+                <a href="{{ isset($journalEntry) ? route('gl.journal-entries.show', $journalEntry) : route('gl.journal-entries.index') }}" class="btn-secondary">Cancel</a>
+                <button type="submit" name="action" value="draft" class="btn-secondary" :disabled="difference !== 0">{{ isset($journalEntry) ? 'Save Changes' : 'Save as Draft' }}</button>
                 <button type="submit" name="action" value="submit_approval" class="btn-primary" :disabled="difference !== 0">Submit for Approval</button>
             </div>
         </form>

@@ -62,13 +62,34 @@
     <tbody>
         @forelse($budgets as $budget)
         <tr>
-            <td class="font-medium">{{ $budget->budget_name }}</td>
+            <td class="font-medium">
+                <a href="{{ route('budget.planning.show', $budget) }}" class="text-primary-600 hover:text-primary-700 hover:underline">{{ $budget->budget_name }}</a>
+            </td>
             <td>{{ $budget->department->name ?? '-' }}</td>
             <td>{{ $budget->category->name ?? '-' }}</td>
             <td class="text-right font-medium">{{ '₱' . number_format($budget->annual_budget, 2) }}</td>
             <td><x-badge :status="$budget->status" /></td>
             <td>
-                <button @click="$dispatch('open-modal', 'edit-budget-{{ $budget->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
+                <div class="flex items-center gap-3">
+                    @if($budget->status === 'draft')
+                        <button @click="$dispatch('open-modal', 'edit-budget-{{ $budget->id }}')" class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
+                        <form action="{{ route('budget.planning.approve', $budget) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="text-green-600 hover:text-green-700 text-sm font-medium" onclick="return confirm('Approve this budget? Once approved, it cannot be edited anymore.')">Approve</button>
+                        </form>
+                    @else
+                        <span class="inline-flex items-center gap-1 text-secondary-500 text-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                            Locked
+                        </span>
+                        @if($budget->actual == 0 && $budget->committed == 0)
+                        <form action="{{ route('budget.planning.revert', $budget) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="text-amber-600 hover:text-amber-700 text-xs" onclick="return confirm('Revert to draft? You can edit the budget again.')">Revert</button>
+                        </form>
+                        @endif
+                    @endif
+                </div>
             </td>
         </tr>
         @empty

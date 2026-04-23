@@ -27,11 +27,13 @@
     </x-alert>
 @endif
 
-<form action="{{ isset($disbursement) ? route('ap.disbursements.update', $disbursement) : route('ap.disbursements.store') }}" method="POST" enctype="multipart/form-data" x-data="disbursementForm()">
+
+<form action="{{ isset($disbursement) ? route('ap.disbursements.update', $disbursement) : route('ap.disbursements.store') }}" method="POST" enctype="multipart/form-data" x-data="disbursementForm()" x-init="checkBudget()">
     @csrf
     @if(isset($disbursement))
         @method('PUT')
     @endif
+    <input type="hidden" name="budget_id" :value="budgetInfo.id || ''">
 
     {{-- Request Details --}}
     <div class="card mb-6">
@@ -260,9 +262,44 @@
             <h3 class="text-sm font-semibold text-secondary-700">Attachments</h3>
         </div>
         <div class="card-body">
+            @php
+                $existingAttachments = [];
+                if (isset($disbursement) && $disbursement->attachments) {
+                    $existingAttachments = is_array($disbursement->attachments) ? $disbursement->attachments : json_decode($disbursement->attachments, true) ?? [];
+                }
+            @endphp
+
+            @if(count($existingAttachments) > 0)
+            <div class="mb-4">
+                <p class="text-xs font-semibold text-secondary-600 uppercase mb-2">Existing Files</p>
+                <div class="space-y-2">
+                    @foreach($existingAttachments as $i => $file)
+                        @php
+                            $path = is_array($file) ? ($file['path'] ?? '') : $file;
+                            $name = is_array($file) ? ($file['name'] ?? basename($path)) : basename($path);
+                        @endphp
+                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-secondary-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                                <span class="text-sm">{{ $name }}</span>
+                                @if($path)
+                                    <a href="{{ asset('storage/' . $path) }}" target="_blank" class="text-xs text-primary-600 hover:underline">View</a>
+                                @endif
+                            </div>
+                            <label class="inline-flex items-center gap-1 text-xs text-red-600 cursor-pointer">
+                                <input type="checkbox" name="remove_attachments[]" value="{{ $i }}" class="rounded">
+                                Remove
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-secondary-400 mt-2">Check "Remove" and save to delete. Upload new files below to add more.</p>
+            </div>
+            @endif
+
             <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
                 <svg class="w-8 h-8 mx-auto mb-2 text-secondary-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" /></svg>
-                <p class="text-sm text-secondary-500 mb-2">Drag and drop files here, or click to browse</p>
+                <p class="text-sm text-secondary-500 mb-2">{{ count($existingAttachments) > 0 ? 'Add more files' : 'Drag and drop files here, or click to browse' }}</p>
                 <input type="file" name="attachments[]" multiple class="form-input text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
                 <p class="text-xs text-secondary-400 mt-2">Supported: PDF, DOC, XLS, JPG, PNG (max 10MB each)</p>
             </div>
@@ -285,7 +322,24 @@
 
 @php
     $defaultLine = ['description' => '', 'qty' => 1, 'unit_cost' => 0, 'amount' => 0, 'account_code' => '', 'tax_code' => '', 'remarks' => ''];
-    $initialLines = old('lines', isset($disbursement) && $disbursement->lines ? $disbursement->lines->toArray() : [$defaultLine]);
+
+    if (isset($disbursement) && $disbursement->items && $disbursement->items->count() > 0) {
+        $initialLines = $disbursement->items->map(function ($i) {
+            return [
+                'description' => $i->description,
+                'qty' => (float) ($i->quantity ?? 1),
+                'unit_cost' => (float) ($i->unit_cost ?? 0),
+                'amount' => (float) $i->amount,
+                'account_code' => $i->account_code ?? '',
+                'tax_code' => $i->tax_code ?? '',
+                'remarks' => $i->remarks ?? '',
+            ];
+        })->toArray();
+    } else {
+        $initialLines = [$defaultLine];
+    }
+
+    $initialLines = old('items', $initialLines);
 @endphp
 
 @push('scripts')
@@ -298,7 +352,7 @@ function disbursementForm() {
         departmentId: '{{ old('department_id', $disbursement->department_id ?? '') }}',
         categoryId: '{{ old('category_id', $disbursement->category_id ?? '') }}',
         lines: @json($initialLines),
-        budgetInfo: { loaded: false, budget: 0, committed: 0, actual: 0, remaining: 0 },
+        budgetInfo: { loaded: false, id: '{{ old('budget_id', $disbursement->budget_id ?? '') }}', budget: 0, committed: 0, actual: 0, remaining: 0 },
 
         get totalAmount() {
             return this.lines.reduce((sum, line) => sum + (parseFloat(line.amount) || 0), 0);
@@ -319,9 +373,13 @@ function disbursementForm() {
         async checkBudget() {
             if (!this.departmentId || !this.categoryId) return;
             try {
-                const resp = await fetch(`/api/budget/check?department_id=${this.departmentId}&category_id=${this.categoryId}`);
+                const resp = await fetch(`{{ route('budget.check') }}?department_id=${this.departmentId}&category_id=${this.categoryId}`);
                 const data = await resp.json();
-                this.budgetInfo = { loaded: true, ...data };
+                if (data && data.id) {
+                    this.budgetInfo = { loaded: true, ...data };
+                } else {
+                    this.budgetInfo = { loaded: false, id: '', budget: 0, committed: 0, actual: 0, remaining: 0 };
+                }
             } catch (e) {
                 this.budgetInfo.loaded = false;
             }
