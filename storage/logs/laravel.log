@@ -10939,3 +10939,11 @@ LINE 1: ...sions\" where \"model_has_permissions\".\"model_id\" = 'a16dfe80-...
 #32 C:/xampp73/htdocs/school-finance-laravel/artisan(13): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
 #33 {main}
 "} 
+[2026-04-24 11:50:34] local.ERROR: Cannot declare class AddNotificationIndexes, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class AddNotificationIndexes, because the name is already in use at C:\\xampp73\\htdocs\\accounting\\database\\migrations\\2026_04_24_add_notification_indexes.php:26)
+[stacktrace]
+#0 {main}
+"} 
+[2026-04-24 11:53:41] local.ERROR: Cannot redeclare connection_template() (previously declared in C:\xampp73\htdocs\accounting\config\database.php:138) {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot redeclare connection_template() (previously declared in C:\\xampp73\\htdocs\\accounting\\config\\database.php:138) at C:\\xampp73\\htdocs\\accounting\\config\\database.php:177)
+[stacktrace]
+#0 {main}
+"} 

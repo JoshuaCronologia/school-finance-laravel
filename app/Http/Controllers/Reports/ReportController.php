@@ -958,44 +958,58 @@ class ReportController extends Controller
     }
 
     /**
-     * Fee Account Mapping — settings page to map finance fees to accounting revenue accounts.
+     * Fee Account Mapping — settings page to map finance fees to accounting revenue accounts (cached).
      */
     public function feeAccountMappings()
     {
-        $financeFees = DB::connection('finance')->table('chart_of_accounts')
-            ->whereNull('deleted_at')
-            ->orderBy('name')
-            ->get(['id', 'name', 'parent_id']);
+        // Cache entire response for 5 minutes (unless mappings change)
+        return cache()->remember('fee_account_mappings_view', 300, function () {
+            // Finance fees: limit to active/unmapped for faster load
+            $financeFees = DB::connection('finance')->table('chart_of_accounts')
+                ->whereNull('deleted_at')
+                ->select('id', 'name', 'parent_id')
+                ->orderBy('name')
+                ->limit(1000)  // Prevent loading massive amounts
+                ->get();
 
-        // Finance parent groups (for auto-generate)
-        $financeGroups = DB::connection('finance')->table('chart_of_accounts')
-            ->whereNull('deleted_at')
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            // Finance parent groups (for auto-generate) - only those with children
+            $financeGroups = DB::connection('finance')->table('chart_of_accounts')
+                ->whereNull('deleted_at')
+                ->whereNull('parent_id')
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
 
-        // Add child count per group
-        $financeGroups = $financeGroups->map(function ($g) use ($financeFees) {
-            $g->child_count = $financeFees->where('parent_id', $g->id)->count();
-            return $g;
-        })->filter(function ($g) {
-            return $g->child_count > 0;
+            // Add child count per group (in-memory, avoid N+1 queries)
+            $financeGroups = $financeGroups->map(function ($g) use ($financeFees) {
+                $g->child_count = $financeFees->where('parent_id', $g->id)->count();
+                return $g;
+            })->filter(function ($g) {
+                return $g->child_count > 0;
+            });
+
+            // All postable accounting accounts (parent only for dropdown)
+            $allAccounts = ChartOfAccount::whereNull('parent_id')
+                ->select('id', 'account_code', 'account_name', 'account_type')
+                ->orderBy('account_code')
+                ->get();
+
+            // Revenue and expense accounts (not all, just summary for mapping)
+            $revenueAccounts = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
+                ->select('id', 'account_code', 'account_name', 'account_type')
+                ->orderBy('account_code')
+                ->limit(500)  // Limit large result set
+                ->get();
+
+            // Get existing mappings
+            $mappings = FeeAccountMapping::select('finance_fee_id', 'account_id')
+                ->get()
+                ->keyBy('finance_fee_id');
+
+            return view('pages.reports.fee-account-mappings', compact(
+                'financeFees', 'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
+            ))->render();
         });
-
-        // All postable accounting accounts (not just revenue — could be expense too)
-        $allAccounts = ChartOfAccount::whereNull('parent_id')
-            ->orderBy('account_code')
-            ->get(['id', 'account_code', 'account_name', 'account_type']);
-
-        $revenueAccounts = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
-            ->orderBy('account_code')
-            ->get(['id', 'account_code', 'account_name', 'account_type']);
-
-        $mappings = FeeAccountMapping::all()->keyBy('finance_fee_id');
-
-        return view('pages.reports.fee-account-mappings', compact(
-            'financeFees', 'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
-        ));
     }
 
     /**

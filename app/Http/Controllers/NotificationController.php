@@ -48,7 +48,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get recent notifications for the authenticated user.
+     * Get recent notifications for the authenticated user (with caching).
      */
     public function index(Request $request): JsonResponse
     {
@@ -58,7 +58,16 @@ class NotificationController extends Controller
             return response()->json(['notifications' => [], 'unread_count' => 0]);
         }
 
+        // Cache for 30 seconds to reduce database load
+        $cacheKey = "notif_list_{$userId}";
+        $cached = cache($cacheKey);
+        if ($cached) {
+            return response()->json($cached);
+        }
+
+        // Use select() to fetch only needed columns
         $notifications = Notification::where('user_id', $userId)
+            ->select('id', 'type', 'title', 'message', 'data', 'read_at', 'created_at')
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
@@ -73,14 +82,20 @@ class NotificationController extends Controller
                 'time_ago' => $n->created_at->diffForHumans(),
             ]; });
 
-        $unreadCount = Notification::where('user_id', $userId)
-            ->unread()
-            ->count();
+        // Count unread (also cache this separately for better performance)
+        $unreadCacheKey = "notif_unread_{$userId}";
+        $unreadCount = cache()->remember($unreadCacheKey, 30, function () use ($userId) {
+            return Notification::where('user_id', $userId)->whereNull('read_at')->count();
+        });
 
-        return response()->json([
+        $result = [
             'notifications' => $notifications,
             'unread_count' => $unreadCount,
-        ]);
+        ];
+
+        cache([$cacheKey => $result], now()->addSeconds(30));
+
+        return response()->json($result);
     }
 
     /**

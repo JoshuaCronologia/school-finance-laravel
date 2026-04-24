@@ -65,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
             return "<?php echo ucfirst(str_replace('_', ' ', $expression)); ?>";
         });
 
+        // Observe model changes for cache invalidation
+        \App\Models\Notification::observe(\App\Observers\NotificationObserver::class);
+        \App\Models\FeeAccountMapping::observe(\App\Observers\FeeAccountMappingObserver::class);
+
         // Auto-clear financial caches when key models change
         $clearCaches = function () {
             CacheService::clearFinancialCaches();
