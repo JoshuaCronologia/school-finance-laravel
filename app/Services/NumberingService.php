@@ -12,7 +12,7 @@ class NumberingService
      * Uses database locking to prevent duplicate numbers.
      *
      * @param string $module Module code (e.g., 'DR', 'BILL', 'INV', 'JE', 'PAY', 'CR', 'PV')
-     * @return string Formatted number like "DR-2025-0001"
+     * @return string Formatted number like "DR-0001"
      */
     public static function generate(string $module): string
     {
@@ -37,10 +37,9 @@ class NumberingService
             $sequence->increment('current_number');
             $sequence->refresh();
 
-            $year = now()->year;
             $number = str_pad($sequence->current_number, $sequence->pad_length, '0', STR_PAD_LEFT);
 
-            return "{$sequence->prefix}-{$year}-{$number}";
+            return "{$sequence->prefix}-{$number}";
         });
     }
 }

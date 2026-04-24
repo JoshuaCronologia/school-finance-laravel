@@ -11,7 +11,7 @@ class CreateRecurringJournalTemplatesTable extends Migration
         Schema::create('recurring_journal_templates', function (Blueprint $table) {
             $table->id();
             $table->string('template_name');
-            $table->enum('frequency', ['monthly', 'quarterly', 'annually']);
+            $table->enum('frequency', ['monthly', 'quarterly', 'semi-annually', 'annually']);
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->text('description')->nullable();

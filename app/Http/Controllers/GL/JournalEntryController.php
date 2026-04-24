@@ -575,16 +575,20 @@ class JournalEntryController extends Controller
     {
         $validated = $request->validate([
             'is_active' => 'boolean',
+            'auto_create' => 'boolean',
         ]);
 
-        $template->update(['is_active' => $validated['is_active'] ?? false]);
+        $template->update([
+            'is_active' => $validated['is_active'] ?? $template->is_active,
+            'auto_create' => $validated['auto_create'] ?? $template->auto_create,
+        ]);
 
         return back()->with('success', 'Template updated.');
     }
 
     public function generateRecurring(RecurringJournalTemplate $template)
     {
-        (new \App\Services\AuditService)->logActivity('created', 'journal_entry', 'Generated recurring JE from template: ' . $template->name);
+        (new \App\Services\AuditService)->logActivity('created', 'journal_entry', 'Generated recurring JE from template: ' . $template->template_name);
         $template->load('lines.account');
 
         if (!$template->is_active) {
@@ -623,7 +627,7 @@ class JournalEntryController extends Controller
                 ]);
             }
 
-            $template->update(['last_generated_at' => now()]);
+            $template->update(['last_generated_date' => now()]);
 
             app(\App\Services\AuditService::class)->log('create', 'journal_entry', $je, null,
                 "Generated from recurring template: {$template->template_name}");
