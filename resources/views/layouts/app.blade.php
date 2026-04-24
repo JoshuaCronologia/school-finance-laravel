@@ -634,6 +634,7 @@
                 async fetchNotifications() {
                     try {
                         const res = await fetch('{{ url("/notifications") }}', {
+                            credentials: 'include',
                             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                         });
                         const data = await res.json();
