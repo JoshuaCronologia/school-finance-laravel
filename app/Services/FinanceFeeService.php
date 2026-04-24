@@ -268,7 +268,7 @@ class FinanceFeeService
         }
 
         $cacheKey = "finance:mapped_revenue:{$dateFrom}:{$dateTo}";
-        return Cache::remember($cacheKey, 300, function () use ($dateFrom, $dateTo) {
+        return Cache::remember($cacheKey, 60, function () use ($dateFrom, $dateTo) {
             return static::computeMappedRevenue($dateFrom, $dateTo);
         });
     }
@@ -327,7 +327,7 @@ class FinanceFeeService
         }
 
         $cacheKey = "finance:gl_entries:{$dateFrom}:{$dateTo}:" . ($accountId ?? 'all');
-        return Cache::remember($cacheKey, 300, function () use ($dateFrom, $dateTo, $accountId) {
+        return Cache::remember($cacheKey, 60, function () use ($dateFrom, $dateTo, $accountId) {
             return static::computeGlEntries($dateFrom, $dateTo, $accountId);
         });
     }
