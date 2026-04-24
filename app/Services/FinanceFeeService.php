@@ -467,8 +467,13 @@ class FinanceFeeService
     }
 
     /**
-     * Current school year label "YYYY-YYYY". Falls back to calendar-year heuristic
-     * when the finance connection is unavailable. Cached for 5 minutes.
+     * Current school year label "YYYY-YYYY".
+     *
+     * Source of truth: `acad_sy_school_year.open = 1` (the SY where students are
+     * actively enrolled). Falls back to an academic-calendar heuristic (June
+     * cutover) only when no row is marked open or the finance DB is down.
+     *
+     * Cached for 5 minutes.
      */
     public static function currentSchoolYear(): string
     {
@@ -477,6 +482,7 @@ class FinanceFeeService
                 $sy = DB::connection(static::$connection)
                     ->table('acad_sy_school_year')
                     ->whereRaw("year_fr REGEXP '^[0-9]+$'")
+                    ->where('open', 1)
                     ->orderByDesc('year_fr')
                     ->first(['year_fr', 'year_to']);
                 if ($sy) {
@@ -485,9 +491,12 @@ class FinanceFeeService
             } catch (\Throwable $e) {
                 // fall through
             }
+            // PH school year usually runs June → May, but many schools extend
+            // through summer. Only cut over to next SY in July so the old SY
+            // keeps being reported while students may still be attending.
             $y = (int) now()->year;
             $month = (int) now()->month;
-            if ($month >= 6) {
+            if ($month >= 7) {
                 return $y . '-' . ($y + 1);
             }
             return ($y - 1) . '-' . $y;
