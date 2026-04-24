@@ -4,11 +4,55 @@ namespace App\Services;
 
 use App\Models\ChartOfAccount;
 use App\Models\FeeAccountMapping;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class FinanceFeeService
 {
     protected static $connection = 'finance';
+
+    /**
+     * Check once per request whether the finance DB connection is usable.
+     * Logs the first failure so prod can see why finance data is missing.
+     */
+    protected static $available = null;
+
+    public static function isAvailable(): bool
+    {
+        if (static::$available !== null) {
+            return static::$available;
+        }
+
+        if (!array_key_exists(static::$connection, config('database.connections', []))) {
+            Log::warning('Finance DB connection not registered in config/database.php — check creds.json finance entry');
+            return static::$available = false;
+        }
+
+        try {
+            DB::connection(static::$connection)->getPdo();
+            return static::$available = true;
+        } catch (\Throwable $e) {
+            Log::warning('Finance DB unavailable: ' . $e->getMessage());
+            return static::$available = false;
+        }
+    }
+
+    /**
+     * Sync guard — syncNewFees() is expensive and idempotent within a request.
+     */
+    protected static $syncedThisRequest = false;
+
+    /**
+     * Bust all cached finance aggregates. Call after any collection/payment
+     * posting or when an admin forces a refresh.
+     */
+    public static function flushCache(): void
+    {
+        Cache::forget('finance:current_sy');
+        // Cache::flush(finance:*) is not universally supported, so keep keys predictable
+        // and let admins clear via artisan cache:clear if needed.
+    }
 
     /**
      * Finance parent group → accounting parent account code mapping.
@@ -39,9 +83,16 @@ class FinanceFeeService
     /**
      * Auto-sync: detect new fees in finance DB and create mappings + sub-accounts.
      * Call this before any report that uses mappings.
+     *
+     * No-ops if finance DB is unavailable or already ran this request.
      */
     public static function syncNewFees()
     {
+        if (static::$syncedThisRequest || !static::isAvailable()) {
+            return 0;
+        }
+        static::$syncedThisRequest = true;
+
         $existingIds = FeeAccountMapping::pluck('finance_fee_id')->toArray();
 
         $newFees = DB::connection(static::$connection)
@@ -207,8 +258,22 @@ class FinanceFeeService
     /**
      * Get fee collections mapped to accounting revenue accounts (for Income Statement).
      * Groups by accounting account and sums amounts within date range.
+     *
+     * Cached 5 minutes per (from, to) pair.
      */
     public static function mappedRevenue($dateFrom, $dateTo)
+    {
+        if (!static::isAvailable()) {
+            return collect();
+        }
+
+        $cacheKey = "finance:mapped_revenue:{$dateFrom}:{$dateTo}";
+        return Cache::remember($cacheKey, 300, function () use ($dateFrom, $dateTo) {
+            return static::computeMappedRevenue($dateFrom, $dateTo);
+        });
+    }
+
+    protected static function computeMappedRevenue($dateFrom, $dateTo)
     {
         static::syncNewFees();
 
@@ -252,8 +317,22 @@ class FinanceFeeService
     /**
      * Get fee collections as virtual GL entries (for General Ledger report).
      * Returns collection grouped by account_id, each item looks like a JE line.
+     *
+     * Cached 5 minutes per (from, to, accountId) triple.
      */
     public static function glEntries($dateFrom, $dateTo, $accountId = null)
+    {
+        if (!static::isAvailable()) {
+            return collect();
+        }
+
+        $cacheKey = "finance:gl_entries:{$dateFrom}:{$dateTo}:" . ($accountId ?? 'all');
+        return Cache::remember($cacheKey, 300, function () use ($dateFrom, $dateTo, $accountId) {
+            return static::computeGlEntries($dateFrom, $dateTo, $accountId);
+        });
+    }
+
+    protected static function computeGlEntries($dateFrom, $dateTo, $accountId = null)
     {
         static::syncNewFees();
 
@@ -385,5 +464,33 @@ class FinanceFeeService
             ->whereRaw("year_fr REGEXP '^[0-9]+$'")
             ->orderByDesc('year_fr')
             ->get(['id', 'year_fr', 'year_to']);
+    }
+
+    /**
+     * Current school year label "YYYY-YYYY". Falls back to calendar-year heuristic
+     * when the finance connection is unavailable. Cached for 5 minutes.
+     */
+    public static function currentSchoolYear(): string
+    {
+        return \Illuminate\Support\Facades\Cache::remember('finance:current_sy', 300, function () {
+            try {
+                $sy = DB::connection(static::$connection)
+                    ->table('acad_sy_school_year')
+                    ->whereRaw("year_fr REGEXP '^[0-9]+$'")
+                    ->orderByDesc('year_fr')
+                    ->first(['year_fr', 'year_to']);
+                if ($sy) {
+                    return $sy->year_fr . '-' . $sy->year_to;
+                }
+            } catch (\Throwable $e) {
+                // fall through
+            }
+            $y = (int) now()->year;
+            $month = (int) now()->month;
+            if ($month >= 6) {
+                return $y . '-' . ($y + 1);
+            }
+            return ($y - 1) . '-' . $y;
+        });
     }
 }
