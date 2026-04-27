@@ -15,6 +15,12 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->onOneServer();
 
+        // Process recurring disbursement requests daily at 00:05
+        $schedule->command('disbursements:process-recurring')
+            ->dailyAt('00:05')
+            ->withoutOverlapping()
+            ->onOneServer();
+
         // Generate aging reports weekly
         $schedule->command('ar:generate-aging')
             ->weeklyOn(1, '06:00')

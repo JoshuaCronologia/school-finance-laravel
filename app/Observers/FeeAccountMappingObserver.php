@@ -6,18 +6,14 @@ use App\Models\FeeAccountMapping;
 
 class FeeAccountMappingObserver
 {
-    public function created(FeeAccountMapping $mapping): void
+    private function clearCache(): void
     {
         cache()->forget('fee_account_mappings_view');
+        cache()->forget('fee_mappings_finance_fees');
+        cache()->forget('fee_mappings_accounts');
     }
 
-    public function updated(FeeAccountMapping $mapping): void
-    {
-        cache()->forget('fee_account_mappings_view');
-    }
-
-    public function deleted(FeeAccountMapping $mapping): void
-    {
-        cache()->forget('fee_account_mappings_view');
-    }
+    public function created(FeeAccountMapping $mapping): void { $this->clearCache(); }
+    public function updated(FeeAccountMapping $mapping): void { $this->clearCache(); }
+    public function deleted(FeeAccountMapping $mapping): void { $this->clearCache(); }
 }

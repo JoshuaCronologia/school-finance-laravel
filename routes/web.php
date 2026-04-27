@@ -104,6 +104,9 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('disbursements/export', [DisbursementController::class, 'export'])->name('disbursements.export');
         Route::get('/disbursements-recurring', [DisbursementController::class, 'recurring'])->name('disbursements.recurring');
         Route::post('/disbursements-recurring/{disbursement}/memorize', [DisbursementController::class, 'memorizeDisbursement'])->name('disbursements.recurring.memorize');
+        Route::post('/disbursements-recurring/templates', [DisbursementController::class, 'storeRecurringDr'])->name('disbursements.recurring.templates.store');
+        Route::post('/disbursements-recurring/templates/{template}/generate', [DisbursementController::class, 'generateRecurringDr'])->name('disbursements.recurring.templates.generate');
+        Route::put('/disbursements-recurring/templates/{template}', [DisbursementController::class, 'updateRecurringDr'])->name('disbursements.recurring.templates.update');
         Route::resource('disbursements', DisbursementController::class);
         Route::post('/disbursements/{disbursement}/submit', [DisbursementController::class, 'submit'])->name('disbursements.submit');
         Route::get('/approval-queue', [ApprovalController::class, 'index'])->name('approval-queue');

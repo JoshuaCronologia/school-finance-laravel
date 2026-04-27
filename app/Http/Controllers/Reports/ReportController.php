@@ -962,54 +962,63 @@ class ReportController extends Controller
      */
     public function feeAccountMappings()
     {
-        // Cache entire response for 5 minutes (unless mappings change)
-        return cache()->remember('fee_account_mappings_view', 300, function () {
-            // Finance fees: limit to active/unmapped for faster load
-            $financeFees = DB::connection('finance')->table('chart_of_accounts')
+        // Cache finance fee data (heavy cross-DB query) for 2 minutes
+        [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 120, function () {
+            $all = DB::connection('finance')->table('chart_of_accounts')
                 ->whereNull('deleted_at')
                 ->select('id', 'name', 'parent_id')
                 ->orderBy('name')
-                ->limit(1000)  // Prevent loading massive amounts
                 ->get();
 
-            // Finance parent groups (for auto-generate) - only those with children
-            $financeGroups = DB::connection('finance')->table('chart_of_accounts')
-                ->whereNull('deleted_at')
-                ->whereNull('parent_id')
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
+            $parents = $all->whereNull('parent_id')->keyBy('id');
 
-            // Add child count per group (in-memory, avoid N+1 queries)
-            $financeGroups = $financeGroups->map(function ($g) use ($financeFees) {
-                $g->child_count = $financeFees->where('parent_id', $g->id)->count();
-                return $g;
-            })->filter(function ($g) {
-                return $g->child_count > 0;
-            });
-
-            // All postable accounting accounts (parent only for dropdown)
-            $allAccounts = ChartOfAccount::whereNull('parent_id')
-                ->select('id', 'account_code', 'account_name', 'account_type')
-                ->orderBy('account_code')
-                ->get();
-
-            // Revenue and expense accounts (not all, just summary for mapping)
-            $revenueAccounts = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
-                ->select('id', 'account_code', 'account_name', 'account_type')
-                ->orderBy('account_code')
-                ->limit(500)  // Limit large result set
-                ->get();
-
-            // Get existing mappings
-            $mappings = FeeAccountMapping::select('finance_fee_id', 'account_id')
-                ->get()
-                ->keyBy('finance_fee_id');
-
-            return view('pages.reports.fee-account-mappings', compact(
-                'financeFees', 'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
-            ))->render();
+            return [$all, $parents];
         });
+
+        // Cache accounting chart data for 5 minutes
+        [$allAccounts, $revenueAccounts] = cache()->remember('fee_mappings_accounts', 300, function () {
+            $all = ChartOfAccount::whereNull('parent_id')
+                ->select('id', 'account_code', 'account_name', 'account_type')
+                ->orderBy('account_code')
+                ->get();
+
+            $revenue = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
+                ->select('id', 'account_code', 'account_name', 'account_type')
+                ->orderBy('account_code')
+                ->get();
+
+            return [$all, $revenue];
+        });
+
+        // Mappings are always fresh (small table, changes frequently)
+        $mappings = FeeAccountMapping::with('account:id,account_code,account_name')
+            ->select('finance_fee_id', 'account_id', 'finance_fee_name')
+            ->get()
+            ->keyBy('finance_fee_id');
+
+        // Build groups in memory: only parents that have child fees
+        $childFees = $allFees->whereNotNull('parent_id');
+        $childrenByParent = $childFees->groupBy('parent_id');
+
+        $financeGroups = $feeParents
+            ->filter(function ($p) use ($childrenByParent) {
+                return $childrenByParent->has($p->id);
+            })
+            ->map(function ($g) use ($childrenByParent, $mappings) {
+                $children = $childrenByParent->get($g->id, collect());
+                $g->children = $children;
+                $g->child_count = $children->count();
+                $g->mapped_count = $children->filter(function ($c) use ($mappings) {
+                    return $mappings->has($c->id);
+                })->count();
+                return $g;
+            })
+            ->sortBy('name')
+            ->values();
+
+        return view('pages.reports.fee-account-mappings', compact(
+            'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
+        ));
     }
 
     /**
@@ -1097,6 +1106,10 @@ class ReportController extends Controller
                 $created++;
             }
         });
+
+        // Bust account cache so new sub-accounts appear immediately in dropdowns
+        cache()->forget('fee_mappings_accounts');
+        cache()->forget('fee_mappings_finance_fees');
 
         return back()->with('success', "{$created} sub-accounts created and mapped. {$skipped} skipped (already mapped or no group selected).");
     }

@@ -133,7 +133,7 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Finance Fee Collections</h3>
-        <span class="text-xs text-secondary-400">Last 3 months</span>
+        <span class="text-xs text-secondary-400">{{ $syLabel }}</span>
     </div>
     <div class="overflow-x-auto">
         <table class="data-table">

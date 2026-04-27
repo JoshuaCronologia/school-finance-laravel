@@ -2,7 +2,7 @@
 @section('title', 'Recurring Disbursements')
 
 @section('content')
-<x-page-header title="Recurring Disbursements" subtitle="Click a request to view, then Memorize to copy it as a new disbursement">
+<x-page-header title="Recurring Disbursements" subtitle="Click a disbursement to view, then Memorize to copy it as a new draft">
     <x-slot name="actions">
         <a href="{{ route('ap.disbursements.index') }}" class="btn-secondary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
@@ -14,8 +14,10 @@
 @if(session('success'))
     <x-alert type="success" :message="session('success')" class="mb-4" />
 @endif
+@if(session('error'))
+    <x-alert type="danger" :message="session('error')" class="mb-4" />
+@endif
 
-{{-- Filters --}}
 <x-filter-bar action="{{ route('ap.disbursements.recurring') }}" method="GET">
     <div>
         <label class="form-label">Status</label>
@@ -27,7 +29,6 @@
     </div>
 </x-filter-bar>
 
-{{-- Disbursements Table --}}
 <x-data-table search-placeholder="Search requests...">
     <thead>
         <tr>
@@ -40,29 +41,35 @@
             <th class="text-right">Amount</th>
             <th>Method</th>
             <th>Status</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
-        @forelse($disbursements as $request)
+        @forelse($disbursements as $dr)
         <tr>
             <td class="font-medium">
-                <a href="{{ route('ap.disbursements.show', $request) }}" class="text-primary-600 hover:text-primary-700 hover:underline">
-                    {{ $request->request_number }}
+                <a href="{{ route('ap.disbursements.show', $dr) }}" class="text-primary-600 hover:text-primary-700 hover:underline">
+                    {{ $dr->request_number }}
                 </a>
             </td>
-            <td>{{ \Carbon\Carbon::parse($request->request_date)->format('M d, Y') }}</td>
-            <td>{{ $request->payee_name ?? '-' }}</td>
-            <td class="max-w-xs truncate">{{ $request->description ?? '-' }}</td>
-            <td>{{ $request->department->name ?? '-' }}</td>
-            <td>{{ $request->category->name ?? '-' }}</td>
-            <td class="text-right font-medium">{{ '₱' . number_format($request->amount, 2) }}</td>
-            <td>{{ ucfirst(str_replace('_', ' ', $request->payment_method ?? '-')) }}</td>
-            <td><x-badge :status="$request->status" /></td>
+            <td>{{ \Carbon\Carbon::parse($dr->request_date)->format('M d, Y') }}</td>
+            <td>{{ $dr->payee_name ?? '-' }}</td>
+            <td class="max-w-xs truncate">{{ $dr->description ?? '-' }}</td>
+            <td>{{ $dr->department->name ?? '-' }}</td>
+            <td>{{ $dr->category->name ?? '-' }}</td>
+            <td class="text-right font-medium">₱{{ number_format($dr->amount, 2) }}</td>
+            <td>{{ ucfirst(str_replace('_', ' ', $dr->payment_method ?? '-')) }}</td>
+            <td><x-badge :status="$dr->status" /></td>
+            <td class="text-right">
+                <form method="POST" action="{{ route('ap.disbursements.recurring.memorize', $dr) }}">
+                    @csrf
+                    <button type="submit" class="btn-secondary text-xs py-1 px-3">Memorize</button>
+                </form>
+            </td>
         </tr>
         @empty
         <tr>
-            <td colspan="9" class="text-center text-secondary-400 py-8">
-                <svg class="w-8 h-8 mx-auto mb-2 text-secondary-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+            <td colspan="10" class="text-center text-secondary-400 py-8">
                 No disbursement requests found.
             </td>
         </tr>

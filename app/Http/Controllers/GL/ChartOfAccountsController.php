@@ -198,11 +198,16 @@ class ChartOfAccountsController extends Controller
             ->limit(20)
             ->get();
 
-        // Recent finance fee entries (if mapped)
+        // Recent finance fee entries (if mapped) — scope to current school year
         $feeTransactions = collect();
+        $syLabel = 'Current SY';
         try {
+            $sy = FinanceFeeService::currentSchoolYear(); // e.g. "2025-2026"
+            $syStart = substr($sy, 0, 4) . '-06-01';      // June 1 of start year
+            $syLabel = 'SY ' . $sy;
+
             $feeEntries = FinanceFeeService::glEntries(
-                now()->subMonths(3)->toDateString(),
+                $syStart,
                 now()->toDateString(),
                 $account->id
             );
@@ -213,7 +218,7 @@ class ChartOfAccountsController extends Controller
 
         return view('pages.gl.accounts.show', compact(
             'account', 'balance', 'totalDebit', 'totalCredit', 'feeBalance',
-            'recentTransactions', 'feeTransactions'
+            'recentTransactions', 'feeTransactions', 'syLabel'
         ));
     }
 

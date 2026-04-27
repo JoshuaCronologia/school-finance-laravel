@@ -10,6 +10,8 @@ use App\Models\Department;
 use App\Models\DisbursementItem;
 use App\Models\DisbursementRequest;
 use App\Models\ExpenseCategory;
+use App\Models\RecurringDisbursementItem;
+use App\Models\RecurringDisbursementTemplate;
 use App\Models\Vendor;
 use App\Services\AuditService;
 use App\Services\BudgetService;
@@ -93,6 +95,136 @@ class DisbursementController extends Controller
         $disbursements = $query->paginate(20);
 
         return view('pages.ap.disbursements.recurring', compact('disbursements'));
+    }
+
+    public function storeRecurringDr(Request $request)
+    {
+        $validated = $request->validate([
+            'template_name'       => 'required|string|max:255',
+            'frequency'           => 'required|in:monthly,quarterly,semi-annually,annually',
+            'start_date'          => 'required|date',
+            'end_date'            => 'nullable|date|after:start_date',
+            'description'         => 'nullable|string',
+            'payee_type'          => 'nullable|string',
+            'payee_id'            => 'nullable|integer',
+            'payee_name'          => 'nullable|string|max:255',
+            'department_id'       => 'nullable|exists:departments,id',
+            'category_id'         => 'nullable|exists:expense_categories,id',
+            'cost_center_id'      => 'nullable|exists:cost_centers,id',
+            'project'             => 'nullable|string|max:255',
+            'budget_id'           => 'nullable|exists:budgets,id',
+            'payment_method'      => 'nullable|string|max:50',
+            'amount'              => 'required|numeric|min:0.01',
+            'items'               => 'required|array|min:1',
+            'items.*.description' => 'required|string',
+            'items.*.quantity'    => 'required|numeric|min:0',
+            'items.*.unit_cost'   => 'required|numeric|min:0',
+            'items.*.amount'      => 'required|numeric|min:0',
+            'items.*.account_id'  => 'nullable|exists:chart_of_accounts,id',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $template = RecurringDisbursementTemplate::create([
+                'template_name'  => $validated['template_name'],
+                'frequency'      => $validated['frequency'],
+                'start_date'     => $validated['start_date'],
+                'end_date'       => $validated['end_date'] ?? null,
+                'description'    => $validated['description'] ?? null,
+                'payee_type'     => $validated['payee_type'] ?? null,
+                'payee_id'       => $validated['payee_id'] ?? null,
+                'payee_name'     => $validated['payee_name'] ?? null,
+                'department_id'  => $validated['department_id'] ?? null,
+                'category_id'    => $validated['category_id'] ?? null,
+                'cost_center_id' => $validated['cost_center_id'] ?? null,
+                'project'        => $validated['project'] ?? null,
+                'budget_id'      => $validated['budget_id'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'amount'         => $validated['amount'],
+                'auto_create'    => false,
+                'is_active'      => true,
+            ]);
+
+            foreach ($validated['items'] as $item) {
+                RecurringDisbursementItem::create([
+                    'template_id' => $template->id,
+                    'description' => $item['description'],
+                    'quantity'    => $item['quantity'],
+                    'unit_cost'   => $item['unit_cost'],
+                    'amount'      => $item['amount'],
+                    'account_id'  => $item['account_id'] ?? null,
+                    'remarks'     => $item['remarks'] ?? null,
+                ]);
+            }
+        });
+
+        return redirect()->route('ap.disbursements.recurring')
+            ->with('success', 'Recurring disbursement template saved.');
+    }
+
+    public function generateRecurringDr(RecurringDisbursementTemplate $template)
+    {
+        if (!$template->is_active) {
+            return back()->with('error', 'Template is inactive.');
+        }
+
+        $dr = DB::transaction(function () use ($template) {
+            $template->load('items.account');
+
+            $dr = DisbursementRequest::create([
+                'request_number' => NumberingService::generate('DR'),
+                'request_date'   => now()->toDateString(),
+                'due_date'       => null,
+                'payee_type'     => $template->payee_type,
+                'payee_id'       => $template->payee_id,
+                'payee_name'     => $template->payee_name,
+                'description'    => $template->description ?? "Generated from: {$template->template_name}",
+                'amount'         => $template->amount,
+                'department_id'  => $template->department_id,
+                'category_id'    => $template->category_id,
+                'cost_center_id' => $template->cost_center_id,
+                'project'        => $template->project,
+                'budget_id'      => $template->budget_id,
+                'payment_method' => $template->payment_method,
+                'status'         => 'draft',
+                'requested_by'   => auth()->id(),
+            ]);
+
+            foreach ($template->items as $item) {
+                DisbursementItem::create([
+                    'disbursement_id' => $dr->id,
+                    'description'     => $item->description,
+                    'quantity'        => $item->quantity,
+                    'unit_cost'       => $item->unit_cost,
+                    'amount'          => $item->amount,
+                    'account_id'      => $item->account_id,
+                    'account_code'    => $item->account_code ?? ($item->account ? $item->account->account_code : null),
+                    'tax_code_id'     => $item->tax_code_id,
+                    'tax_code'        => $item->tax_code,
+                    'remarks'         => $item->remarks,
+                ]);
+            }
+
+            $template->update(['last_generated_date' => now()]);
+
+            app(AuditService::class)->log('create', 'disbursement_request', $dr, null,
+                "Generated from recurring template: {$template->template_name}");
+
+            return $dr;
+        });
+
+        return back()->with('success', "Disbursement {$dr->request_number} generated from template \"{$template->template_name}\".");
+    }
+
+    public function updateRecurringDr(Request $request, RecurringDisbursementTemplate $template)
+    {
+        $validated = $request->validate([
+            'is_active'   => 'sometimes|boolean',
+            'auto_create' => 'sometimes|boolean',
+        ]);
+
+        $template->update($validated);
+
+        return back()->with('success', 'Template updated.');
     }
 
     /**
