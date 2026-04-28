@@ -171,7 +171,7 @@ class DisbursementController extends Controller
             $template->load('items.account');
 
             $dr = DisbursementRequest::create([
-                'request_number' => NumberingService::generate('DR'),
+                'request_number' => NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
                 'request_date'   => now()->toDateString(),
                 'due_date'       => null,
                 'payee_type'     => $template->payee_type,
@@ -237,7 +237,7 @@ class DisbursementController extends Controller
 
         $newDr = DB::transaction(function () use ($disbursement) {
             $dr = DisbursementRequest::create([
-                'request_number' => \App\Services\NumberingService::generate('DR'),
+                'request_number' => \App\Services\NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
                 'request_date' => now(),
                 'due_date' => $disbursement->due_date,
                 'payee_type' => $disbursement->payee_type,
@@ -352,7 +352,7 @@ class DisbursementController extends Controller
         try {
             $disbursement = DB::transaction(function () use ($validated, $totalAmount) {
                 $disbursement = DisbursementRequest::create([
-                    'request_number' => NumberingService::generate('DR'),
+                    'request_number' => NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
                     'request_date' => $validated['request_date'],
                     'due_date' => $validated['due_date'] ?? null,
                     'payee_type' => $validated['payee_type'],

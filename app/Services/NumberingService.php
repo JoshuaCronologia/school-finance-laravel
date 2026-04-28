@@ -11,35 +11,54 @@ class NumberingService
      * Generate the next sequential number for a given module.
      * Uses database locking to prevent duplicate numbers.
      *
-     * @param string $module Module code (e.g., 'DR', 'BILL', 'INV', 'JE', 'PAY', 'CR', 'PV')
-     * @return string Formatted number like "DR-0001"
+     * Pass $table and $column to enable self-healing: if the generated number
+     * already exists in that table, the counter keeps incrementing until a
+     * free number is found. Prevents duplicate-key errors when the sequence
+     * counter falls behind the actual data (e.g. after a DB restore/migration).
+     *
+     * @param string $module  Module code (e.g., 'DR', 'JE', 'BILL')
+     * @param string|null $table   Table to check for existing numbers
+     * @param string|null $column  Column to check (default: same as table's number column)
+     * @return string Formatted number like "DR-0014"
      */
-    public static function generate(string $module): string
+    public static function generate(string $module, string $table = null, string $column = null): string
     {
-        return DB::transaction(function () use ($module) {
+        return DB::transaction(function () use ($module, $table, $column) {
             $sequence = NumberingSequence::where('module', $module)
                 ->lockForUpdate()
                 ->first();
 
             if (!$sequence) {
-                // Auto-create sequence if it does not exist
                 $sequence = NumberingSequence::create([
-                    'module' => $module,
-                    'prefix' => $module,
+                    'module'         => $module,
+                    'prefix'         => $module,
                     'current_number' => 0,
-                    'pad_length' => 4,
+                    'pad_length'     => 4,
                 ]);
                 $sequence = NumberingSequence::where('module', $module)
                     ->lockForUpdate()
                     ->first();
             }
 
-            $sequence->increment('current_number');
-            $sequence->refresh();
+            $maxAttempts = 100;
+            $attempt = 0;
 
-            $number = str_pad($sequence->current_number, $sequence->pad_length, '0', STR_PAD_LEFT);
+            do {
+                $sequence->increment('current_number');
+                $sequence->refresh();
 
-            return "{$sequence->prefix}-{$number}";
+                $number    = str_pad($sequence->current_number, $sequence->pad_length, '0', STR_PAD_LEFT);
+                $generated = "{$sequence->prefix}-{$number}";
+
+                // If caller provided a table, skip numbers already in use
+                $exists = $table && $column
+                    ? DB::table($table)->where($column, $generated)->exists()
+                    : false;
+
+                $attempt++;
+            } while ($exists && $attempt < $maxAttempts);
+
+            return $generated;
         });
     }
 }

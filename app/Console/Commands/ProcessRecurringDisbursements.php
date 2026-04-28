@@ -30,7 +30,7 @@ class ProcessRecurringDisbursements extends Command
 
             DB::transaction(function () use ($template) {
                 $dr = DisbursementRequest::create([
-                    'request_number' => NumberingService::generate('DR'),
+                    'request_number' => NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
                     'request_date'   => now()->toDateString(),
                     'due_date'       => null,
                     'payee_type'     => $template->payee_type,

@@ -962,18 +962,27 @@ class ReportController extends Controller
      */
     public function feeAccountMappings()
     {
-        // Cache finance fee data (heavy cross-DB query) for 2 minutes
-        [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 120, function () {
-            $all = DB::connection('finance')->table('chart_of_accounts')
-                ->whereNull('deleted_at')
-                ->select('id', 'name', 'parent_id')
-                ->orderBy('name')
-                ->get();
+        try {
+            // Cache finance fee data (heavy cross-DB query) for 2 minutes
+            [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 120, function () {
+                $query = DB::connection('finance')->table('chart_of_accounts')
+                    ->select('id', 'name', 'parent_id')
+                    ->orderBy('name');
 
-            $parents = $all->whereNull('parent_id')->keyBy('id');
+                // Only filter deleted_at if the column exists in this DB
+                $columns = DB::connection('finance')->getSchemaBuilder()->getColumnListing('chart_of_accounts');
+                if (in_array('deleted_at', $columns)) {
+                    $query->whereNull('deleted_at');
+                }
 
-            return [$all, $parents];
-        });
+                $all = $query->get();
+                $parents = $all->whereNull('parent_id')->keyBy('id');
+
+                return [$all, $parents];
+            });
+        } catch (\Exception $e) {
+            return back()->with('error', 'Unable to connect to Finance database: ' . $e->getMessage());
+        }
 
         // Cache accounting chart data for 5 minutes
         [$allAccounts, $revenueAccounts] = cache()->remember('fee_mappings_accounts', 300, function () {

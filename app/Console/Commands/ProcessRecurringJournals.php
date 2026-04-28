@@ -38,7 +38,7 @@ class ProcessRecurringJournals extends Command
 
             DB::transaction(function () use ($template) {
                 $je = JournalEntry::create([
-                    'entry_number' => NumberingService::generate('JE'),
+                    'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                     'entry_date' => now()->toDateString(),
                     'posting_date' => now()->toDateString(),
                     'journal_type' => 'general',

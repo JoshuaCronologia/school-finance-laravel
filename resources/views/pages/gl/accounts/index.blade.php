@@ -25,6 +25,10 @@
 {{-- Filters --}}
 <x-filter-bar action="{{ route('gl.accounts.index') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" class="form-input w-52" placeholder="Code or name...">
+    </div>
+    <div>
         <label class="form-label">Account Type</label>
         <select name="account_type" class="form-input w-44">
             <option value="">All Types</option>
@@ -44,7 +48,7 @@
 </x-filter-bar>
 
 {{-- Accounts Table --}}
-<x-data-table search-placeholder="Search accounts...">
+<x-data-table :searchable="false">
     <thead>
         <tr>
             <th>Account Code</th>

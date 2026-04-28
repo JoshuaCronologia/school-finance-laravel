@@ -116,7 +116,7 @@ class JournalEntryController extends Controller
         try {
             $entry = DB::transaction(function () use ($validated, $request) {
                 $entry = JournalEntry::create([
-                    'entry_number' => NumberingService::generate('JE'),
+                    'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                     'entry_date' => $validated['entry_date'],
                     'posting_date' => $validated['entry_date'],
                     'journal_type' => $validated['journal_type'],
@@ -484,7 +484,7 @@ class JournalEntryController extends Controller
 
         $newJe = DB::transaction(function () use ($journalEntry) {
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => now(),
                 'posting_date' => now(),
                 'reference_number' => null,
@@ -604,7 +604,7 @@ class JournalEntryController extends Controller
 
         DB::transaction(function () use ($template) {
             $je = JournalEntry::create([
-                'entry_number' => \App\Services\NumberingService::generate('JE'),
+                'entry_number' => \App\Services\NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => now()->toDateString(),
                 'posting_date' => now()->toDateString(),
                 'journal_type' => 'general',

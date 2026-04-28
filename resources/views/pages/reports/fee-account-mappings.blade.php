@@ -151,7 +151,7 @@
         @endphp
         <div x-data="{
                 open: false,
-                groupName: '{{ addslashes($group->name) }}',
+                groupName: {{ json_encode($group->name) }},
                 feeNames: {{ $childNamesJson }},
                 get matched() {
                     if (this.search === '') return true;
@@ -200,7 +200,7 @@
                                 @foreach($group->children as $fee)
                                 @php $mapped = $mappings->get($fee->id); @endphp
                                 <tr class="{{ $mapped ? 'bg-green-50/30' : '' }}"
-                                    x-show="search === '' || '{{ addslashes(strtolower($fee->name)) }}'.indexOf(search.toLowerCase()) !== -1">
+                                    x-show="search === '' || {{ json_encode(strtolower($fee->name)) }}.indexOf(search.toLowerCase()) !== -1">
                                     <td class="px-4 py-2 font-medium text-secondary-800">
                                         {{ $fee->name }}
                                         <input type="hidden" name="mappings[{{ $fee->id }}][finance_fee_id]" value="{{ $fee->id }}">
