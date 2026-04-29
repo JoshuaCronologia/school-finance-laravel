@@ -935,12 +935,19 @@ class ReportController extends Controller
     public function feeReceipts(Request $request)
     {
         $schoolYears = FinanceFeeService::schoolYears();
+        $feeNames    = FinanceFeeService::feeNames();
         $selectedYear = $request->input('school_year');
-        $search = $request->input('search');
+        $search      = $request->input('search');
+        $feeName     = $request->input('fee_name');
+        $dateFrom    = $request->input('date_from');
+        $dateTo      = $request->input('date_to');
 
-        $receipts = FinanceFeeService::receipts($selectedYear, $search);
+        $receipts = FinanceFeeService::receipts($selectedYear, $search, $feeName, $dateFrom, $dateTo);
 
-        return view('pages.reports.fee-receipts', compact('receipts', 'schoolYears', 'selectedYear', 'search'));
+        return view('pages.reports.fee-receipts', compact(
+            'receipts', 'schoolYears', 'feeNames',
+            'selectedYear', 'search', 'feeName', 'dateFrom', 'dateTo'
+        ));
     }
 
     /**

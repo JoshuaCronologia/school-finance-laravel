@@ -393,19 +393,25 @@ class FinanceFeeService
 
     /**
      * Get recent receipts/transactions (paginated).
+     * Supports students (customer_type=1), employees (2), and walk-ins (3).
      */
-    public static function receipts($yearFrom = null, $search = null, $perPage = 20)
+    public static function receipts($yearFrom = null, $search = null, $feeName = null, $dateFrom = null, $dateTo = null, $perPage = 20)
     {
         $query = DB::connection(static::$connection)
             ->table('transaction_batch as b')
             ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
             ->leftJoin('acad_sy_school_year as sy', 'b.acad_sy_school_year_id', '=', 'sy.id')
             ->whereNull('b.voided_by')
             ->whereNull('b.deleted_at')
             ->where('b.total', '>', 0)
             ->select(
-                'b.id', 'b.receipt_number', 'b.total', 'b.date_paid',
+                'b.id', 'b.receipt_number', 'b.total', 'b.date_paid', 'b.customer_type',
                 's.student_name', 's.student_number',
+                'e.employee_name', 'e.employee_id as employee_number',
+                DB::raw("CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,'')) as walkin_name"),
+                'w.non_student_id as walkin_number',
                 'sy.year_fr', 'sy.year_to'
             );
 
@@ -413,15 +419,60 @@ class FinanceFeeService
             $query->where('sy.year_fr', $yearFrom);
         }
 
+        if ($dateFrom) {
+            $query->where('b.date_paid', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->where('b.date_paid', '<=', $dateTo);
+        }
+
+        if ($feeName) {
+            // Resolve fee_id first (chart_of_accounts.name has no index — one small query is faster
+            // than a joined subquery per row). Then filter by fee_id which IS indexed.
+            $feeId = DB::connection(static::$connection)
+                ->table('chart_of_accounts')
+                ->where('name', $feeName)
+                ->value('id');
+
+            if ($feeId) {
+                $query->whereExists(function ($sub) use ($feeId) {
+                    $sub->from('transaction_fees_distribution as fd')
+                        ->whereRaw('fd.transaction_batch_id = b.id')
+                        ->where('fd.fee_id', $feeId);
+                });
+            } else {
+                $query->whereRaw('0 = 1'); // fee not found — return nothing
+            }
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('b.receipt_number', 'like', "%{$search}%")
                   ->orWhere('s.student_name', 'like', "%{$search}%")
-                  ->orWhere('s.student_number', 'like', "%{$search}%");
+                  ->orWhere('s.student_number', 'like', "%{$search}%")
+                  ->orWhere('e.employee_name', 'like', "%{$search}%")
+                  ->orWhere('e.employee_id', 'like', "%{$search}%")
+                  ->orWhere(DB::raw("CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))"), 'like', "%{$search}%");
             });
         }
 
         return $query->orderByDesc('b.date_paid')->paginate($perPage);
+    }
+
+    /**
+     * Get distinct fee names for filter dropdown. Cached 5 minutes.
+     */
+    public static function feeNames()
+    {
+        return Cache::remember('finance:fee_names', 300, function () {
+            return DB::connection(static::$connection)
+                ->table('chart_of_accounts')
+                ->whereNotNull('parent_id')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->pluck('name');
+        });
     }
 
     /**
