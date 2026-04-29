@@ -129,20 +129,25 @@ class JournalEntryController extends Controller
                     'created_by' => auth()->id(),
                 ]);
 
+                $now = now();
+                $lineRows = [];
                 foreach ($validated['lines'] as $i => $line) {
-                    JournalEntryLine::create([
+                    $lineRows[] = [
                         'journal_entry_id' => $entry->id,
-                        'line_number' => $i + 1,
-                        'account_id' => $line['account_id'],
-                        'description' => $line['description'],
-                        'debit' => $line['debit'],
-                        'credit' => $line['credit'],
-                        'department_id' => $line['department_id'] ?? null,
-                        'cost_center_id' => $line['cost_center_id'] ?? null,
-                        'fund_source_id' => $line['fund_source_id'] ?? null,
-                        'project' => $line['project'] ?? null,
-                    ]);
+                        'line_number'      => $i + 1,
+                        'account_id'       => $line['account_id'],
+                        'description'      => $line['description'],
+                        'debit'            => $line['debit'],
+                        'credit'           => $line['credit'],
+                        'department_id'    => $line['department_id'] ?? null,
+                        'cost_center_id'   => $line['cost_center_id'] ?? null,
+                        'fund_source_id'   => $line['fund_source_id'] ?? null,
+                        'project'          => $line['project'] ?? null,
+                        'created_at'       => $now,
+                        'updated_at'       => $now,
+                    ];
                 }
+                DB::table('journal_entry_lines')->insert($lineRows);
 
                 app(AuditService::class)->log('create', 'journal_entry', $entry, null, 'Journal entry created');
 
@@ -235,20 +240,25 @@ class JournalEntryController extends Controller
 
                 // Replace lines
                 $journalEntry->lines()->delete();
+                $now = now();
+                $lineRows = [];
                 foreach ($validated['lines'] as $i => $line) {
-                    JournalEntryLine::create([
+                    $lineRows[] = [
                         'journal_entry_id' => $journalEntry->id,
-                        'line_number' => $i + 1,
-                        'account_id' => $line['account_id'],
-                        'description' => $line['description'],
-                        'debit' => $line['debit'],
-                        'credit' => $line['credit'],
-                        'department_id' => $line['department_id'] ?? null,
-                        'cost_center_id' => $line['cost_center_id'] ?? null,
-                        'fund_source_id' => $line['fund_source_id'] ?? null,
-                        'project' => $line['project'] ?? null,
-                    ]);
+                        'line_number'      => $i + 1,
+                        'account_id'       => $line['account_id'],
+                        'description'      => $line['description'],
+                        'debit'            => $line['debit'],
+                        'credit'           => $line['credit'],
+                        'department_id'    => $line['department_id'] ?? null,
+                        'cost_center_id'   => $line['cost_center_id'] ?? null,
+                        'fund_source_id'   => $line['fund_source_id'] ?? null,
+                        'project'          => $line['project'] ?? null,
+                        'created_at'       => $now,
+                        'updated_at'       => $now,
+                    ];
                 }
+                DB::table('journal_entry_lines')->insert($lineRows);
 
                 app(AuditService::class)->log('update', 'journal_entry', $journalEntry, $oldValues, 'Journal entry updated');
 
@@ -497,20 +507,24 @@ class JournalEntryController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            foreach ($journalEntry->lines as $line) {
-                JournalEntryLine::create([
+            $now = now();
+            $lineRows = $journalEntry->lines->map(function ($line) use ($entry, $now) {
+                return [
                     'journal_entry_id' => $entry->id,
-                    'line_number' => $line->line_number,
-                    'account_id' => $line->account_id,
-                    'description' => $line->description,
-                    'debit' => $line->debit,
-                    'credit' => $line->credit,
-                    'department_id' => $line->department_id,
-                    'cost_center_id' => $line->cost_center_id,
-                    'fund_source_id' => $line->fund_source_id,
-                    'project' => $line->project,
-                ]);
-            }
+                    'line_number'      => $line->line_number,
+                    'account_id'       => $line->account_id,
+                    'description'      => $line->description,
+                    'debit'            => $line->debit,
+                    'credit'           => $line->credit,
+                    'department_id'    => $line->department_id,
+                    'cost_center_id'   => $line->cost_center_id,
+                    'fund_source_id'   => $line->fund_source_id,
+                    'project'          => $line->project,
+                    'created_at'       => $now,
+                    'updated_at'       => $now,
+                ];
+            })->all();
+            DB::table('journal_entry_lines')->insert($lineRows);
 
             return $entry;
         });
@@ -556,16 +570,21 @@ class JournalEntryController extends Controller
                 'is_active' => true,
             ]);
 
+            $now = now();
+            $lineRows = [];
             foreach ($validated['lines'] as $line) {
-                RecurringJournalLine::create([
-                    'template_id' => $template->id,
-                    'account_id' => $line['account_id'],
-                    'description' => $line['description'],
-                    'debit' => $line['debit'],
-                    'credit' => $line['credit'],
+                $lineRows[] = [
+                    'template_id'   => $template->id,
+                    'account_id'    => $line['account_id'],
+                    'description'   => $line['description'],
+                    'debit'         => $line['debit'],
+                    'credit'        => $line['credit'],
                     'department_id' => $line['department_id'] ?? null,
-                ]);
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ];
             }
+            DB::table('recurring_journal_lines')->insert($lineRows);
         });
 
         return redirect()->route('gl.recurring')->with('success', 'Recurring template created.');
@@ -615,17 +634,22 @@ class JournalEntryController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
+            $now = now();
+            $lineRows = [];
             foreach ($template->lines as $i => $line) {
-                JournalEntryLine::create([
+                $lineRows[] = [
                     'journal_entry_id' => $je->id,
-                    'line_number' => $i + 1,
-                    'account_id' => $line->account_id,
-                    'description' => $line->description,
-                    'debit' => $line->debit,
-                    'credit' => $line->credit,
-                    'department_id' => $line->department_id,
-                ]);
+                    'line_number'      => $i + 1,
+                    'account_id'       => $line->account_id,
+                    'description'      => $line->description,
+                    'debit'            => $line->debit,
+                    'credit'           => $line->credit,
+                    'department_id'    => $line->department_id,
+                    'created_at'       => $now,
+                    'updated_at'       => $now,
+                ];
             }
+            DB::table('journal_entry_lines')->insert($lineRows);
 
             $template->update(['last_generated_date' => now()]);
 
