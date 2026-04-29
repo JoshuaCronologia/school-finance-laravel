@@ -199,6 +199,7 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/fee-collections', [ReportController::class, 'feeCollections'])->name('fee-collections');
         Route::get('/fee-receipts', [ReportController::class, 'feeReceipts'])->name('fee-receipts');
         Route::get('/fee-receipts/{id}', [ReportController::class, 'feeReceiptDetail'])->name('fee-receipt-detail');
+        Route::get('/fee-account-mappings/group/{groupId}', [ReportController::class, 'feeGroupFees'])->name('fee-account-mappings.group-fees');
         Route::get('/fee-account-mappings', [ReportController::class, 'feeAccountMappings'])->name('fee-account-mappings');
         Route::post('/fee-account-mappings', [ReportController::class, 'saveFeeAccountMappings'])->name('fee-account-mappings.save');
         Route::post('/fee-account-mappings/auto-generate', [ReportController::class, 'autoGenerateFeeAccounts'])->name('fee-account-mappings.auto-generate');

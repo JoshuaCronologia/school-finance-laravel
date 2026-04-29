@@ -11,6 +11,7 @@ class FeeAccountMappingObserver
         cache()->forget('fee_account_mappings_view');
         cache()->forget('fee_mappings_finance_fees');
         cache()->forget('fee_mappings_accounts');
+        cache()->forget('fee_mappings_data');
     }
 
     public function created(FeeAccountMapping $mapping): void { $this->clearCache(); }

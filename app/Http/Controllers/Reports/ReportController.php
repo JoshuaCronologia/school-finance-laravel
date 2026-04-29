@@ -958,79 +958,117 @@ class ReportController extends Controller
     }
 
     /**
-     * Fee Account Mapping — settings page to map finance fees to accounting revenue accounts (cached).
+     * Fee Account Mapping — settings page (lazy-loading version).
+     * Only loads group headers on initial render; fees are fetched per-group via AJAX.
      */
     public function feeAccountMappings()
     {
         try {
-            // Cache finance fee data (heavy cross-DB query) for 5 minutes
-            [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 300, function () {
+            [$financeGroups, $allAccounts, $revenueAccounts] = cache()->remember('fee_mappings_data', 300, function () {
+                // Single JOIN query — group headers + child counts only (no loading all fee rows)
                 try {
-                    // Try with deleted_at filter first
-                    $all = DB::connection('finance')->table('chart_of_accounts')
-                        ->select('id', 'name', 'parent_id')
-                        ->whereNull('deleted_at')
-                        ->orderBy('name')
+                    $groups = DB::connection('finance')->table('chart_of_accounts as p')
+                        ->join('chart_of_accounts as c', 'c.parent_id', '=', 'p.id')
+                        ->whereNull('p.parent_id')
+                        ->whereNull('p.deleted_at')
+                        ->select('p.id', 'p.name', DB::raw('COUNT(c.id) as child_count'))
+                        ->groupBy('p.id', 'p.name')
+                        ->orderBy('p.name')
                         ->get();
                 } catch (\Exception $e) {
-                    // Column doesn't exist — query without it
-                    $all = DB::connection('finance')->table('chart_of_accounts')
-                        ->select('id', 'name', 'parent_id')
-                        ->orderBy('name')
+                    $groups = DB::connection('finance')->table('chart_of_accounts as p')
+                        ->join('chart_of_accounts as c', 'c.parent_id', '=', 'p.id')
+                        ->whereNull('p.parent_id')
+                        ->select('p.id', 'p.name', DB::raw('COUNT(c.id) as child_count'))
+                        ->groupBy('p.id', 'p.name')
+                        ->orderBy('p.name')
                         ->get();
                 }
 
-                $parents = $all->whereNull('parent_id')->keyBy('id');
+                $allAccounts = ChartOfAccount::whereNull('parent_id')
+                    ->select('id', 'account_code', 'account_name', 'account_type')
+                    ->orderBy('account_code')->get();
 
-                return [$all, $parents];
+                $revenueAccounts = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
+                    ->select('id', 'account_code', 'account_name', 'account_type')
+                    ->orderBy('account_code')->get();
+
+                return [$groups, $allAccounts, $revenueAccounts];
             });
         } catch (\Exception $e) {
             return back()->with('error', 'Unable to connect to Finance database: ' . $e->getMessage());
         }
 
-        // Cache accounting chart data for 5 minutes
-        [$allAccounts, $revenueAccounts] = cache()->remember('fee_mappings_accounts', 300, function () {
-            $all = ChartOfAccount::whereNull('parent_id')
-                ->select('id', 'account_code', 'account_name', 'account_type')
-                ->orderBy('account_code')
-                ->get();
+        // Mapped counts per group — fresh small query (not cached, changes frequently)
+        $mappedFeeIds = FeeAccountMapping::pluck('finance_fee_id')->all();
+        $parentCounts = [];
+        if (!empty($mappedFeeIds)) {
+            $parentCounts = DB::connection('finance')->table('chart_of_accounts')
+                ->whereIn('id', $mappedFeeIds)
+                ->select('parent_id', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('parent_id')
+                ->pluck('cnt', 'parent_id')
+                ->toArray();
+        }
 
-            $revenue = ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
-                ->select('id', 'account_code', 'account_name', 'account_type')
-                ->orderBy('account_code')
-                ->get();
-
-            return [$all, $revenue];
+        $financeGroups = $financeGroups->map(function ($g) use ($parentCounts) {
+            $g->mapped_count = $parentCounts[$g->id] ?? 0;
+            return $g;
         });
 
-        // Mappings are always fresh (small table, changes frequently)
+        $totalMapped = FeeAccountMapping::count();
+        $totalFees   = $financeGroups->sum('child_count');
+
+        return view('pages.reports.fee-account-mappings', compact(
+            'financeGroups', 'allAccounts', 'revenueAccounts', 'totalMapped', 'totalFees'
+        ));
+    }
+
+    /**
+     * AJAX endpoint — returns a partial view with all fees for one finance group.
+     */
+    public function feeGroupFees($groupId)
+    {
+        $group = DB::connection('finance')->table('chart_of_accounts')
+            ->where('id', $groupId)
+            ->whereNull('parent_id')
+            ->select('id', 'name')
+            ->first();
+
+        if (!$group) {
+            return response('Not found', 404);
+        }
+
+        try {
+            $fees = DB::connection('finance')->table('chart_of_accounts')
+                ->where('parent_id', $groupId)
+                ->whereNull('deleted_at')
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        } catch (\Exception $e) {
+            $fees = DB::connection('finance')->table('chart_of_accounts')
+                ->where('parent_id', $groupId)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
+
+        $feeIds  = $fees->pluck('id')->all();
         $mappings = FeeAccountMapping::with('account:id,account_code,account_name')
-            ->select('finance_fee_id', 'account_id', 'finance_fee_name')
+            ->whereIn('finance_fee_id', $feeIds)
             ->get()
             ->keyBy('finance_fee_id');
 
-        // Build groups in memory: only parents that have child fees
-        $childFees = $allFees->whereNotNull('parent_id');
-        $childrenByParent = $childFees->groupBy('parent_id');
+        $revenueAccounts = cache()->remember('fee_mappings_accounts', 300, function () {
+            return ChartOfAccount::whereIn('account_type', ['revenue', 'expense'])
+                ->select('id', 'account_code', 'account_name', 'account_type')
+                ->orderBy('account_code')
+                ->get();
+        });
 
-        $financeGroups = $feeParents
-            ->filter(function ($p) use ($childrenByParent) {
-                return $childrenByParent->has($p->id);
-            })
-            ->map(function ($g) use ($childrenByParent, $mappings) {
-                $children = $childrenByParent->get($g->id, collect());
-                $g->children = $children;
-                $g->child_count = $children->count();
-                $g->mapped_count = $children->filter(function ($c) use ($mappings) {
-                    return $mappings->has($c->id);
-                })->count();
-                return $g;
-            })
-            ->sortBy('name')
-            ->values();
-
-        return view('pages.reports.fee-account-mappings', compact(
-            'financeGroups', 'allAccounts', 'revenueAccounts', 'mappings'
+        return view('pages.reports.partials.fee-group-fees', compact(
+            'fees', 'mappings', 'revenueAccounts', 'group'
         ));
     }
 
@@ -1123,6 +1161,7 @@ class ReportController extends Controller
         // Bust account cache so new sub-accounts appear immediately in dropdowns
         cache()->forget('fee_mappings_accounts');
         cache()->forget('fee_mappings_finance_fees');
+        cache()->forget('fee_mappings_data');
 
         return back()->with('success', "{$created} sub-accounts created and mapped. {$skipped} skipped (already mapped or no group selected).");
     }
