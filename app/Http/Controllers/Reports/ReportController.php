@@ -963,19 +963,23 @@ class ReportController extends Controller
     public function feeAccountMappings()
     {
         try {
-            // Cache finance fee data (heavy cross-DB query) for 2 minutes
-            [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 120, function () {
-                $query = DB::connection('finance')->table('chart_of_accounts')
-                    ->select('id', 'name', 'parent_id')
-                    ->orderBy('name');
-
-                // Only filter deleted_at if the column exists in this DB
-                $columns = DB::connection('finance')->getSchemaBuilder()->getColumnListing('chart_of_accounts');
-                if (in_array('deleted_at', $columns)) {
-                    $query->whereNull('deleted_at');
+            // Cache finance fee data (heavy cross-DB query) for 5 minutes
+            [$allFees, $feeParents] = cache()->remember('fee_mappings_finance_fees', 300, function () {
+                try {
+                    // Try with deleted_at filter first
+                    $all = DB::connection('finance')->table('chart_of_accounts')
+                        ->select('id', 'name', 'parent_id')
+                        ->whereNull('deleted_at')
+                        ->orderBy('name')
+                        ->get();
+                } catch (\Exception $e) {
+                    // Column doesn't exist — query without it
+                    $all = DB::connection('finance')->table('chart_of_accounts')
+                        ->select('id', 'name', 'parent_id')
+                        ->orderBy('name')
+                        ->get();
                 }
 
-                $all = $query->get();
                 $parents = $all->whereNull('parent_id')->keyBy('id');
 
                 return [$all, $parents];
