@@ -512,8 +512,46 @@ class TaxController extends Controller
     public function bir1601c(Request $request)
     {
         $month = $request->input('month', now()->month);
-        $year = $request->input('year', now()->year);
-        return view('pages.tax.bir-1601c', compact('month', 'year'));
+        $year  = $request->input('year',  now()->year);
+
+        $schoolName    = Setting::where('key', 'school_name')->value('value')    ?? config('app.name');
+        $schoolTin     = Setting::where('key', 'school_tin')->value('value')     ?? '';
+        $schoolAddress = Setting::where('key', 'school_address')->value('value') ?? '';
+        $schoolRdo     = Setting::where('key', 'school_rdo')->value('value')     ?? '';
+
+        // All zero until payroll module is wired up
+        $data = [
+            'item14' => 0, // Total Amount of Compensation
+            'item15' => 0, // Non-Taxable/Exempt Compensation
+            'item16' => 0, // Statutory Minimum Wage (MWEs)
+            'item17' => 0, // Holiday/OT/Night Diff/Hazard Pay (MWEs)
+            'item18' => 0, // 13th Month Pay & Other Benefits
+            'item19' => 0, // De Minimis Benefits
+            'item20' => 0, // SSS/GSIS/PhilHealth/HDMF/Union Dues (employee share)
+            'item21' => 0, // Other Non-Taxable Compensation
+        ];
+
+        $data['item22'] = $data['item15'] + $data['item16'] + $data['item17']
+                        + $data['item18'] + $data['item19'] + $data['item20'] + $data['item21'];
+        $data['item23'] = max(0, $data['item14'] - $data['item22']);
+        $data['item24'] = 0; // Taxable comp not subject to WTax (≤250K/year earners)
+        $data['item25'] = 0; // Total Taxes Withheld
+        $data['item26'] = 0; // Adjustment from previous month(s)
+        $data['item27'] = $data['item25'] + $data['item26'];
+        $data['item28'] = 0; // Tax remitted in previously filed return
+        $data['item29'] = 0; // Other remittances made
+        $data['item30'] = $data['item28'] + $data['item29'];
+        $data['item31'] = $data['item27'] - $data['item30'];
+        $data['item32'] = 0; // Surcharge
+        $data['item33'] = 0; // Interest
+        $data['item34'] = 0; // Compromise
+        $data['item35'] = $data['item32'] + $data['item33'] + $data['item34'];
+        $data['item36'] = $data['item31'] + $data['item35'];
+
+        return view('pages.tax.bir-1601c', compact(
+            'month', 'year', 'data',
+            'schoolName', 'schoolTin', 'schoolAddress', 'schoolRdo'
+        ));
     }
 
     public function bir1601eq(Request $request)

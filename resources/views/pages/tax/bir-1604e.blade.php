@@ -2,11 +2,21 @@
 @section('title', 'BIR 1604-E')
 
 @section('content')
+@php
+    $fmt = function($v) { return number_format(abs($v), 2); };
+@endphp
+
 <x-page-header title="BIR 1604-E" subtitle="Annual Information Return of Creditable Income Taxes Withheld (Expanded)">
-    <x-slot name="actions"><button onclick="window.print()" class="btn-secondary text-sm">Print</button></x-slot>
+    <x-slot name="actions">
+        <button onclick="window.print()" class="btn-primary text-sm">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" /></svg>
+            Print Form
+        </button>
+    </x-slot>
 </x-page-header>
 
-<div class="card mb-6">
+{{-- Screen filter --}}
+<div class="card mb-6 no-print">
     <form class="card-body">
         <div class="flex flex-wrap items-end gap-4">
             <div>
@@ -18,52 +28,299 @@
     </form>
 </div>
 
-<div class="card mb-6">
-    <div class="card-header bg-gray-50 text-center">
-        <div class="w-full">
-            <h2 class="text-sm font-bold">BIR FORM 1604-E</h2>
-            <p class="text-xs text-secondary-500">Annual Information Return of Creditable Income Taxes Withheld (Expanded)</p>
-            <p class="text-xs text-secondary-500">Calendar Year {{ $year }}</p>
+{{-- BIR Form Page --}}
+<div class="bir-page" id="page1">
+
+    {{-- Top header bar --}}
+    <div class="bir-topbar">
+        <div class="bir-foruse">
+            <div class="bir-foruse-label">For BIR<br>Use Only</div>
+            <div class="bir-foruse-box">BCS/<br>Item</div>
+        </div>
+        <div class="bir-formtitle">
+            <div class="bir-republic">
+                Republic of the Philippines<br>
+                Department of Finance<br>
+                Bureau of Internal Revenue
+            </div>
+            <div class="bir-formname">
+                <div style="font-size:9px;font-weight:bold;">BIR Form No.</div>
+                <div style="font-size:22px;font-weight:bold;line-height:1;">1604-E</div>
+                <div style="font-size:8px;">September 2005 (ENCS)</div>
+                <div style="font-size:8px;">Page 1</div>
+            </div>
+            <div class="bir-formsubtitle">
+                <div style="font-size:11px;font-weight:bold;">Annual Information Return</div>
+                <div style="font-size:10px;font-weight:bold;">of Creditable Income Taxes Withheld (Expanded)</div>
+                <div style="font-size:7px;margin-top:2px;">Enter all required information in CAPITAL LETTERS using BLACK ink. Mark all applicable boxes with an "X". Two copies MUST be filed with the BIR and one kept by the Taxpayer.</div>
+            </div>
+        </div>
+        <div class="bir-formno-box">
+            <div style="font-size:7px;text-align:right;">1604-E 09/05ENCS P1</div>
         </div>
     </div>
-    <div class="card-body max-w-2xl mx-auto">
-        <table class="w-full text-sm">
-            <tr class="border-b"><td class="py-3 font-medium">Total Number of Payees</td><td class="py-3 text-right font-mono font-bold w-48">{{ $payeeCount }}</td></tr>
-            <tr class="border-b"><td class="py-3 font-medium">Total Amount of Income Payments</td><td class="py-3 text-right font-mono font-bold w-48">₱{{ number_format($totalTaxBase, 2) }}</td></tr>
-            <tr class="border-b"><td class="py-3 font-medium">Total Taxes Withheld</td><td class="py-3 text-right font-mono font-bold w-48">₱{{ number_format($totalTaxWithheld, 2) }}</td></tr>
-            <tr class="bg-gray-50 font-bold"><td class="py-3">Total Remittances for the Year</td><td class="py-3 text-right font-mono w-48 text-primary-700">₱{{ number_format($totalTaxWithheld, 2) }}</td></tr>
-        </table>
+
+    {{-- Row 1: Year / Amended --}}
+    <table class="bir-table">
+        <tr>
+            <td class="bir-cell" style="width:30%">
+                <div class="bir-label">1 For the Calendar Year (YYYY)</div>
+                <div class="bir-value">{{ $year }}</div>
+            </td>
+            <td class="bir-cell" style="width:25%">
+                <div class="bir-label">2 Amended Return?</div>
+                <div class="bir-value">☐ Yes &nbsp; ☑ No</div>
+            </td>
+            <td class="bir-cell" style="width:25%">
+                <div class="bir-label">3 No. of Sheets Attached</div>
+                <div class="bir-value">&nbsp;</div>
+            </td>
+            <td class="bir-cell" style="width:20%">
+                <div class="bir-label">4 Due Date (MM/DD/YYYY)</div>
+                <div class="bir-value">03/01/{{ $year + 1 }}</div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Part I: Background Information --}}
+    <div class="bir-section-header">Part I – Background Information</div>
+    <table class="bir-table">
+        <tr>
+            <td class="bir-cell" style="width:60%">
+                <div class="bir-label">5 Taxpayer Identification Number (TIN)</div>
+                <div class="bir-value tin-boxes">
+                    @php $tinParts = explode('-', $schoolTin ?? '000-000-000-000'); @endphp
+                    @foreach(array_pad($tinParts, 4, '000') as $i => $tp)
+                        <span class="tin-part">{{ $tp }}</span>@if($i < 3)<span class="tin-dash">-</span>@endif
+                    @endforeach
+                </div>
+            </td>
+            <td class="bir-cell" style="width:40%">
+                <div class="bir-label">6 RDO Code</div>
+                <div class="bir-value">{{ $schoolRdo ?? '&nbsp;' }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="bir-cell" colspan="2">
+                <div class="bir-label">7 Withholding Agent's Name (Last Name, First Name, Middle Name for Individual OR Registered Name for Non-Individual)</div>
+                <div class="bir-value" style="text-transform:uppercase;font-size:11px;">{{ $schoolName ?? '&nbsp;' }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="bir-cell" colspan="2">
+                <div class="bir-label">8 Registered Address</div>
+                <div class="bir-value" style="font-size:10px;">{{ $schoolAddress ?? '&nbsp;' }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="bir-cell" style="width:40%">
+                <div class="bir-label">9 Contact Number</div>
+                <div class="bir-value">&nbsp;</div>
+            </td>
+            <td class="bir-cell" style="width:20%">
+                <div class="bir-label">8A ZIP Code</div>
+                <div class="bir-value">&nbsp;</div>
+            </td>
+            <td class="bir-cell" style="width:40%">
+                <div class="bir-label">10 Category of Withholding Agent</div>
+                <div class="bir-value">☑ Private &nbsp; ☐ Government</div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Part II: Summary --}}
+    <div class="bir-section-header">Part II – Summary of Creditable Income Taxes Withheld (Expanded)</div>
+    <table class="bir-table">
+        <tr>
+            <td class="bir-cell bir-item-num">1</td>
+            <td class="bir-cell bir-item-label">Total Number of Payees</td>
+            <td class="bir-cell bir-amount"><div class="bir-amount-box" style="font-family:monospace;">{{ $payeeCount }}</div></td>
+        </tr>
+        <tr>
+            <td class="bir-cell bir-item-num">2</td>
+            <td class="bir-cell bir-item-label">Total Amount of Income Payments Made During the Year</td>
+            <td class="bir-cell bir-amount"><div class="bir-amount-box">{{ $fmt($totalTaxBase) }}</div></td>
+        </tr>
+        <tr class="bir-row-bold">
+            <td class="bir-cell bir-item-num">3</td>
+            <td class="bir-cell bir-item-label">Total Amount of Taxes Withheld and Remitted During the Year</td>
+            <td class="bir-cell bir-amount"><div class="bir-amount-box bir-amount-total">{{ $fmt($totalTaxWithheld) }}</div></td>
+        </tr>
+        <tr>
+            <td class="bir-cell bir-item-num">4</td>
+            <td class="bir-cell bir-item-label">Total Monthly Remittances Made (from BIR Form 1601-E / 0619-E)</td>
+            <td class="bir-cell bir-amount"><div class="bir-amount-box">{{ $fmt($totalTaxWithheld) }}</div></td>
+        </tr>
+        <tr class="bir-row-bold">
+            <td class="bir-cell bir-item-num">5</td>
+            <td class="bir-cell bir-item-label">Over-Remittance/(Under-Remittance) (Item 4 Less Item 3)</td>
+            <td class="bir-cell bir-amount"><div class="bir-amount-box bir-amount-total">0.00</div></td>
+        </tr>
+    </table>
+
+    {{-- Signature Section --}}
+    <div class="bir-sig-section">
+        <div class="bir-sig-text">
+            We declare under the penalties of perjury that this return has been made in good faith, verified by me/us, and to the best of my/our knowledge and belief, is true and correct, pursuant to the provisions of the National Internal Revenue Code, as amended, and the regulations issued under authority thereof.
+        </div>
+        <div class="bir-sig-row">
+            <div class="bir-sig-box">
+                <div class="bir-sig-line"></div>
+                <div class="bir-sig-label">Signature over Printed Name of Taxpayer/Authorized Representative/Tax Agent<br>(Indicate Title/Designation and TIN)</div>
+                <div class="bir-sig-subrow">
+                    <div class="bir-sig-subbox">
+                        <div class="bir-sig-line-sm"></div>
+                        <div style="font-size:7px;">Tax Agent Accreditation No./Attorney's Roll No. (if applicable)</div>
+                    </div>
+                    <div class="bir-sig-subbox">
+                        <div class="bir-sig-line-sm"></div>
+                        <div style="font-size:7px;">Date of Issue (MM/DD/YYYY)</div>
+                    </div>
+                    <div class="bir-sig-subbox">
+                        <div class="bir-sig-line-sm"></div>
+                        <div style="font-size:7px;">Date of Expiry (MM/DD/YYYY)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bir-sig-box">
+                <div class="bir-sig-line"></div>
+                <div class="bir-sig-label">Signature over Printed Name of President/Vice-President/<br>Authorized Officer or Representative/Tax Agent<br>(Indicate Title/Designation and TIN)</div>
+                <div class="bir-sig-subrow">
+                    <div class="bir-sig-subbox" style="flex:1">
+                        <div class="bir-sig-line-sm"></div>
+                        <div style="font-size:7px;">Date of Issue (MM/DD/YYYY)</div>
+                    </div>
+                    <div class="bir-sig-subbox" style="flex:1">
+                        <div class="bir-sig-line-sm"></div>
+                        <div style="font-size:7px;">Date of Expiry (MM/DD/YYYY)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bir-machine-val">
+        <div class="bir-mv-left">Machine Validation/Revenue Official Receipt Details (if not filed with an Authorized Agent Bank)</div>
+        <div class="bir-mv-right">Stamp of receiving Office/AAB and Date of Receipt<br>(RO's Signature/Bank Teller's Initial)</div>
+    </div>
+
+    <div style="font-size:7px;text-align:center;margin-top:6px;border-top:1px solid #000;padding-top:4px;">
+        NOTE: Please read the BIR Data Privacy Policy found in the BIR website (www.bir.gov.ph)
     </div>
 </div>
 
-{{-- Annual Alphalist --}}
-<div class="card">
-    <div class="card-header"><h3 class="card-title">Annual Alphalist of Payees</h3></div>
-    <div class="overflow-x-auto">
-        <table class="data-table">
-            <thead>
-                <tr><th>Payee</th><th>TIN</th><th>ATC</th><th class="text-right">Income Payment</th><th class="text-right">Tax Withheld</th></tr>
-            </thead>
-            <tbody>
-                @php $grouped = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; }); @endphp
-                @forelse($grouped as $payee => $group)
-                <tr>
-                    <td class="font-medium">{{ $payee }}</td>
-                    <td class="font-mono text-sm">{{ $group->first()->disbursement->vendor->tin ?? '-' }}</td>
-                    <td class="font-mono text-sm">{{ $group->first()->disbursement->vendor->withholding_tax_type ?? '-' }}</td>
-                    <td class="text-right font-mono">₱{{ number_format($group->sum('gross_amount'), 2) }}</td>
-                    <td class="text-right font-mono">₱{{ number_format($group->sum('withholding_tax'), 2) }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="5" class="text-center text-secondary-400 py-4">No data for this year.</td></tr>
-                @endforelse
-            </tbody>
-            @if($payments->count() > 0)
-            <tfoot class="bg-gray-50 font-bold">
-                <tr><td colspan="3" class="text-right">Totals:</td><td class="text-right font-mono">₱{{ number_format($totalTaxBase, 2) }}</td><td class="text-right font-mono">₱{{ number_format($totalTaxWithheld, 2) }}</td></tr>
-            </tfoot>
-            @endif
-        </table>
+{{-- Annual Alphalist of Payees — screen only supporting schedule --}}
+<div class="no-print mt-6">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="text-sm font-semibold text-secondary-900">
+                Part III – Annual Alphalist of Payees (AAP) — Calendar Year {{ $year }}
+            </h3>
+            <span class="text-xs text-secondary-400 ml-2">(Supporting document — not printed with the official form)</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Payee</th>
+                        <th>TIN</th>
+                        <th>ATC</th>
+                        <th class="text-right">Income Payment</th>
+                        <th class="text-right">Tax Withheld</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php $grouped = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; }); @endphp
+                    @forelse($grouped as $payee => $group)
+                    <tr>
+                        <td class="font-medium">{{ $payee }}</td>
+                        <td class="font-mono text-sm">{{ $group->first()->disbursement->vendor->tin ?? '-' }}</td>
+                        <td class="font-mono text-sm">{{ $group->first()->disbursement->vendor->withholding_tax_type ?? '-' }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($group->sum('gross_amount'), 2) }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($group->sum('withholding_tax'), 2) }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="5" class="text-center text-secondary-400 py-4">No data for this year.</td></tr>
+                    @endforelse
+                </tbody>
+                @if($payments->count() > 0)
+                <tfoot class="bg-gray-50 font-bold">
+                    <tr>
+                        <td colspan="3" class="text-right">Totals:</td>
+                        <td class="text-right font-mono">₱{{ number_format($totalTaxBase, 2) }}</td>
+                        <td class="text-right font-mono">₱{{ number_format($totalTaxWithheld, 2) }}</td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
+        </div>
     </div>
 </div>
+
+<style>
+.bir-page {
+    background: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    color: #000;
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto 32px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.bir-topbar { display:flex; align-items:stretch; border:1px solid #000; margin-bottom:0; }
+.bir-foruse { display:flex; border-right:1px solid #000; }
+.bir-foruse-label { font-size:7px; padding:2px 4px; border-right:1px solid #000; writing-mode:vertical-lr; text-align:center; }
+.bir-foruse-box { font-size:7px; padding:2px 4px; }
+.bir-formtitle { display:flex; align-items:center; flex:1; gap:8px; padding:4px 8px; }
+.bir-republic { font-size:7px; text-align:center; line-height:1.4; }
+.bir-formname { text-align:center; border-left:1px solid #ccc; border-right:1px solid #ccc; padding:0 8px; }
+.bir-formsubtitle { flex:1; font-size:8px; text-align:center; }
+.bir-formno-box { font-size:7px; padding:4px; border-left:1px solid #000; }
+
+.bir-table { width:100%; border-collapse:collapse; }
+.bir-cell { border:1px solid #000; padding:2px 4px; vertical-align:top; font-size:8px; }
+.bir-label { font-size:7px; color:#333; margin-bottom:2px; }
+.bir-value { font-size:9px; font-weight:bold; min-height:14px; }
+
+.bir-section-header {
+    background:#000; color:#fff; font-size:8px; font-weight:bold;
+    padding:2px 6px; margin:0; border:1px solid #000; border-top:none;
+}
+.bir-item-num { width:5%; text-align:center; font-weight:bold; font-size:8px; }
+.bir-item-label { width:75%; font-size:8px; }
+.bir-indent { padding-left:20px !important; }
+.bir-amount { width:20%; text-align:right; }
+.bir-amount-box { border-bottom:1px solid #555; min-height:14px; text-align:right; font-family:monospace; font-size:9px; padding-right:2px; }
+.bir-amount-total { font-weight:bold; border-bottom:2px double #000; }
+.bir-row-bold td { background:#f5f5f5; font-weight:bold; }
+
+.tin-boxes { display:flex; align-items:center; gap:2px; font-family:monospace; font-size:10px; font-weight:bold; }
+.tin-part { border:1px solid #555; padding:1px 4px; min-width:36px; text-align:center; }
+.tin-dash { font-weight:bold; }
+
+.bir-sig-section { border:1px solid #000; border-top:none; padding:4px 6px; }
+.bir-sig-text { font-size:7px; margin-bottom:6px; text-align:justify; }
+.bir-sig-row { display:flex; gap:8px; }
+.bir-sig-box { flex:1; }
+.bir-sig-line { border-bottom:1px solid #000; height:28px; margin-bottom:2px; }
+.bir-sig-line-sm { border-bottom:1px solid #000; height:16px; margin-bottom:2px; }
+.bir-sig-label { font-size:7px; text-align:center; }
+.bir-sig-subrow { display:flex; gap:4px; margin-top:4px; }
+.bir-sig-subbox { flex:1; }
+
+.bir-machine-val { display:flex; border:1px solid #000; border-top:none; min-height:40px; font-size:7px; }
+.bir-mv-left { flex:2; border-right:1px solid #000; padding:4px; }
+.bir-mv-right { flex:1; padding:4px; text-align:center; }
+
+@media print {
+    body * { visibility: hidden; }
+    .bir-page, .bir-page * { visibility: visible; }
+    .bir-page { position: static; width: 100%; margin: 0; border: none; box-shadow: none; padding: 8px; }
+    .no-print { display: none !important; }
+    @page { size: A4; margin: 10mm; }
+}
+</style>
 @endsection
