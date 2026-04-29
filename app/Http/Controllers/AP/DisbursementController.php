@@ -189,19 +189,26 @@ class DisbursementController extends Controller
                 'requested_by'   => auth()->id(),
             ]);
 
-            foreach ($template->items as $item) {
-                DisbursementItem::create([
-                    'disbursement_id' => $dr->id,
-                    'description'     => $item->description,
-                    'quantity'        => $item->quantity,
-                    'unit_cost'       => $item->unit_cost,
-                    'amount'          => $item->amount,
-                    'account_id'      => $item->account_id,
-                    'account_code'    => $item->account_code ?? ($item->account ? $item->account->account_code : null),
-                    'tax_code_id'     => $item->tax_code_id,
-                    'tax_code'        => $item->tax_code,
-                    'remarks'         => $item->remarks,
-                ]);
+            if ($template->items->isNotEmpty()) {
+                $now = now();
+                DB::table('disbursement_items')->insert(
+                    $template->items->map(function ($item) use ($dr, $now) {
+                        return [
+                            'disbursement_id' => $dr->id,
+                            'description'     => $item->description,
+                            'quantity'        => $item->quantity,
+                            'unit_cost'       => $item->unit_cost,
+                            'amount'          => $item->amount,
+                            'account_id'      => $item->account_id,
+                            'account_code'    => $item->account_code ?? ($item->account ? $item->account->account_code : null),
+                            'tax_code_id'     => $item->tax_code_id,
+                            'tax_code'        => $item->tax_code,
+                            'remarks'         => $item->remarks,
+                            'created_at'      => $now,
+                            'updated_at'      => $now,
+                        ];
+                    })->all()
+                );
             }
 
             $template->update(['last_generated_date' => now()]);
@@ -237,38 +244,46 @@ class DisbursementController extends Controller
 
         $newDr = DB::transaction(function () use ($disbursement) {
             $dr = DisbursementRequest::create([
-                'request_number' => \App\Services\NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
-                'request_date' => now(),
-                'due_date' => $disbursement->due_date,
-                'payee_type' => $disbursement->payee_type,
-                'payee_id' => $disbursement->payee_id,
-                'payee_name' => $disbursement->payee_name,
-                'description' => $disbursement->description,
-                'amount' => $disbursement->amount,
-                'department_id' => $disbursement->department_id,
-                'category_id' => $disbursement->category_id,
+                'request_number' => NumberingService::generate('DR', 'disbursement_requests', 'request_number'),
+                'request_date'   => now(),
+                'due_date'       => $disbursement->due_date,
+                'payee_type'     => $disbursement->payee_type,
+                'payee_id'       => $disbursement->payee_id,
+                'payee_name'     => $disbursement->payee_name,
+                'description'    => $disbursement->description,
+                'amount'         => $disbursement->amount,
+                'department_id'  => $disbursement->department_id,
+                'category_id'    => $disbursement->category_id,
                 'cost_center_id' => $disbursement->cost_center_id,
-                'project' => $disbursement->project,
-                'budget_id' => $disbursement->budget_id,
+                'project'        => $disbursement->project,
+                'budget_id'      => $disbursement->budget_id,
                 'payment_method' => $disbursement->payment_method,
-                'attachments' => $disbursement->attachments, // carry over attachment references
-                'status' => 'draft',
-                'requested_by' => auth()->id(),
+                'attachments'    => $disbursement->attachments,
+                'status'         => 'draft',
+                'requested_by'   => auth()->id(),
             ]);
 
-            foreach ($disbursement->items as $item) {
-                \App\Models\DisbursementItem::create([
-                    'disbursement_id' => $dr->id,
-                    'description' => $item->description,
-                    'quantity' => $item->quantity ?? 1,
-                    'unit_cost' => $item->unit_cost ?? $item->amount,
-                    'amount' => $item->amount,
-                    'account_id' => $item->account_id,
-                    'account_code' => $item->account_code,
-                    'tax_code_id' => $item->tax_code_id,
-                    'tax_code' => $item->tax_code,
-                    'remarks' => $item->remarks,
-                ]);
+            // Batch insert all items in one query instead of N individual INSERTs
+            if ($disbursement->items->isNotEmpty()) {
+                $now = now();
+                $rows = $disbursement->items->map(function ($item) use ($dr, $now) {
+                    return [
+                        'disbursement_id' => $dr->id,
+                        'description'     => $item->description,
+                        'quantity'        => $item->quantity ?? 1,
+                        'unit_cost'       => $item->unit_cost ?? $item->amount,
+                        'amount'          => $item->amount,
+                        'account_id'      => $item->account_id,
+                        'account_code'    => $item->account_code,
+                        'tax_code_id'     => $item->tax_code_id,
+                        'tax_code'        => $item->tax_code,
+                        'remarks'         => $item->remarks,
+                        'created_at'      => $now,
+                        'updated_at'      => $now,
+                    ];
+                })->all();
+
+                DB::table('disbursement_items')->insert($rows);
             }
 
             return $dr;

@@ -48,19 +48,25 @@ class ProcessRecurringDisbursements extends Command
                     'requested_by'   => null,
                 ]);
 
-                foreach ($template->items as $item) {
-                    DisbursementItem::create([
-                        'disbursement_id' => $dr->id,
-                        'description'     => $item->description,
-                        'quantity'        => $item->quantity,
-                        'unit_cost'       => $item->unit_cost,
-                        'amount'          => $item->amount,
-                        'account_id'      => $item->account_id,
-                        'account_code'    => $item->account_code ?? ($item->account ? $item->account->account_code : null),
-                        'tax_code_id'     => $item->tax_code_id,
-                        'tax_code'        => $item->tax_code,
-                        'remarks'         => $item->remarks,
-                    ]);
+                if ($template->items->isNotEmpty()) {
+                    $now  = now();
+                    $rows = $template->items->map(function ($item) use ($dr, $now) {
+                        return [
+                            'disbursement_id' => $dr->id,
+                            'description'     => $item->description,
+                            'quantity'        => $item->quantity,
+                            'unit_cost'       => $item->unit_cost,
+                            'amount'          => $item->amount,
+                            'account_id'      => $item->account_id,
+                            'account_code'    => $item->account_code ?? ($item->account ? $item->account->account_code : null),
+                            'tax_code_id'     => $item->tax_code_id,
+                            'tax_code'        => $item->tax_code,
+                            'remarks'         => $item->remarks,
+                            'created_at'      => $now,
+                            'updated_at'      => $now,
+                        ];
+                    })->all();
+                    DB::table('disbursement_items')->insert($rows);
                 }
 
                 $template->update(['last_generated_date' => now()]);
