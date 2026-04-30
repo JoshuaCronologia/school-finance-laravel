@@ -461,23 +461,42 @@ class FinanceFeeService
     }
 
     /**
-     * Summary of Collection — one row per transaction batch.
+     * Summary of Collection — one row per OR with payment mode pivot columns.
+     * mode_of_payment ids: 1=Cash, 2=Cheque, 3=Credit Card, 4=Salary Ded., 5=Direct Deposit, 6=PDC, 7=Online, 8=Online Bank
      */
     public static function summaryOfCollection($dateFrom, $dateTo, $search = null, $perPage = 25)
     {
         $query = DB::connection(static::$connection)
             ->table('transaction_batch as b')
+            ->leftJoin('employee_db as emp', 'emp.id', '=', 'b.transacted_by')
             ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
             ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
             ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
+            ->leftJoin(DB::raw('(SELECT transaction_batch_id,
+                    SUM(CASE WHEN mode_of_payment_id = 1 THEN amount ELSE 0 END) as cash_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 2 THEN amount ELSE 0 END) as cheque_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 3 THEN amount ELSE 0 END) as cc_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 5 THEN amount ELSE 0 END) as dd_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 6 THEN amount ELSE 0 END) as pdc_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 7 THEN amount ELSE 0 END) as online_amt,
+                    SUM(CASE WHEN mode_of_payment_id = 8 THEN amount ELSE 0 END) as online_bank_amt
+                FROM transaction_payments GROUP BY transaction_batch_id) as tp'),
+                'tp.transaction_batch_id', '=', 'b.id')
             ->whereNull('b.voided_by')
             ->whereNull('b.deleted_at')
             ->where('b.total', '>', 0)
             ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
             ->select(
                 'b.id', 'b.receipt_number', 'b.date_paid', 'b.total', 'b.customer_type',
-                DB::raw("COALESCE(b.payment_method, '') as payment_method"),
-                DB::raw("COALESCE(b.remarks, b.description, '') as remarks"),
+                DB::raw("COALESCE(b.transaction_remarks, b.oa_remarks, '') as remarks"),
+                'emp.employee_name as transacted_by',
+                DB::raw("COALESCE(tp.cash_amt, 0) as cash_amt"),
+                DB::raw("COALESCE(tp.cheque_amt, 0) as cheque_amt"),
+                DB::raw("COALESCE(tp.cc_amt, 0) as cc_amt"),
+                DB::raw("COALESCE(tp.dd_amt, 0) as dd_amt"),
+                DB::raw("COALESCE(tp.pdc_amt, 0) as pdc_amt"),
+                DB::raw("COALESCE(tp.online_amt, 0) as online_amt"),
+                DB::raw("COALESCE(tp.online_bank_amt, 0) as online_bank_amt"),
                 's.student_name', 's.student_number',
                 'e.employee_name',
                 DB::raw("TRIM(CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))) as walkin_name")
@@ -486,8 +505,7 @@ class FinanceFeeService
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('b.receipt_number', 'like', "%{$search}%")
-                  ->orWhere('s.student_name', 'like', "%{$search}%")
-                  ->orWhere('e.employee_name', 'like', "%{$search}%");
+                  ->orWhere('emp.employee_name', 'like', "%{$search}%");
             });
         }
 
@@ -496,6 +514,7 @@ class FinanceFeeService
 
     /**
      * Summary of Collection Per Fee — one row per fee distribution line.
+     * Account codes come from fee_account_mappings in the accounting DB.
      */
     public static function summaryOfCollectionPerFee($dateFrom, $dateTo, $feeName = null, $perPage = 25)
     {
@@ -506,18 +525,25 @@ class FinanceFeeService
             ->whereNull('b.voided_by')
             ->whereNull('b.deleted_at')
             ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
-            ->select(
-                DB::raw("COALESCE(c.account_code, c.id) as account_code"),
-                'c.name as fee_name',
-                'b.date_paid',
-                'fd.amount'
-            );
+            ->select('fd.fee_id', 'c.name as fee_name', 'b.date_paid', 'fd.amount');
 
         if ($feeName) {
             $query->where('c.name', $feeName);
         }
 
-        return $query->orderBy('b.date_paid')->orderBy('c.name')->paginate($perPage);
+        $records = $query->orderBy('b.date_paid')->orderBy('c.name')->paginate($perPage);
+
+        // Enrich with accounting account codes from fee_account_mappings
+        $mappings = \App\Models\FeeAccountMapping::with('account')
+            ->get()->keyBy('finance_fee_id');
+
+        $records->getCollection()->transform(function ($r) use ($mappings) {
+            $mapping = $mappings->get($r->fee_id);
+            $r->account_code = $mapping ? $mapping->account->account_code : '—';
+            return $r;
+        });
+
+        return $records;
     }
 
     /**
@@ -530,19 +556,31 @@ class FinanceFeeService
             ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
             ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
             ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin(DB::raw('(SELECT student_id, acad_sy_school_year_id,
+                    acad_kto12_grade_level_id, kto12_section,
+                    acad_college_courses_id, college_section, college_standing
+                FROM enrollment_batch
+                GROUP BY student_id, acad_sy_school_year_id) as eb'),
+                function ($join) {
+                    $join->on('eb.student_id', '=', 'b.student_id')
+                         ->on('eb.acad_sy_school_year_id', '=', 'b.acad_sy_school_year_id');
+                }
+            )
+            ->leftJoin('acad_kto12_grade_level as gl', 'eb.acad_kto12_grade_level_id', '=', 'gl.id')
+            ->leftJoin('acad_college_courses as cc', 'eb.acad_college_courses_id', '=', 'cc.id')
             ->whereNull('b.voided_by')
             ->whereNull('b.deleted_at')
             ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
             ->select(
                 'c.name as fee_name',
                 DB::raw("COALESCE(s.student_number, s.control_number, '') as student_id"),
-                "s.student_name",
-                DB::raw("COALESCE(s.year_level, s.grade_level, '') as year_level"),
-                DB::raw("COALESCE(s.course, s.strand, '') as course_strand"),
-                DB::raw("COALESCE(s.section, '') as section"),
+                's.student_name',
+                DB::raw("COALESCE(gl.grade_level_name, eb.college_standing, '') as year_level"),
+                DB::raw("COALESCE(gl.strand_name, cc.code, '') as course_strand"),
+                DB::raw("COALESCE(eb.kto12_section, eb.college_section, '') as section"),
                 'b.receipt_number',
                 'b.date_paid',
-                DB::raw("COALESCE(b.remarks, b.description, '') as remark"),
+                DB::raw("COALESCE(b.transaction_remarks, b.oa_remarks, '') as remark"),
                 'fd.amount'
             );
 
@@ -570,7 +608,7 @@ class FinanceFeeService
             ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
             ->select(
                 'b.receipt_number', 'b.date_paid', 'b.total as batch_total', 'b.customer_type',
-                DB::raw("COALESCE(b.remarks, b.description, '') as remarks"),
+                DB::raw("COALESCE(b.transaction_remarks, b.oa_remarks, '') as remarks"),
                 's.student_name', 'e.employee_name',
                 DB::raw("TRIM(CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))) as walkin_name"),
                 'c.name as account',

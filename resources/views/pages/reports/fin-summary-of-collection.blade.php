@@ -19,62 +19,75 @@
     </div>
     <div>
         <label class="form-label">Search</label>
-        <input type="text" name="search" value="{{ $search }}" placeholder="OR No., name..." class="form-input w-48">
+        <input type="text" name="search" value="{{ $search }}" placeholder="OR No., cashier..." class="form-input w-48">
     </div>
     <div class="flex items-end">
         <button type="submit" class="btn-primary text-sm">Filter</button>
     </div>
 </x-filter-bar>
 
-<div class="card mt-4">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="bg-primary-800 text-white">
-                    <th class="px-3 py-2 text-left whitespace-nowrap">OR DATE (PAID)</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">OR NO.</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">PAYOR</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">TYPE</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">PAYMENT METHOD</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">REMARKS</th>
-                    <th class="px-3 py-2 text-right whitespace-nowrap">TOTAL</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($records as $r)
-                @php
-                    $typeMap = [
-                        1 => ['label'=>'Student','class'=>'bg-blue-100 text-blue-700','name'=>$r->student_name??'-'],
-                        2 => ['label'=>'Employee','class'=>'bg-purple-100 text-purple-700','name'=>$r->employee_name??'-'],
-                        3 => ['label'=>'Walk-in','class'=>'bg-yellow-100 text-yellow-700','name'=>trim($r->walkin_name)?:'-'],
-                    ];
-                    $info = isset($typeMap[$r->customer_type]) ? $typeMap[$r->customer_type] : ['label'=>'Other','class'=>'bg-gray-100 text-gray-600','name'=>'-'];
-                @endphp
-                <tr class="border-b border-secondary-100 hover:bg-secondary-50">
-                    <td class="px-3 py-2 whitespace-nowrap">{{ \Carbon\Carbon::parse($r->date_paid)->format('M d, Y') }}</td>
-                    <td class="px-3 py-2 font-mono">{{ $r->receipt_number }}</td>
-                    <td class="px-3 py-2">{{ $info['name'] }}</td>
-                    <td class="px-3 py-2">
-                        <span class="px-2 py-0.5 rounded text-xs font-medium {{ $info['class'] }}">{{ $info['label'] }}</span>
-                    </td>
-                    <td class="px-3 py-2 text-secondary-500">{{ $r->payment_method ?: '—' }}</td>
-                    <td class="px-3 py-2 text-secondary-500 max-w-xs truncate">{{ $r->remarks ?: '—' }}</td>
-                    <td class="px-3 py-2 text-right font-medium">{{ number_format($r->total, 2) }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="7" class="px-3 py-6 text-center text-secondary-400">No records found for the selected period.</td></tr>
-                @endforelse
-            </tbody>
-            @if($records->isNotEmpty())
-            <tfoot>
-                <tr class="bg-secondary-50 font-semibold">
-                    <td colspan="6" class="px-3 py-2 text-right">Page Total:</td>
-                    <td class="px-3 py-2 text-right">{{ number_format($records->sum('total'), 2) }}</td>
-                </tr>
-            </tfoot>
-            @endif
-        </table>
-    </div>
+<div class="card mt-4 overflow-x-auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th rowspan="2" class="border-r border-gray-200">OR DATE (PAID)</th>
+                <th rowspan="2" class="border-r border-gray-200">TRANSACTED BY</th>
+                <th rowspan="2" class="border-r border-gray-200">OR NO.</th>
+                <th rowspan="2" class="border-r border-gray-200">PAYOR</th>
+                <th colspan="5" class="text-center border-r border-gray-200">PAYMENT MODE</th>
+                <th rowspan="2" class="text-right border-r border-gray-200">TOTAL</th>
+                <th rowspan="2">REMARKS</th>
+            </tr>
+            <tr>
+                <th class="text-right">CASH</th>
+                <th class="text-right">CHEQUE</th>
+                <th class="text-right">CREDIT CARD</th>
+                <th class="text-right">DIRECT DEP.</th>
+                <th class="text-right border-r border-gray-200">PDC</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($records as $r)
+            @php
+                $typeMap = [
+                    1 => $r->student_name ?? '—',
+                    2 => $r->employee_name ?? '—',
+                    3 => trim($r->walkin_name) ?: '—',
+                ];
+                $payor = isset($typeMap[$r->customer_type]) ? $typeMap[$r->customer_type] : '—';
+            @endphp
+            <tr>
+                <td class="border-r border-gray-100">{{ \Carbon\Carbon::parse($r->date_paid)->format('M d, Y') }}</td>
+                <td class="border-r border-gray-100">{{ $r->transacted_by ?: '—' }}</td>
+                <td class="font-mono border-r border-gray-100">{{ $r->receipt_number }}</td>
+                <td class="border-r border-gray-100">{{ $payor }}</td>
+                <td class="text-right">{{ $r->cash_amt > 0 ? number_format($r->cash_amt, 2) : '' }}</td>
+                <td class="text-right">{{ $r->cheque_amt > 0 ? number_format($r->cheque_amt, 2) : '' }}</td>
+                <td class="text-right">{{ $r->cc_amt > 0 ? number_format($r->cc_amt, 2) : '' }}</td>
+                <td class="text-right">{{ $r->dd_amt > 0 ? number_format($r->dd_amt, 2) : '' }}</td>
+                <td class="text-right border-r border-gray-100">{{ $r->pdc_amt > 0 ? number_format($r->pdc_amt, 2) : '' }}</td>
+                <td class="text-right font-medium border-r border-gray-100">{{ number_format($r->total, 2) }}</td>
+                <td class="text-secondary-400 max-w-xs truncate">{{ $r->remarks ?: '—' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="11" class="px-4 py-6 text-center text-secondary-400">No records found for the selected period.</td></tr>
+            @endforelse
+        </tbody>
+        @if($records->isNotEmpty())
+        <tfoot>
+            <tr class="bg-gray-50 font-semibold text-sm border-t-2 border-gray-300">
+                <td colspan="4" class="px-4 py-2 text-right text-secondary-600 border-r border-gray-200">Page Total:</td>
+                <td class="px-4 py-2 text-right">{{ number_format($records->sum('cash_amt'), 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($records->sum('cheque_amt'), 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($records->sum('cc_amt'), 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($records->sum('dd_amt'), 2) }}</td>
+                <td class="px-4 py-2 text-right border-r border-gray-200">{{ number_format($records->sum('pdc_amt'), 2) }}</td>
+                <td class="px-4 py-2 text-right font-bold border-r border-gray-200">{{ number_format($records->sum('total'), 2) }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+        @endif
+    </table>
     <div class="p-4">
         {{ $records->appends(request()->query())->links() }}
     </div>

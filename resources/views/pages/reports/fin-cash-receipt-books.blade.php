@@ -28,16 +28,16 @@
 
 <div class="card mt-4">
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="data-table">
             <thead>
-                <tr class="bg-primary-800 text-white">
-                    <th class="px-3 py-2 text-left whitespace-nowrap">OR#</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">DATE</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">PAYOR</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">REMARKS</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">ACCOUNT</th>
-                    <th class="px-3 py-2 text-right whitespace-nowrap">AMOUNT</th>
-                    <th class="px-3 py-2 text-right whitespace-nowrap">TOTAL AMOUNT</th>
+                <tr>
+                    <th>OR#</th>
+                    <th>DATE</th>
+                    <th>PAYOR</th>
+                    <th>REMARKS</th>
+                    <th>ACCOUNT</th>
+                    <th class="text-right">AMOUNT</th>
+                    <th class="text-right">TOTAL AMOUNT</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,14 +53,14 @@
                     $isNewOr = $r->receipt_number !== $currentOr;
                     $currentOr = $r->receipt_number;
                 @endphp
-                <tr class="border-b border-secondary-100 hover:bg-secondary-50 {{ $isNewOr ? 'border-t-2 border-secondary-200' : '' }}">
-                    <td class="px-3 py-2 font-mono text-xs">{{ $isNewOr ? $r->receipt_number : '' }}</td>
-                    <td class="px-3 py-2 whitespace-nowrap">{{ $isNewOr ? \Carbon\Carbon::parse($r->date_paid)->format('Y-m-d') : '' }}</td>
-                    <td class="px-3 py-2">{{ $isNewOr ? $payor : '' }}</td>
-                    <td class="px-3 py-2 text-secondary-500 max-w-xs truncate">{{ $isNewOr ? ($r->remarks ?: '—') : '' }}</td>
-                    <td class="px-3 py-2">{{ $r->account }}</td>
-                    <td class="px-3 py-2 text-right">{{ number_format($r->amount, 2) }}</td>
-                    <td class="px-3 py-2 text-right font-medium">{{ $isNewOr ? number_format($r->batch_total, 2) : '' }}</td>
+                <tr class="{{ $isNewOr ? 'border-t-2 border-gray-300' : '' }}">
+                    <td class="font-mono text-xs">{{ $isNewOr ? $r->receipt_number : '' }}</td>
+                    <td class="whitespace-nowrap">{{ $isNewOr ? \Carbon\Carbon::parse($r->date_paid)->format('Y-m-d') : '' }}</td>
+                    <td>{{ $isNewOr ? $payor : '' }}</td>
+                    <td class="text-secondary-500 max-w-xs truncate">{{ $isNewOr ? ($r->remarks ?: '—') : '' }}</td>
+                    <td>{{ $r->account }}</td>
+                    <td class="text-right">{{ number_format($r->amount, 2) }}</td>
+                    <td class="text-right font-medium">{{ $isNewOr ? number_format($r->batch_total, 2) : '' }}</td>
                 </tr>
                 @empty
                 <tr><td colspan="7" class="px-3 py-6 text-center text-secondary-400">No records found for the selected period.</td></tr>
@@ -68,9 +68,9 @@
             </tbody>
             @if($records->isNotEmpty())
             <tfoot>
-                <tr class="bg-secondary-50 font-semibold">
-                    <td colspan="5" class="px-3 py-2 text-right">Page Total (fee lines):</td>
-                    <td class="px-3 py-2 text-right">{{ number_format($records->sum('amount'), 2) }}</td>
+                <tr class="bg-gray-50 font-semibold text-sm border-t-2 border-gray-300">
+                    <td colspan="5" class="px-4 py-2 text-right text-secondary-600">Page Total (fee lines):</td>
+                    <td class="px-4 py-2 text-right font-bold">{{ number_format($records->sum('amount'), 2) }}</td>
                     <td></td>
                 </tr>
             </tfoot>

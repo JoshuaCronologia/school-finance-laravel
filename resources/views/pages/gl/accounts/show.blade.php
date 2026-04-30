@@ -129,12 +129,19 @@
 </div>
 
 {{-- Finance Fee Transactions (if mapped) --}}
-@if($feeTransactions->count() > 0)
+@if($feeDateFrom !== null)
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Finance Fee Collections</h3>
         <span class="text-xs text-secondary-400">{{ $syLabel }}</span>
     </div>
+    <form method="GET" action="{{ route('gl.accounts.show', $account) }}" class="px-4 py-3 border-b border-gray-200 flex items-center gap-3 flex-wrap">
+        <label class="form-label mb-0">Date Range</label>
+        <input type="date" name="fee_date_from" value="{{ $feeDateFrom }}" class="form-input" onchange="this.form.submit()">
+        <span class="text-secondary-400">—</span>
+        <input type="date" name="fee_date_to" value="{{ $feeDateTo }}" class="form-input" onchange="this.form.submit()">
+        <button type="submit" class="btn-primary text-sm">Filter</button>
+    </form>
     <div class="overflow-x-auto">
         <table class="data-table">
             <thead>
@@ -146,21 +153,25 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($feeTransactions as $fee)
+                @forelse($feeTransactions as $fee)
                 <tr>
                     <td>{{ \Carbon\Carbon::parse($fee->posting_date)->format('M d, Y') }}</td>
                     <td class="font-mono text-sm">{{ $fee->entry_number }}</td>
                     <td>{{ $fee->description }}</td>
                     <td class="text-right font-mono text-green-600">{{ '₱' . number_format($fee->credit, 2) }}</td>
                 </tr>
-                @endforeach
+                @empty
+                <tr><td colspan="4" class="text-center text-secondary-400 py-6">No fee collections for this date range.</td></tr>
+                @endforelse
             </tbody>
+            @if($feeTransactions->count() > 0)
             <tfoot class="bg-gray-100 font-bold border-t-2 border-gray-400">
                 <tr>
-                    <td colspan="3" class="text-right">Total (3 months):</td>
+                    <td colspan="3" class="text-right">Total:</td>
                     <td class="text-right font-mono text-green-700">{{ '₱' . number_format($feeTransactions->sum('credit'), 2) }}</td>
                 </tr>
             </tfoot>
+            @endif
         </table>
     </div>
 </div>

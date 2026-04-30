@@ -185,7 +185,7 @@ class ChartOfAccountsController extends Controller
         return redirect()->route('gl.accounts.index')->with('success', 'Account created successfully.');
     }
 
-    public function show(ChartOfAccount $account)
+    public function show(Request $request, ChartOfAccount $account)
     {
         $account->load('parent', 'children');
 
@@ -231,27 +231,28 @@ class ChartOfAccountsController extends Controller
             ->limit(20)
             ->get();
 
-        // Recent finance fee entries (if mapped) — scope to current school year
+        // Recent finance fee entries (if mapped) — filterable by date range
         $feeTransactions = collect();
-        $syLabel = 'Current SY';
+        $syLabel = '';
+        $feeDateFrom = null;
+        $feeDateTo = null;
         try {
-            $sy = FinanceFeeService::currentSchoolYear(); // e.g. "2025-2026"
-            $syStart = substr($sy, 0, 4) . '-06-01';      // June 1 of start year
-            $syLabel = 'SY ' . $sy;
+            $sy = FinanceFeeService::currentSchoolYear();
+            $syStart = substr($sy, 0, 4) . '-06-01';
 
-            $feeEntries = FinanceFeeService::glEntries(
-                $syStart,
-                now()->toDateString(),
-                $account->id
-            );
+            $feeDateFrom = $request->filled('fee_date_from') ? $request->fee_date_from : $syStart;
+            $feeDateTo   = $request->filled('fee_date_to')   ? $request->fee_date_to   : now()->toDateString();
+            $syLabel     = $feeDateFrom . ' to ' . $feeDateTo;
+
+            $feeEntries = FinanceFeeService::glEntries($feeDateFrom, $feeDateTo, $account->id);
             if ($feeEntries->isNotEmpty()) {
-                $feeTransactions = $feeEntries->first()->sortByDesc('posting_date')->take(20);
+                $feeTransactions = $feeEntries->first()->sortByDesc('posting_date');
             }
         } catch (\Exception $e) {}
 
         return view('pages.gl.accounts.show', compact(
             'account', 'balance', 'totalDebit', 'totalCredit', 'feeBalance',
-            'recentTransactions', 'feeTransactions', 'syLabel'
+            'recentTransactions', 'feeTransactions', 'syLabel', 'feeDateFrom', 'feeDateTo'
         ));
     }
 

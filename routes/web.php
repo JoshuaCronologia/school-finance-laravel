@@ -151,7 +151,7 @@ Route::middleware(['check_auth'])->group(function () {
     // =============================================================
     Route::prefix('gl')->name('gl.')->group(function () {
         Route::resource('accounts', ChartOfAccountsController::class);
-        Route::get('accounts/{id}/children', [ChartOfAccountsController::class, 'children'])->name('gl.accounts.children');
+        Route::get('accounts/{id}/children', [ChartOfAccountsController::class, 'children'])->name('accounts.children');
         Route::resource('journal-entries', JournalEntryController::class);
         Route::get('/journal-entries-approval', [JournalEntryController::class, 'approvalQueue'])->name('journal-entries.approval');
         Route::post('/journal-entries/{journal_entry}/submit-approval', [JournalEntryController::class, 'submitForApproval'])->name('journal-entries.submit-approval');

@@ -33,22 +33,22 @@
 
 <div class="card mt-4">
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="data-table">
             <thead>
-                <tr class="bg-primary-800 text-white">
-                    <th class="px-3 py-2 text-left whitespace-nowrap">ACCOUNT NUMBER</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">DESCRIPTION</th>
-                    <th class="px-3 py-2 text-left whitespace-nowrap">DATE (PAID)</th>
-                    <th class="px-3 py-2 text-right whitespace-nowrap">AMOUNT</th>
+                <tr>
+                    <th>ACCOUNT NUMBER</th>
+                    <th>DESCRIPTION</th>
+                    <th>DATE (PAID)</th>
+                    <th class="text-right">AMOUNT</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($records as $r)
-                <tr class="border-b border-secondary-100 hover:bg-secondary-50">
-                    <td class="px-3 py-2 font-mono text-xs">{{ $r->account_code }}</td>
-                    <td class="px-3 py-2">{{ $r->fee_name }}</td>
-                    <td class="px-3 py-2 whitespace-nowrap">{{ \Carbon\Carbon::parse($r->date_paid)->format('M d, Y') }}</td>
-                    <td class="px-3 py-2 text-right">{{ number_format($r->amount, 2) }}</td>
+                <tr>
+                    <td class="font-mono text-xs">{{ $r->account_code }}</td>
+                    <td>{{ $r->fee_name }}</td>
+                    <td class="whitespace-nowrap">{{ \Carbon\Carbon::parse($r->date_paid)->format('M d, Y') }}</td>
+                    <td class="text-right">{{ number_format($r->amount, 2) }}</td>
                 </tr>
                 @empty
                 <tr><td colspan="4" class="px-3 py-6 text-center text-secondary-400">No records found for the selected period.</td></tr>
