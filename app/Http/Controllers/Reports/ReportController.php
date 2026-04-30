@@ -964,6 +964,60 @@ class ReportController extends Controller
         return view('pages.reports.fee-receipt-detail', compact('receipt'));
     }
 
+    public function summaryOfCollection(Request $request)
+    {
+        $defaultFrom = now()->startOfMonth()->toDateString();
+        $defaultTo   = now()->toDateString();
+        $dateFrom    = $request->input('date_from', $defaultFrom);
+        $dateTo      = $request->input('date_to', $defaultTo);
+        $search      = $request->input('search');
+
+        $records = FinanceFeeService::summaryOfCollection($dateFrom, $dateTo, $search);
+
+        return view('pages.reports.fin-summary-of-collection', compact('records', 'dateFrom', 'dateTo', 'search'));
+    }
+
+    public function summaryOfCollectionPerFee(Request $request)
+    {
+        $defaultFrom = now()->startOfMonth()->toDateString();
+        $defaultTo   = now()->toDateString();
+        $dateFrom    = $request->input('date_from', $defaultFrom);
+        $dateTo      = $request->input('date_to', $defaultTo);
+        $feeName     = $request->input('fee_name');
+        $feeNames    = FinanceFeeService::feeNames();
+
+        $records = FinanceFeeService::summaryOfCollectionPerFee($dateFrom, $dateTo, $feeName);
+
+        return view('pages.reports.fin-summary-per-fee', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames'));
+    }
+
+    public function feeListReport(Request $request)
+    {
+        $defaultFrom = now()->startOfMonth()->toDateString();
+        $defaultTo   = now()->toDateString();
+        $dateFrom    = $request->input('date_from', $defaultFrom);
+        $dateTo      = $request->input('date_to', $defaultTo);
+        $feeName     = $request->input('fee_name');
+        $feeNames    = FinanceFeeService::feeNames();
+
+        $records = FinanceFeeService::feeListReport($dateFrom, $dateTo, $feeName);
+
+        return view('pages.reports.fin-fee-list', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames'));
+    }
+
+    public function cashReceiptBooksFinance(Request $request)
+    {
+        $defaultFrom = now()->startOfMonth()->toDateString();
+        $defaultTo   = now()->toDateString();
+        $dateFrom    = $request->input('date_from', $defaultFrom);
+        $dateTo      = $request->input('date_to', $defaultTo);
+        $search      = $request->input('search');
+
+        $records = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+
+        return view('pages.reports.fin-cash-receipt-books', compact('records', 'dateFrom', 'dateTo', 'search'));
+    }
+
     /**
      * Fee Account Mapping — settings page (lazy-loading version).
      * Only loads group headers on initial render; fees are fetched per-group via AJAX.

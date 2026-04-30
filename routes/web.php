@@ -200,6 +200,10 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/fee-collections', [ReportController::class, 'feeCollections'])->name('fee-collections');
         Route::get('/fee-receipts', [ReportController::class, 'feeReceipts'])->name('fee-receipts');
         Route::get('/fee-receipts/{id}', [ReportController::class, 'feeReceiptDetail'])->name('fee-receipt-detail');
+        Route::get('/fin/summary-of-collection', [ReportController::class, 'summaryOfCollection'])->name('fin.summary-of-collection');
+        Route::get('/fin/summary-per-fee', [ReportController::class, 'summaryOfCollectionPerFee'])->name('fin.summary-per-fee');
+        Route::get('/fin/fee-list', [ReportController::class, 'feeListReport'])->name('fin.fee-list');
+        Route::get('/fin/cash-receipt-books', [ReportController::class, 'cashReceiptBooksFinance'])->name('fin.cash-receipt-books');
         Route::get('/fee-account-mappings/group/{groupId}', [ReportController::class, 'feeGroupFees'])->name('fee-account-mappings.group-fees');
         Route::get('/fee-account-mappings', [ReportController::class, 'feeAccountMappings'])->name('fee-account-mappings');
         Route::post('/fee-account-mappings', [ReportController::class, 'saveFeeAccountMappings'])->name('fee-account-mappings.save');

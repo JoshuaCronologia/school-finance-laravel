@@ -461,6 +461,134 @@ class FinanceFeeService
     }
 
     /**
+     * Summary of Collection — one row per transaction batch.
+     */
+    public static function summaryOfCollection($dateFrom, $dateTo, $search = null, $perPage = 25)
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_batch as b')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->where('b.total', '>', 0)
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
+            ->select(
+                'b.id', 'b.receipt_number', 'b.date_paid', 'b.total', 'b.customer_type',
+                DB::raw("COALESCE(b.payment_method, '') as payment_method"),
+                DB::raw("COALESCE(b.remarks, b.description, '') as remarks"),
+                's.student_name', 's.student_number',
+                'e.employee_name',
+                DB::raw("TRIM(CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))) as walkin_name")
+            );
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('b.receipt_number', 'like', "%{$search}%")
+                  ->orWhere('s.student_name', 'like', "%{$search}%")
+                  ->orWhere('e.employee_name', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('b.date_paid')->orderBy('b.receipt_number')->paginate($perPage);
+    }
+
+    /**
+     * Summary of Collection Per Fee — one row per fee distribution line.
+     */
+    public static function summaryOfCollectionPerFee($dateFrom, $dateTo, $feeName = null, $perPage = 25)
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
+            ->select(
+                DB::raw("COALESCE(c.account_code, c.id) as account_code"),
+                'c.name as fee_name',
+                'b.date_paid',
+                'fd.amount'
+            );
+
+        if ($feeName) {
+            $query->where('c.name', $feeName);
+        }
+
+        return $query->orderBy('b.date_paid')->orderBy('c.name')->paginate($perPage);
+    }
+
+    /**
+     * Fee List Report — per student per fee, grouped by fee name in the view.
+     */
+    public static function feeListReport($dateFrom, $dateTo, $feeName = null, $perPage = 50)
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
+            ->select(
+                'c.name as fee_name',
+                DB::raw("COALESCE(s.student_number, s.control_number, '') as student_id"),
+                "s.student_name",
+                DB::raw("COALESCE(s.year_level, s.grade_level, '') as year_level"),
+                DB::raw("COALESCE(s.course, s.strand, '') as course_strand"),
+                DB::raw("COALESCE(s.section, '') as section"),
+                'b.receipt_number',
+                'b.date_paid',
+                DB::raw("COALESCE(b.remarks, b.description, '') as remark"),
+                'fd.amount'
+            );
+
+        if ($feeName) {
+            $query->where('c.name', $feeName);
+        }
+
+        return $query->orderBy('c.name')->orderBy('b.date_paid')->orderBy('b.receipt_number')->paginate($perPage);
+    }
+
+    /**
+     * Cash Receipt Books (Finance) — one row per fee line item with payor info.
+     */
+    public static function cashReceiptBooksFinance($dateFrom, $dateTo, $search = null, $perPage = 25)
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
+            ->select(
+                'b.receipt_number', 'b.date_paid', 'b.total as batch_total', 'b.customer_type',
+                DB::raw("COALESCE(b.remarks, b.description, '') as remarks"),
+                's.student_name', 'e.employee_name',
+                DB::raw("TRIM(CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))) as walkin_name"),
+                'c.name as account',
+                'fd.amount'
+            );
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('b.receipt_number', 'like', "%{$search}%")
+                  ->orWhere('s.student_name', 'like', "%{$search}%")
+                  ->orWhere('e.employee_name', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('b.date_paid')->orderBy('b.receipt_number')->paginate($perPage);
+    }
+
+    /**
      * Get distinct fee names for filter dropdown. Cached 5 minutes.
      */
     public static function feeNames()

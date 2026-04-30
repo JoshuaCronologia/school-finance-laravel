@@ -242,7 +242,7 @@
             <p class="sidebar-section-title mt-4">Reports</p>
 
             {{-- Financial Reports (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/trial-balance') || str_starts_with($currentRoute, '/reports/balance-sheet') || str_starts_with($currentRoute, '/reports/income-statement') || str_starts_with($currentRoute, '/reports/cash-flow') || str_starts_with($currentRoute, '/reports/general-ledger') || str_starts_with($currentRoute, '/reports/expense-schedule') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/trial-balance') || str_starts_with($currentRoute, '/reports/balance-sheet') || str_starts_with($currentRoute, '/reports/income-statement') || str_starts_with($currentRoute, '/reports/cash-flow') || str_starts_with($currentRoute, '/reports/general-ledger') || str_starts_with($currentRoute, '/reports/expense-schedule') || str_starts_with($currentRoute, '/reports/fin/') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
@@ -266,6 +266,11 @@
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Other Reports</p>
                     <a href="{{ url('/reports/expense-schedule') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/expense-schedule' ? 'sidebar-link--active' : '' }}">Expense Schedule</a>
                     <a href="{{ url('/reports/fee-collections') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fee-collections' ? 'sidebar-link--active' : '' }}">Fee Collections</a>
+                    <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Cashier Reports</p>
+                    <a href="{{ url('/reports/fin/summary-of-collection') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/summary-of-collection' ? 'sidebar-link--active' : '' }}">Summary of Collection</a>
+                    <a href="{{ url('/reports/fin/summary-per-fee') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/summary-per-fee' ? 'sidebar-link--active' : '' }}">Summary of Collection Per Fee</a>
+                    <a href="{{ url('/reports/fin/fee-list') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/fee-list' ? 'sidebar-link--active' : '' }}">Fee List Report</a>
+                    <a href="{{ url('/reports/fin/cash-receipt-books') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/cash-receipt-books' ? 'sidebar-link--active' : '' }}">Cash Receipt Books</a>
                 </div>
             </div>
 
