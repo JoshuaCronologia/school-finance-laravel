@@ -14,6 +14,7 @@ class TaxCode extends Model
         'name',
         'rate',
         'type',
+        'bir_atc',
         'is_active',
     ];
 

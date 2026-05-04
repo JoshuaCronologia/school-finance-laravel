@@ -270,7 +270,6 @@
                     <a href="{{ url('/reports/fin/summary-of-collection') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/summary-of-collection' ? 'sidebar-link--active' : '' }}">Summary of Collection</a>
                     <a href="{{ url('/reports/fin/summary-per-fee') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/summary-per-fee' ? 'sidebar-link--active' : '' }}">Summary of Collection Per Fee</a>
                     <a href="{{ url('/reports/fin/fee-list') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/fee-list' ? 'sidebar-link--active' : '' }}">Fee List Report</a>
-                    <a href="{{ url('/reports/fin/cash-receipt-books') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/fin/cash-receipt-books' ? 'sidebar-link--active' : '' }}">Cash Receipt Books</a>
                 </div>
             </div>
 

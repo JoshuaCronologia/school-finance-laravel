@@ -17,6 +17,7 @@ class ApPayment extends Model
         'payment_number',
         'payment_date',
         'vendor_id',
+        'tax_code_id',
         'payment_method',
         'bank_account',
         'check_number',
@@ -44,6 +45,11 @@ class ApPayment extends Model
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);
+    }
+
+    public function taxCode(): BelongsTo
+    {
+        return $this->belongsTo(TaxCode::class, 'tax_code_id');
     }
 
     public function allocations(): HasMany

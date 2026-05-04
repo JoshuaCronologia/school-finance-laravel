@@ -129,19 +129,19 @@
             </td>
             <td class="bir-cell" style="width:40%">
                 <div class="bir-label">7 RDO Code</div>
-                <div class="bir-value">{{ $schoolRdo ?? '&nbsp;' }}</div>
+                <div class="bir-value">{!! $schoolRdo ?? '&nbsp;' !!}</div>
             </td>
         </tr>
         <tr>
             <td class="bir-cell" colspan="2">
                 <div class="bir-label">8 Taxpayer's Name (Last Name, First Name, Middle Name for Individual OR Registered Name for Non-Individual)</div>
-                <div class="bir-value" style="text-transform:uppercase;font-size:11px;">{{ $schoolName ?? '&nbsp;' }}</div>
+                <div class="bir-value" style="text-transform:uppercase;font-size:11px;">{!! $schoolName ?? '&nbsp;' !!}</div>
             </td>
         </tr>
         <tr>
             <td class="bir-cell" colspan="2">
                 <div class="bir-label">9 Registered Address</div>
-                <div class="bir-value" style="font-size:10px;">{{ $schoolAddress ?? '&nbsp;' }}</div>
+                <div class="bir-value" style="font-size:10px;">{!! $schoolAddress ?? '&nbsp;' !!}</div>
             </td>
         </tr>
         <tr>

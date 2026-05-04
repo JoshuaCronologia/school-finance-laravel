@@ -571,28 +571,41 @@ class ReportController extends Controller
     public function cashReceiptsBook(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        $dateTo   = $request->input('date_to', now()->toDateString());
+        $tab      = $request->input('tab', 'gl');
+        $search   = $request->input('search');
 
-        $entries = JournalEntryLine::select(
-                'journal_entry_lines.*',
-                'je.entry_number', 'je.posting_date', 'je.reference_number',
-                'je.description as je_description', 'je.journal_type',
-                'coa.account_code', 'coa.account_name'
-            )
-            ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
-            ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
-            ->where('je.status', 'posted')
-            ->whereDate('je.posting_date', '>=', $dateFrom)
-            ->whereDate('je.posting_date', '<=', $dateTo)
-            ->where('coa.account_code', '>=', '1010')
-            ->where('coa.account_code', '<=', '1050')
-            ->where('journal_entry_lines.debit', '>', 0)
-            ->orderBy('je.posting_date')
-            ->get();
+        // Only query the active tab — no wasted DB calls
+        $entries     = collect();
+        $totalAmount = 0;
+        $finRecords  = collect();
 
-        $totalAmount = $entries->sum('debit');
+        if ($tab === 'gl') {
+            $entries = JournalEntryLine::select(
+                    'journal_entry_lines.*',
+                    'je.entry_number', 'je.posting_date', 'je.reference_number',
+                    'je.description as je_description', 'je.journal_type',
+                    'coa.account_code', 'coa.account_name'
+                )
+                ->join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
+                ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
+                ->where('je.status', 'posted')
+                ->whereDate('je.posting_date', '>=', $dateFrom)
+                ->whereDate('je.posting_date', '<=', $dateTo)
+                ->where('coa.account_code', '>=', '1010')
+                ->where('coa.account_code', '<=', '1050')
+                ->where('journal_entry_lines.debit', '>', 0)
+                ->orderBy('je.posting_date')
+                ->get();
 
-        return view('pages.reports.cash-receipts-book', compact('entries', 'dateFrom', 'dateTo', 'totalAmount'));
+            $totalAmount = $entries->sum('debit');
+        } else {
+            $finRecords = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+        }
+
+        return view('pages.reports.cash-receipts-book', compact(
+            'entries', 'dateFrom', 'dateTo', 'totalAmount', 'tab', 'search', 'finRecords'
+        ));
     }
 
     /**

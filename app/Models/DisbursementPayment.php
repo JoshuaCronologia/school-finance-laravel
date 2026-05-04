@@ -12,6 +12,7 @@ class DisbursementPayment extends Model
 
     protected $fillable = [
         'disbursement_id',
+        'tax_code_id',
         'voucher_number',
         'payment_date',
         'payment_method',
@@ -35,5 +36,10 @@ class DisbursementPayment extends Model
     public function disbursement(): BelongsTo
     {
         return $this->belongsTo(DisbursementRequest::class, 'disbursement_id');
+    }
+
+    public function taxCode(): BelongsTo
+    {
+        return $this->belongsTo(TaxCode::class, 'tax_code_id');
     }
 }

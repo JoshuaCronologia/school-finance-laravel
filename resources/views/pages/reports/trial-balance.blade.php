@@ -74,8 +74,8 @@
                         <td class="font-mono text-sm">{{ $account->account_code }}</td>
                         <td>{{ $account->account_name }}</td>
                         <td><x-badge :status="$account->account_type" /></td>
-                        <td class="text-right font-mono">{{ $account->debit > 0 ? '₱' . number_format($account->debit, 2) : '' }}</td>
-                        <td class="text-right font-mono">{{ $account->credit > 0 ? '₱' . number_format($account->credit, 2) : '' }}</td>
+                        <td class="text-right font-mono">{{ $account->total_debit > 0 ? '₱' . number_format($account->total_debit, 2) : '' }}</td>
+                        <td class="text-right font-mono">{{ $account->total_credit > 0 ? '₱' . number_format($account->total_credit, 2) : '' }}</td>
                     </tr>
                 @empty
                     <tr>

@@ -119,11 +119,15 @@
         lines: [{ fee_code: '', description: '', qty: 1, unit_amount: 0, amount: 0, revenue_account: '' }],
         discount: 0,
         tax: 0,
+        taxRate: 0,
+        taxCodeId: '',
         get gross() { return this.lines.reduce((s, l) => s + parseFloat(l.amount || 0), 0); },
         get net() { return this.gross - parseFloat(this.discount || 0) + parseFloat(this.tax || 0); },
-        updateAmount(i) { this.lines[i].amount = (parseFloat(this.lines[i].qty || 0) * parseFloat(this.lines[i].unit_amount || 0)).toFixed(2); },
+        updateAmount(i) { this.lines[i].amount = (parseFloat(this.lines[i].qty || 0) * parseFloat(this.lines[i].unit_amount || 0)).toFixed(2); this.recomputeTax(); },
         addLine() { this.lines.push({ fee_code: '', description: '', qty: 1, unit_amount: 0, amount: 0, revenue_account: '' }); },
-        removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); }
+        removeLine(i) { if (this.lines.length > 1) { this.lines.splice(i, 1); this.recomputeTax(); } },
+        applyTaxCode(rate, id) { this.taxRate = parseFloat(rate || 0); this.taxCodeId = id; this.recomputeTax(); },
+        recomputeTax() { if (this.taxRate > 0) { this.tax = (this.gross * this.taxRate / 100).toFixed(2); } }
     }">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -212,16 +216,26 @@
 
         {{-- Summary --}}
         <div class="flex justify-end">
-            <div class="w-64 space-y-2 text-sm">
+            <div class="w-72 space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-secondary-600">Gross Amount:</span><span class="font-medium" x-text="'₱' + gross.toFixed(2)"></span></div>
                 <div class="flex justify-between items-center">
                     <span class="text-secondary-600">Discount:</span>
                     <input type="number" name="discount_amount" x-model="discount" class="form-input w-28 text-right text-sm" step="0.01" min="0">
                 </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-secondary-600">Tax:</span>
-                    <input type="number" name="tax_amount" x-model="tax" class="form-input w-28 text-right text-sm" step="0.01" min="0">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="text-secondary-600 whitespace-nowrap">Tax Code:</span>
+                    <select name="tax_code_id" class="form-input text-sm" @change="applyTaxCode($event.target.selectedOptions[0].dataset.rate, $event.target.value)">
+                        <option value="" data-rate="0">None (0%)</option>
+                        @foreach($taxCodes ?? [] as $tc)
+                            <option value="{{ $tc->id }}" data-rate="{{ $tc->rate }}">{{ $tc->code }} – {{ $tc->rate }}%</option>
+                        @endforeach
+                    </select>
                 </div>
+                <div class="flex justify-between items-center" x-show="taxRate > 0">
+                    <span class="text-secondary-600" x-text="'Tax (' + taxRate + '%)'"></span>
+                    <span class="font-medium text-danger-600" x-text="'₱' + parseFloat(tax).toFixed(2)"></span>
+                </div>
+                <input type="hidden" name="tax_amount" :value="tax">
                 <div class="flex justify-between pt-2 border-t border-gray-200 font-semibold"><span>Net Amount:</span><span x-text="'₱' + net.toFixed(2)"></span></div>
             </div>
         </div>
@@ -240,11 +254,15 @@
         lines: @js($invoice->lines ?? [['fee_code' => '', 'description' => '', 'qty' => 1, 'unit_amount' => 0, 'amount' => 0, 'revenue_account' => '']]),
         discount: {{ $invoice->discount_amount ?? 0 }},
         tax: {{ $invoice->tax_amount ?? 0 }},
+        taxRate: 0,
+        taxCodeId: '',
         get gross() { return this.lines.reduce((s, l) => s + parseFloat(l.amount || 0), 0); },
         get net() { return this.gross - parseFloat(this.discount || 0) + parseFloat(this.tax || 0); },
-        updateAmount(i) { this.lines[i].amount = (parseFloat(this.lines[i].qty || 0) * parseFloat(this.lines[i].unit_amount || 0)).toFixed(2); },
+        updateAmount(i) { this.lines[i].amount = (parseFloat(this.lines[i].qty || 0) * parseFloat(this.lines[i].unit_amount || 0)).toFixed(2); this.recomputeTax(); },
         addLine() { this.lines.push({ fee_code: '', description: '', qty: 1, unit_amount: 0, amount: 0, revenue_account: '' }); },
-        removeLine(i) { if (this.lines.length > 1) this.lines.splice(i, 1); }
+        removeLine(i) { if (this.lines.length > 1) { this.lines.splice(i, 1); this.recomputeTax(); } },
+        applyTaxCode(rate, id) { this.taxRate = parseFloat(rate || 0); this.taxCodeId = id; this.recomputeTax(); },
+        recomputeTax() { if (this.taxRate > 0) { this.tax = (this.gross * this.taxRate / 100).toFixed(2); } }
     }">
         @csrf
         @method('PUT')
@@ -333,16 +351,26 @@
 
         {{-- Summary --}}
         <div class="flex justify-end">
-            <div class="w-64 space-y-2 text-sm">
+            <div class="w-72 space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-secondary-600">Gross Amount:</span><span class="font-medium" x-text="'₱' + gross.toFixed(2)"></span></div>
                 <div class="flex justify-between items-center">
                     <span class="text-secondary-600">Discount:</span>
                     <input type="number" name="discount_amount" x-model="discount" class="form-input w-28 text-right text-sm" step="0.01" min="0">
                 </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-secondary-600">Tax:</span>
-                    <input type="number" name="tax_amount" x-model="tax" class="form-input w-28 text-right text-sm" step="0.01" min="0">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="text-secondary-600 whitespace-nowrap">Tax Code:</span>
+                    <select name="tax_code_id" class="form-input text-sm" @change="applyTaxCode($event.target.selectedOptions[0].dataset.rate, $event.target.value)">
+                        <option value="" data-rate="0">None (0%)</option>
+                        @foreach($taxCodes ?? [] as $tc)
+                            <option value="{{ $tc->id }}" data-rate="{{ $tc->rate }}" {{ ($invoice->tax_code_id ?? '') == $tc->id ? 'selected' : '' }}>{{ $tc->code }} – {{ $tc->rate }}%</option>
+                        @endforeach
+                    </select>
                 </div>
+                <div class="flex justify-between items-center" x-show="taxRate > 0 || tax > 0">
+                    <span class="text-secondary-600" x-text="taxRate > 0 ? 'Tax (' + taxRate + '%)' : 'Tax'"></span>
+                    <span class="font-medium text-danger-600" x-text="'₱' + parseFloat(tax).toFixed(2)"></span>
+                </div>
+                <input type="hidden" name="tax_amount" :value="tax">
                 <div class="flex justify-between pt-2 border-t border-gray-200 font-semibold"><span>Net Amount:</span><span x-text="'₱' + net.toFixed(2)"></span></div>
             </div>
         </div>

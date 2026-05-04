@@ -50,7 +50,7 @@ class TaxController extends Controller
             $startMonth = ($q - 1) * 3 + 1;
             $endMonth = $q * 3;
 
-            $payments = ApPayment::with('vendor')
+            $payments = ApPayment::with('vendor', 'taxCode')
                 ->where('status', 'posted')
                 ->where('withholding_tax', '>', 0)
                 ->where('vendor_id', $selectedVendor->id)
@@ -81,16 +81,17 @@ class TaxController extends Controller
         }
 
         // Summary of all vendors with withholding for the period
-        $summaryQuery = ApPayment::with('vendor')
-            ->select('vendor_id', DB::raw('SUM(gross_amount) as total_income'), DB::raw('SUM(withholding_tax) as total_tax'))
+        $summaryQuery = ApPayment::with('vendor', 'taxCode')
+            ->select('vendor_id', 'tax_code_id', DB::raw('SUM(gross_amount) as total_income'), DB::raw('SUM(withholding_tax) as total_tax'))
             ->where('status', 'posted')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
-            ->groupBy('vendor_id')
+            ->groupBy('vendor_id', 'tax_code_id')
             ->get();
 
         $summary = $summaryQuery->map(function ($p) { return (object) [
             'vendor' => $p->vendor,
+            'atc' => optional($p->taxCode)->bir_atc ?? optional($p->vendor)->withholding_tax_type ?? '',
             'income_payment' => (float) $p->total_income,
             'tax_withheld' => (float) $p->total_tax,
         ]; });
@@ -125,7 +126,7 @@ class TaxController extends Controller
                 fputcsv($file, [
                     $item->vendor->tin ?? '',
                     $item->vendor->name ?? '',
-                    $item->vendor->withholding_tax_type ?? '',
+                    $item->atc ?? '',
                     number_format($item->income_payment, 2, '.', ''),
                     number_format($item->tax_withheld, 2, '.', ''),
                 ]);
@@ -156,7 +157,7 @@ class TaxController extends Controller
         $month = (int) date('m', strtotime($taxableMonth . '-01'));
         $year = (int) date('Y', strtotime($taxableMonth . '-01'));
 
-        $payments = ApPayment::with('vendor')
+        $payments = ApPayment::with('vendor', 'taxCode')
             ->where('status', 'posted')
             ->where('withholding_tax', '>', 0)
             ->whereMonth('payment_date', $month)
@@ -164,8 +165,10 @@ class TaxController extends Controller
             ->orderBy('payment_date')
             ->get();
 
-        // Group by ATC (tax type)
-        $atcEntries = $payments->groupBy(function ($p) { return optional($p->vendor)->withholding_tax_type ?? 'EWT'; })
+        // Group by ATC — prefer tax_code.bir_atc, fall back to vendor.withholding_tax_type
+        $atcEntries = $payments->groupBy(function ($p) {
+            return optional($p->taxCode)->bir_atc ?? optional($p->vendor)->withholding_tax_type ?? 'EWT';
+        })
             ->map(function ($group, $type) {
                 return (object) [
                     'atc' => $type,
@@ -238,14 +241,14 @@ class TaxController extends Controller
             ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
             ->where('je.status', 'posted')
             ->whereMonth('je.posting_date', $month)->whereYear('je.posting_date', $year)
-            ->where('coa.account_code', 'like', '2050%')
+            ->where('coa.account_code', 'like', '2210%')
             ->sum(DB::raw('journal_entry_lines.credit - journal_entry_lines.debit'));
 
         $inputVat = (float) JournalEntryLine::join('journal_entries as je', 'journal_entry_lines.journal_entry_id', '=', 'je.id')
             ->join('chart_of_accounts as coa', 'journal_entry_lines.account_id', '=', 'coa.id')
             ->where('je.status', 'posted')
             ->whereMonth('je.posting_date', $month)->whereYear('je.posting_date', $year)
-            ->where('coa.account_code', 'like', '1150%')
+            ->where('coa.account_code', 'like', '2220%')
             ->sum(DB::raw('journal_entry_lines.debit - journal_entry_lines.credit'));
 
         $vatPayable = $outputVat - $inputVat;
@@ -278,9 +281,15 @@ class TaxController extends Controller
             );
         }
 
-        return view('pages.tax.vat-2550m', compact(
-            'taxableMonth', 'taxableSales', 'exemptSales', 'zeroRatedSales',
-            'outputVat', 'inputVat', 'vatPayable', 'totalSales', 'totalPurchases', 'revenueBreakdown'
+        $schoolRdo = Setting::where('key', 'school_rdo')->value('value') ?? '';
+
+        return view('pages.tax.vat-2550m', array_merge(
+            compact(
+                'taxableMonth', 'taxableSales', 'exemptSales', 'zeroRatedSales',
+                'outputVat', 'inputVat', 'vatPayable', 'totalSales', 'totalPurchases', 'revenueBreakdown',
+                'schoolRdo'
+            ),
+            $this->schoolInfo()
         ));
     }
 
@@ -304,7 +313,7 @@ class TaxController extends Controller
         $startMonth = ($q - 1) * 3 + 1;
         $endMonth = $q * 3;
 
-        $payments = ApPayment::with('vendor')
+        $payments = ApPayment::with('vendor', 'taxCode')
             ->where('status', 'posted')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -314,10 +323,13 @@ class TaxController extends Controller
 
         $qapEntries = $payments->groupBy('vendor_id')->map(function ($group) {
             $vendor = $group->first()->vendor;
+            $atc = optional($group->first()->taxCode)->bir_atc
+                ?? optional($vendor)->withholding_tax_type
+                ?? 'WE';
             return (object) [
                 'tin' => $vendor->tin ?? '',
                 'registered_name' => $vendor->name ?? '',
-                'atc' => $vendor->withholding_tax_type ?? 'WE',
+                'atc' => $atc,
                 'income_payment' => $group->sum('gross_amount'),
                 'tax_withheld' => $group->sum('withholding_tax'),
             ];
@@ -489,7 +501,7 @@ class TaxController extends Controller
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement.vendor')
+        $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereMonth('payment_date', $month)
@@ -499,7 +511,12 @@ class TaxController extends Controller
         $totalTaxBase = $payments->sum('gross_amount');
         $totalTaxWithheld = $payments->sum('withholding_tax');
 
-        return view('pages.tax.bir-0619e', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'month', 'year'));
+        $schoolRdo = Setting::where('key', 'school_rdo')->value('value') ?? '';
+
+        return view('pages.tax.bir-0619e', array_merge(
+            compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'month', 'year', 'schoolRdo'),
+            $this->schoolInfo()
+        ));
     }
 
     public function bir0619f(Request $request)
@@ -562,7 +579,7 @@ class TaxController extends Controller
         $startMonth = ($quarter - 1) * 3 + 1;
         $endMonth = $quarter * 3;
 
-        $payments = DisbursementPayment::with('disbursement.vendor')
+        $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -573,14 +590,42 @@ class TaxController extends Controller
         $totalTaxBase = $payments->sum('gross_amount');
         $totalTaxWithheld = $payments->sum('withholding_tax');
 
-        return view('pages.tax.bir-1601eq', compact('payments', 'totalTaxBase', 'totalTaxWithheld', 'quarter', 'year'));
+        $atcEntries = $payments->groupBy(function ($p) {
+            return optional($p->taxCode)->bir_atc
+                ?? optional($p->disbursement->vendor)->withholding_tax_type
+                ?? 'EWT';
+        })->map(function ($group, $atc) {
+            return (object) [
+                'atc' => $atc,
+                'count' => $group->count(),
+                'taxable_amount' => $group->sum('gross_amount'),
+                'tax_withheld' => $group->sum('withholding_tax'),
+            ];
+        })->values();
+
+        $taxCredits = 0;
+        $netTaxDue = $totalTaxWithheld - $taxCredits;
+        $surcharge = 0;
+        $interest = 0;
+        $compromise = 0;
+        $totalAmountDue = $netTaxDue + $surcharge + $interest + $compromise;
+        $schoolRdo = Setting::where('key', 'school_rdo')->value('value') ?? '';
+
+        return view('pages.tax.bir-1601eq', array_merge(
+            compact(
+                'payments', 'totalTaxBase', 'totalTaxWithheld', 'quarter', 'year',
+                'atcEntries', 'taxCredits', 'netTaxDue',
+                'surcharge', 'interest', 'compromise', 'totalAmountDue', 'schoolRdo'
+            ),
+            $this->schoolInfo()
+        ));
     }
 
     public function bir1604e(Request $request)
     {
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement.vendor')
+        $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -611,7 +656,7 @@ class TaxController extends Controller
         $startMonth = ($quarter - 1) * 3 + 1;
         $endMonth = $quarter * 3;
 
-        $payments = DisbursementPayment::with('disbursement.vendor')
+        $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -623,10 +668,13 @@ class TaxController extends Controller
         $alphalist = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; })
             ->map(function ($group, $payeeName) {
                 $first = $group->first();
+                $atc = optional($first->taxCode)->bir_atc
+                    ?? optional($first->disbursement->vendor)->withholding_tax_type
+                    ?? '';
                 return (object) [
                     'payee_name' => $payeeName,
-                    'tin' => $first->disbursement->vendor->tin ?? '',
-                    'atc' => $first->disbursement->vendor->withholding_tax_type ?? '',
+                    'tin' => optional($first->disbursement->vendor)->tin ?? '',
+                    'atc' => $atc,
                     'income_payment' => $group->sum('gross_amount'),
                     'tax_withheld' => $group->sum('withholding_tax'),
                 ];
@@ -639,7 +687,7 @@ class TaxController extends Controller
     {
         $year = $request->input('year', now()->year);
 
-        $payments = DisbursementPayment::with('disbursement.vendor')
+        $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
@@ -649,10 +697,13 @@ class TaxController extends Controller
         $alphalist = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; })
             ->map(function ($group, $payeeName) {
                 $first = $group->first();
+                $atc = optional($first->taxCode)->bir_atc
+                    ?? optional($first->disbursement->vendor)->withholding_tax_type
+                    ?? '';
                 return (object) [
                     'payee_name' => $payeeName,
-                    'tin' => $first->disbursement->vendor->tin ?? '',
-                    'atc' => $first->disbursement->vendor->withholding_tax_type ?? '',
+                    'tin' => optional($first->disbursement->vendor)->tin ?? '',
+                    'atc' => $atc,
                     'income_payment' => $group->sum('gross_amount'),
                     'tax_withheld' => $group->sum('withholding_tax'),
                 ];

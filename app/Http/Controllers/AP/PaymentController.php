@@ -67,6 +67,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'bank_account' => 'required|string|max:100',
             'starting_check_number' => 'nullable|string|max:50',
+            'wht_rate' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $disbursements = DisbursementRequest::whereIn('id', $validated['disbursement_ids'])
@@ -79,8 +80,10 @@ class PaymentController extends Controller
             return back()->with('error', 'No valid approved disbursements found for processing.');
         }
 
+        $whtRate = (float) ($validated['wht_rate'] ?? 0);
+
         try {
-            $results = DB::transaction(function () use ($disbursements, $validated) {
+            $results = DB::transaction(function () use ($disbursements, $validated, $whtRate) {
                 $batchResults = [];
                 $bankAccount = $validated['bank_account'];
 
@@ -91,8 +94,7 @@ class PaymentController extends Controller
                 }
 
                 foreach ($disbursements as $disbursement) {
-                    $whtRate = 0.02;
-                    $wht = round((float) $disbursement->amount * $whtRate, 2);
+                    $wht = $whtRate > 0 ? round((float) $disbursement->amount * $whtRate / 100, 2) : 0;
                     $netAmount = (float) $disbursement->amount - $wht;
 
                     $voucherNumber = NumberingService::generate('PV');
@@ -179,7 +181,8 @@ class PaymentController extends Controller
 
             return redirect()->route('ap.payment-processing')
                 ->with('success', count($results) . ' payment(s) processed successfully.')
-                ->with('batch_results', $results);
+                ->with('batch_results', $results)
+                ->with('batch_wht_rate', $whtRate);
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to process batch: ' . $e->getMessage());
         }

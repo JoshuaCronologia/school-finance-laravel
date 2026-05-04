@@ -14,7 +14,7 @@
 
 {{-- Batch Generation Results --}}
 @if(session('batch_results'))
-@php $batchResults = session('batch_results'); @endphp
+@php $batchResults = session('batch_results'); $batchWhtRate = session('batch_wht_rate', 0); @endphp
 <div class="card mb-6 border-2 border-success-200 bg-success-50">
     <div class="card-header flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -37,7 +37,7 @@
                     <th>Method</th>
                     <th>Check / Ref #</th>
                     <th class="text-right">Gross</th>
-                    <th class="text-right">WHT (2%)</th>
+                    <th class="text-right">WHT{{ $batchWhtRate > 0 ? ' (' . $batchWhtRate . '%)' : '' }}</th>
                     <th class="text-right">Net Amount</th>
                 </tr>
             </thead>
@@ -135,7 +135,7 @@
             <template x-for="id in selectedIds" :key="id">
                 <input type="hidden" name="disbursement_ids[]" :value="id">
             </template>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
                 <div>
                     <label class="form-label">Payment Date <span class="text-danger-500">*</span></label>
                     <input type="date" name="payment_date" class="form-input text-sm" value="{{ date('Y-m-d') }}" required>
@@ -154,6 +154,17 @@
                 <div>
                     <label class="form-label">Starting Check # <span class="text-xs text-secondary-400">(auto if blank)</span></label>
                     <input type="text" name="starting_check_number" class="form-input text-sm" placeholder="{{ $nextCheckNumber ?? 'Auto-generate' }}">
+                </div>
+                <div>
+                    <label class="form-label">WHT Rate</label>
+                    <select name="wht_rate" class="form-input text-sm">
+                        <option value="0">0% — No WHT</option>
+                        <option value="1">1% — EWT 1%</option>
+                        <option value="2">2% — EWT 2%</option>
+                        <option value="5">5% — EWT 5%</option>
+                        <option value="10">10% — EWT 10%</option>
+                        <option value="15">15% — EWT 15%</option>
+                    </select>
                 </div>
                 <div>
                     <button type="submit" class="btn-primary text-sm w-full"
