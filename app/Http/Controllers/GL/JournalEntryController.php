@@ -18,6 +18,7 @@ use App\Services\NumberingService;
 use App\Services\PostingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class JournalEntryController extends Controller
@@ -58,14 +59,18 @@ class JournalEntryController extends Controller
         $pendingApprovalCount = (int) $jeCounts->pending_approval;
         $totalEntries = (int) $jeCounts->total_entries;
 
-        $accounts = ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
+        $accounts = Cache::remember('coa_postable_list', 300, function () {
+            return ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
+        });
 
         return view('pages.gl.journal-entries.index', compact('journalEntries', 'unpostedCount', 'pendingApprovalCount', 'totalEntries', 'accounts'));
     }
 
     public function create()
     {
-        $accounts = ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
+        $accounts = Cache::remember('coa_postable_list', 300, function () {
+            return ChartOfAccount::active()->where('is_postable', true)->orderBy('account_code')->get();
+        });
         $departments = Department::where('is_active', true)->get();
         $campuses = Campus::where('is_active', true)->get();
         $costCenters = CostCenter::where('is_active', true)->get();

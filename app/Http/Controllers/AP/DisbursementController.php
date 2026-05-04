@@ -385,16 +385,18 @@ class DisbursementController extends Controller
                     'requested_by' => auth()->id(),
                 ]);
 
+                $itemRows = [];
                 foreach ($validated['items'] as $item) {
-                    DisbursementItem::create([
+                    $itemRows[] = [
                         'disbursement_id' => $disbursement->id,
-                        'description' => $item['description'],
-                        'quantity' => $item['quantity'],
-                        'unit_cost' => $item['unit_cost'],
-                        'amount' => $item['amount'],
-                        'account_code' => $item['account_code'] ?? null,
-                    ]);
+                        'description'     => $item['description'],
+                        'quantity'        => $item['quantity'],
+                        'unit_cost'       => $item['unit_cost'],
+                        'amount'          => $item['amount'],
+                        'account_code'    => $item['account_code'] ?? null,
+                    ];
                 }
+                DB::table('disbursement_items')->insert($itemRows);
 
                 // Store attachments (skip on Vercel — read-only filesystem)
                 if (isset($validated['attachments']) && is_writable(storage_path('app/public'))) {
@@ -476,18 +478,20 @@ class DisbursementController extends Controller
 
                 // Replace line items
                 $disbursement->items()->delete();
+                $itemRows = [];
                 foreach ($validated['items'] as $item) {
-                    DisbursementItem::create([
+                    $itemRows[] = [
                         'disbursement_id' => $disbursement->id,
-                        'description' => $item['description'],
-                        'quantity' => $item['quantity'],
-                        'unit_cost' => $item['unit_cost'],
-                        'amount' => $item['amount'],
-                        'account_code' => $item['account_code'] ?? null,
-                        'tax_code' => $item['tax_code'] ?? null,
-                        'remarks' => $item['remarks'] ?? null,
-                    ]);
+                        'description'     => $item['description'],
+                        'quantity'        => $item['quantity'],
+                        'unit_cost'       => $item['unit_cost'],
+                        'amount'          => $item['amount'],
+                        'account_code'    => $item['account_code'] ?? null,
+                        'tax_code'        => $item['tax_code'] ?? null,
+                        'remarks'         => $item['remarks'] ?? null,
+                    ];
                 }
+                DB::table('disbursement_items')->insert($itemRows);
 
                 // Handle attachments
                 $existing = is_array($disbursement->attachments) ? $disbursement->attachments

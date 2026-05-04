@@ -245,6 +245,12 @@ class ReportController extends Controller
             ->unique()
             ->all();
 
+        // Pre-fetch all parent accounts in one query to avoid N+1
+        $parentAccountsById = ChartOfAccount::whereIn('id', $parentIds)
+            ->get(['id', 'account_code', 'account_name'])
+            ->keyBy('id');
+
+        $parentIdsFlip = array_flip($parentIds);
         $revenueGroups = [];
         $standaloneRevenue = [];
 
@@ -252,22 +258,20 @@ class ReportController extends Controller
             $acctId = $account->id;
             $parentId = $account->parent_id ?? null;
 
-            if ($parentId && in_array($parentId, $parentIds)) {
-                // This is a child — add to parent group
+            if ($parentId && isset($parentIdsFlip[$parentId])) {
                 if (!isset($revenueGroups[$parentId])) {
-                    $parent = ChartOfAccount::find($parentId);
+                    $parent = $parentAccountsById->get($parentId);
                     $revenueGroups[$parentId] = (object) [
                         'id' => $parentId,
-                        'account_code' => $parent->account_code ?? '',
-                        'account_name' => $parent->account_name ?? 'Other',
+                        'account_code' => $parent ? $parent->account_code : '',
+                        'account_name' => $parent ? $parent->account_name : 'Other',
                         'total' => 0,
                         'children' => [],
                     ];
                 }
                 $revenueGroups[$parentId]->total += abs($account->balance);
                 $revenueGroups[$parentId]->children[] = $account;
-            } elseif (in_array($acctId, $parentIds)) {
-                // This is a parent that has children — skip as standalone, handled via group
+            } elseif (isset($parentIdsFlip[$acctId])) {
                 if (!isset($revenueGroups[$acctId])) {
                     $revenueGroups[$acctId] = (object) [
                         'id' => $acctId,
@@ -280,12 +284,10 @@ class ReportController extends Controller
                     $revenueGroups[$acctId]->total += abs($account->balance);
                 }
             } else {
-                // Standalone account (no parent, no children)
                 $standaloneRevenue[] = $account;
             }
         }
 
-        // Sort groups by account code
         uasort($revenueGroups, function ($a, $b) { return strcmp($a->account_code, $b->account_code); });
 
         // Group expenses by parent too
@@ -295,6 +297,11 @@ class ReportController extends Controller
             ->unique()
             ->all();
 
+        $expParentAccountsById = ChartOfAccount::whereIn('id', $expParentIds)
+            ->get(['id', 'account_code', 'account_name'])
+            ->keyBy('id');
+
+        $expParentIdsFlip = array_flip($expParentIds);
         $expenseGroups = [];
         $standaloneExpense = [];
 
@@ -302,20 +309,20 @@ class ReportController extends Controller
             $acctId = $account->id;
             $parentId = $account->parent_id ?? null;
 
-            if ($parentId && in_array($parentId, $expParentIds)) {
+            if ($parentId && isset($expParentIdsFlip[$parentId])) {
                 if (!isset($expenseGroups[$parentId])) {
-                    $parent = ChartOfAccount::find($parentId);
+                    $parent = $expParentAccountsById->get($parentId);
                     $expenseGroups[$parentId] = (object) [
                         'id' => $parentId,
-                        'account_code' => $parent->account_code ?? '',
-                        'account_name' => $parent->account_name ?? 'Other',
+                        'account_code' => $parent ? $parent->account_code : '',
+                        'account_name' => $parent ? $parent->account_name : 'Other',
                         'total' => 0,
                         'children' => [],
                     ];
                 }
                 $expenseGroups[$parentId]->total += abs($account->balance);
                 $expenseGroups[$parentId]->children[] = $account;
-            } elseif (in_array($acctId, $expParentIds)) {
+            } elseif (isset($expParentIdsFlip[$acctId])) {
                 if (!isset($expenseGroups[$acctId])) {
                     $expenseGroups[$acctId] = (object) [
                         'id' => $acctId,
