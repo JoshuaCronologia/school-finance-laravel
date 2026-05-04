@@ -202,13 +202,24 @@ class ChartOfAccountsController extends Controller
         $totalDebit = (float) $jeData->total_debit;
         $totalCredit = (float) $jeData->total_credit;
 
-        // Finance fee balance (for mapped revenue accounts)
+        // Finance fee transactions — filterable by date range (also used for feeBalance)
         $feeBalance = 0;
+        $feeTransactions = collect();
+        $syLabel = '';
+        $feeDateFrom = null;
+        $feeDateTo = null;
         try {
-            $feeRevenue = FinanceFeeService::mappedRevenue('2000-01-01', now()->toDateString());
-            $match = $feeRevenue->firstWhere('account_id', $account->id);
-            if ($match) {
-                $feeBalance = (float) $match->total_amount;
+            $sy = FinanceFeeService::currentSchoolYear();
+            $syStart = substr($sy, 0, 4) . '-06-01';
+
+            $feeDateFrom = $request->filled('fee_date_from') ? $request->fee_date_from : $syStart;
+            $feeDateTo   = $request->filled('fee_date_to')   ? $request->fee_date_to   : now()->toDateString();
+            $syLabel     = $feeDateFrom . ' to ' . $feeDateTo;
+
+            $feeEntries = FinanceFeeService::glEntries($feeDateFrom, $feeDateTo, $account->id);
+            if ($feeEntries->isNotEmpty()) {
+                $feeTransactions = $feeEntries->first()->sortByDesc('posting_date');
+                $feeBalance = $feeTransactions->sum('credit');
             }
         } catch (\Exception $e) {}
 
@@ -230,25 +241,6 @@ class ChartOfAccountsController extends Controller
             ->orderByDesc('je.posting_date')
             ->limit(20)
             ->get();
-
-        // Recent finance fee entries (if mapped) — filterable by date range
-        $feeTransactions = collect();
-        $syLabel = '';
-        $feeDateFrom = null;
-        $feeDateTo = null;
-        try {
-            $sy = FinanceFeeService::currentSchoolYear();
-            $syStart = substr($sy, 0, 4) . '-06-01';
-
-            $feeDateFrom = $request->filled('fee_date_from') ? $request->fee_date_from : $syStart;
-            $feeDateTo   = $request->filled('fee_date_to')   ? $request->fee_date_to   : now()->toDateString();
-            $syLabel     = $feeDateFrom . ' to ' . $feeDateTo;
-
-            $feeEntries = FinanceFeeService::glEntries($feeDateFrom, $feeDateTo, $account->id);
-            if ($feeEntries->isNotEmpty()) {
-                $feeTransactions = $feeEntries->first()->sortByDesc('posting_date');
-            }
-        } catch (\Exception $e) {}
 
         return view('pages.gl.accounts.show', compact(
             'account', 'balance', 'totalDebit', 'totalCredit', 'feeBalance',
