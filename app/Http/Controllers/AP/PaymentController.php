@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\AP;
 
 use App\Http\Controllers\Controller;
+use App\Models\BankAccount;
+use App\Models\ChartOfAccount;
 use App\Models\DisbursementPayment;
 use App\Models\DisbursementRequest;
+use App\Models\TaxCode;
 use App\Services\AuditService;
 use App\Services\BudgetService;
 use App\Services\NumberingService;
@@ -51,8 +54,21 @@ class PaymentController extends Controller
             ? $this->incrementCheckNumber($lastCheckUsed->check_number)
             : null;
 
+        // Load bank accounts; fallback to COA cash/bank accounts (1010-1059) if none configured
+        $bankAccounts = BankAccount::where('is_active', true)->orderBy('bank_name')->get();
+        if ($bankAccounts->isEmpty()) {
+            $bankAccounts = ChartOfAccount::whereBetween('account_code', ['1010', '1059'])
+                ->orderBy('account_code')
+                ->get()
+                ->map(function ($coa) {
+                    return (object)['account_label' => $coa->account_name];
+                });
+        }
+
+        $taxCodes = TaxCode::where('is_active', true)->whereIn('type', ['ewt', 'final'])->orderBy('code')->get();
+
         return view('pages.ap.payment-processing', compact(
-            'readyForPayment', 'totalReadyForPayment', 'lastCheckUsed', 'nextCheckNumber'
+            'readyForPayment', 'totalReadyForPayment', 'lastCheckUsed', 'nextCheckNumber', 'bankAccounts', 'taxCodes'
         ));
     }
 
@@ -67,7 +83,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'bank_account' => 'required|string|max:100',
             'starting_check_number' => 'nullable|string|max:50',
-            'wht_rate' => 'nullable|numeric|min:0|max:100',
+            'tax_code_id' => 'nullable|exists:tax_codes,id',
         ]);
 
         $disbursements = DisbursementRequest::whereIn('id', $validated['disbursement_ids'])
@@ -80,10 +96,15 @@ class PaymentController extends Controller
             return back()->with('error', 'No valid approved disbursements found for processing.');
         }
 
-        $whtRate = (float) ($validated['wht_rate'] ?? 0);
+        $taxCodeId = $validated['tax_code_id'] ?? null;
+        $whtRate = 0;
+        if ($taxCodeId) {
+            $taxCode = TaxCode::find($taxCodeId);
+            $whtRate = $taxCode ? (float) $taxCode->rate : 0;
+        }
 
         try {
-            $results = DB::transaction(function () use ($disbursements, $validated, $whtRate) {
+            $results = DB::transaction(function () use ($disbursements, $validated, $whtRate, $taxCodeId) {
                 $batchResults = [];
                 $bankAccount = $validated['bank_account'];
 
@@ -120,6 +141,7 @@ class PaymentController extends Controller
 
                     $payment = DisbursementPayment::create([
                         'disbursement_id' => $disbursement->id,
+                        'tax_code_id' => $taxCodeId,
                         'voucher_number' => $voucherNumber,
                         'payment_date' => $validated['payment_date'],
                         'payment_method' => $disbursement->payment_method ?? 'check',
@@ -182,7 +204,8 @@ class PaymentController extends Controller
             return redirect()->route('ap.payment-processing')
                 ->with('success', count($results) . ' payment(s) processed successfully.')
                 ->with('batch_results', $results)
-                ->with('batch_wht_rate', $whtRate);
+                ->with('batch_wht_rate', $whtRate)
+                ->with('batch_tax_code_id', $taxCodeId);
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to process batch: ' . $e->getMessage());
         }

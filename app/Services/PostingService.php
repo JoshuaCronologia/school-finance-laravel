@@ -37,7 +37,7 @@ class PostingService
             $bill->load('lines.account', 'vendor');
 
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => $bill->bill_date,
                 'posting_date' => $bill->posting_date ?? now(),
                 'reference_number' => $bill->bill_number,
@@ -136,7 +136,7 @@ class PostingService
             $payment->load('vendor', 'allocations.bill');
 
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => $payment->payment_date,
                 'posting_date' => $payment->payment_date,
                 'reference_number' => $payment->payment_number,
@@ -230,7 +230,7 @@ class PostingService
             $invoice->load('lines.revenueAccount', 'customer');
 
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => $invoice->invoice_date,
                 'posting_date' => $invoice->posting_date ?? now(),
                 'reference_number' => $invoice->invoice_number,
@@ -314,7 +314,7 @@ class PostingService
             $collection->load('customer', 'allocations.invoice');
 
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => $collection->collection_date,
                 'posting_date' => $collection->collection_date,
                 'reference_number' => $collection->receipt_number,
@@ -393,7 +393,7 @@ class PostingService
             $payment->load('disbursement.items');
 
             $entry = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => $payment->payment_date,
                 'posting_date' => $payment->payment_date,
                 'reference_number' => $payment->voucher_number,
@@ -470,7 +470,7 @@ class PostingService
             $entry->load('lines');
 
             $reversal = JournalEntry::create([
-                'entry_number' => NumberingService::generate('JE'),
+                'entry_number' => NumberingService::generate('JE', 'journal_entries', 'entry_number'),
                 'entry_date' => now(),
                 'posting_date' => now(),
                 'reference_number' => "REV-{$entry->entry_number}",

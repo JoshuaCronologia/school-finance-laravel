@@ -17,10 +17,47 @@ use Illuminate\Support\Facades\DB;
 class BankReconciliationController extends Controller
 {
     /**
+     * Auto-seed bank_accounts from COA cash/bank entries (1010–1099) on first run.
+     */
+    private function autoSeedFromCoa()
+    {
+        $coaAccounts = ChartOfAccount::where('account_code', '>=', '1010')
+            ->where('account_code', '<=', '1099')
+            ->orderBy('account_code')
+            ->get();
+
+        foreach ($coaAccounts as $coa) {
+            $name = $coa->account_name;
+            $isCA = stripos($name, '(CA)') !== false || stripos($name, 'checking') !== false;
+            $accountType = $isCA ? 'CA' : 'SA';
+
+            // Extract bank name: "Cash in Bank - BDO (CA)" → "BDO"
+            if (strpos($name, ' - ') !== false) {
+                $bankName = trim(str_replace(['(CA)', '(SA)', '(cc)', '(ic)'], '', explode(' - ', $name, 2)[1]));
+            } else {
+                $bankName = $name;
+            }
+
+            BankAccount::create([
+                'bank_name'       => $bankName,
+                'account_type'    => $accountType,
+                'account_number'  => null,
+                'account_label'   => $name,
+                'chart_account_id'=> $coa->id,
+                'is_active'       => true,
+            ]);
+        }
+    }
+
+    /**
      * Main page — tabbed: Reconciliation, Bank Accounts, Issued Checks, CIB
      */
     public function index(Request $request)
     {
+        if (BankAccount::count() === 0) {
+            $this->autoSeedFromCoa();
+        }
+
         $tab = $request->input('tab', 'reconcile');
         $bankAccounts = BankAccount::with('chartAccount')->where('is_active', true)->orderBy('bank_name')->get();
 

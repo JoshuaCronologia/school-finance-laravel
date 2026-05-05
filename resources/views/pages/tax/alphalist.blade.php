@@ -10,6 +10,7 @@
     $totalPayees = $totalPayees ?? $qapEntries->count();
     $totalIncome = $totalIncome ?? $qapEntries->sum('income_payment');
     $totalTax = $totalTax ?? $qapEntries->sum('tax_withheld');
+    $monthNames = $monthNames ?? ['Month 1', 'Month 2', 'Month 3'];
     $sawtTotalBase = $sawtTotalBase ?? $sawtEntries->sum('tax_base');
     $sawtTotalTax = $sawtTotalTax ?? $sawtEntries->sum('tax_withheld');
 @endphp
@@ -68,37 +69,46 @@
         {{-- QAP Table --}}
         <div class="card">
             <div class="overflow-x-auto">
-                <table class="data-table">
+                <table class="w-full border-collapse text-xs">
                     <thead>
-                        <tr>
-                            <th>Seq #</th>
-                            <th>TIN</th>
-                            <th>Registered Name</th>
-                            <th>ATC</th>
-                            <th class="text-right">Income Payment</th>
-                            <th class="text-right">Tax Withheld</th>
+                        <tr class="bg-gray-100">
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-left w-10">Seq #</th>
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-left">TIN</th>
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-left">Registered Name</th>
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-center w-20">ATC</th>
+                            <th colspan="3" class="border border-gray-200 px-2 py-1 text-center bg-blue-50">Month</th>
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-right">Total Income</th>
+                            <th rowspan="2" class="border border-gray-200 px-2 py-2 text-right">Tax Withheld</th>
+                        </tr>
+                        <tr class="bg-blue-50 text-center">
+                            <th class="border border-gray-200 px-2 py-1">{{ $monthNames[0] }}</th>
+                            <th class="border border-gray-200 px-2 py-1">{{ $monthNames[1] }}</th>
+                            <th class="border border-gray-200 px-2 py-1">{{ $monthNames[2] }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($qapEntries as $index => $entry)
-                            <tr>
-                                <td class="font-mono text-sm">{{ $index + 1 }}</td>
-                                <td class="font-mono text-sm">{{ $entry->tin ?? 'N/A' }}</td>
-                                <td>{{ $entry->registered_name ?? '' }}</td>
-                                <td class="font-mono text-sm">{{ $entry->atc ?? '' }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->income_payment ?? 0, 2) }}</td>
-                                <td class="text-right font-mono">₱{{ number_format($entry->tax_withheld ?? 0, 2) }}</td>
+                            <tr class="hover:bg-gray-50">
+                                <td class="border border-gray-200 px-2 py-1 font-mono text-center">{{ $index + 1 }}</td>
+                                <td class="border border-gray-200 px-2 py-1 font-mono">{{ $entry->tin ?? 'N/A' }}</td>
+                                <td class="border border-gray-200 px-2 py-1">{{ $entry->registered_name ?? '' }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-center font-mono font-semibold">{{ $entry->atc ?? '' }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-right font-mono">{{ ($entry->m1_income ?? 0) > 0 ? number_format($entry->m1_income, 2) : '' }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-right font-mono">{{ ($entry->m2_income ?? 0) > 0 ? number_format($entry->m2_income, 2) : '' }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-right font-mono">{{ ($entry->m3_income ?? 0) > 0 ? number_format($entry->m3_income, 2) : '' }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-right font-mono font-semibold">{{ number_format($entry->income_payment ?? 0, 2) }}</td>
+                                <td class="border border-gray-200 px-2 py-1 text-right font-mono font-semibold text-danger-600">{{ number_format($entry->tax_withheld ?? 0, 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center py-8 text-secondary-400">No QAP entries found for the selected period.</td></tr>
+                            <tr><td colspan="9" class="border border-gray-200 text-center py-8 text-secondary-400">No QAP entries found for the selected period.</td></tr>
                         @endforelse
                     </tbody>
                     @if($qapEntries->isNotEmpty())
                     <tfoot class="bg-gray-50 font-semibold">
                         <tr>
-                            <td colspan="4" class="text-right">Totals</td>
-                            <td class="text-right font-mono">₱{{ number_format($totalIncome, 2) }}</td>
-                            <td class="text-right font-mono">₱{{ number_format($totalTax, 2) }}</td>
+                            <td colspan="7" class="border border-gray-200 px-2 py-2 text-right">Totals</td>
+                            <td class="border border-gray-200 px-2 py-2 text-right font-mono">{{ number_format($totalIncome, 2) }}</td>
+                            <td class="border border-gray-200 px-2 py-2 text-right font-mono text-danger-600">{{ number_format($totalTax, 2) }}</td>
                         </tr>
                     </tfoot>
                     @endif

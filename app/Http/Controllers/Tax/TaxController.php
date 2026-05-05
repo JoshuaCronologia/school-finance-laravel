@@ -50,51 +50,122 @@ class TaxController extends Controller
             $startMonth = ($q - 1) * 3 + 1;
             $endMonth = $q * 3;
 
-            $payments = ApPayment::with('vendor', 'taxCode')
+            // Query AP payments (from AP bills flow)
+            $apPayments = ApPayment::with('vendor', 'taxCode')
                 ->where('status', 'posted')
                 ->where('withholding_tax', '>', 0)
                 ->where('vendor_id', $selectedVendor->id)
                 ->whereYear('payment_date', $year)
                 ->whereMonth('payment_date', '>=', $startMonth)
                 ->whereMonth('payment_date', '<=', $endMonth)
-                ->orderBy('payment_date')
                 ->get();
 
-            // Monthly breakdown for the form
-            $monthly = [];
-            for ($m = $startMonth; $m <= $endMonth; $m++) {
-                $monthPayments = $payments->filter(function ($p) { return (int) $p->payment_date->format('m') === $m; });
-                $monthly[$m] = (object) [
-                    'month' => $m,
-                    'income_payment' => $monthPayments->sum('gross_amount'),
-                    'tax_withheld' => $monthPayments->sum('withholding_tax'),
-                ];
+            // Query disbursement payments (from disbursement request flow)
+            $disbPayments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
+                ->whereHas('disbursement', function ($dq) use ($selectedVendor) {
+                    $dq->where('payee_id', $selectedVendor->id);
+                })
+                ->where('status', 'completed')
+                ->where('withholding_tax', '>', 0)
+                ->whereYear('payment_date', $year)
+                ->whereMonth('payment_date', '>=', $startMonth)
+                ->whereMonth('payment_date', '<=', $endMonth)
+                ->get();
+
+            // Normalize both into a common flat collection
+            $normalized = collect();
+            foreach ($apPayments as $p) {
+                $normalized->push((object)[
+                    'payment_date'   => $p->payment_date,
+                    'gross_amount'   => (float)$p->gross_amount,
+                    'withholding_tax'=> (float)$p->withholding_tax,
+                    'atc'            => optional($p->taxCode)->bir_atc ?? optional($p->vendor)->withholding_tax_type ?? 'EWT',
+                ]);
+            }
+            foreach ($disbPayments as $p) {
+                $normalized->push((object)[
+                    'payment_date'   => $p->payment_date,
+                    'gross_amount'   => (float)$p->gross_amount,
+                    'withholding_tax'=> (float)$p->withholding_tax,
+                    'atc'            => optional($p->taxCode)->bir_atc ?? optional($p->disbursement->vendor)->withholding_tax_type ?? 'EWT',
+                ]);
             }
 
-            $formData = (object) [
-                'vendor' => $selectedVendor,
-                'monthly' => collect($monthly),
-                'total_income' => $payments->sum('gross_amount'),
-                'total_tax' => $payments->sum('withholding_tax'),
-                'payments' => $payments,
+            $sm = $startMonth;
+            $atcEntries = $normalized->groupBy('atc')->map(function ($group, $atc) use ($sm) {
+                $m1 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === $sm; })->sum('gross_amount');
+                $m2 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm + 1); })->sum('gross_amount');
+                $m3 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm + 2); })->sum('gross_amount');
+                return (object)[
+                    'atc'   => $atc,
+                    'm1'    => (float)$m1,
+                    'm2'    => (float)$m2,
+                    'm3'    => (float)$m3,
+                    'total' => (float)($m1 + $m2 + $m3),
+                    'tax'   => (float)$group->sum('withholding_tax'),
+                ];
+            })->values();
+
+            $formData = (object)[
+                'vendor'       => $selectedVendor,
+                'atcEntries'   => $atcEntries,
+                'total_income' => $normalized->sum('gross_amount'),
+                'total_tax'    => $normalized->sum('withholding_tax'),
             ];
         }
 
-        // Summary of all vendors with withholding for the period
-        $summaryQuery = ApPayment::with('vendor', 'taxCode')
-            ->select('vendor_id', 'tax_code_id', DB::raw('SUM(gross_amount) as total_income'), DB::raw('SUM(withholding_tax) as total_tax'))
+        // Summary — combine ap_payments + disbursement_payments per vendor
+        $apSummary = ApPayment::with('vendor', 'taxCode')
+            ->select('vendor_id', 'tax_code_id',
+                DB::raw('SUM(gross_amount) as total_income'),
+                DB::raw('SUM(withholding_tax) as total_tax'))
             ->where('status', 'posted')
             ->where('withholding_tax', '>', 0)
             ->whereYear('payment_date', $year)
             ->groupBy('vendor_id', 'tax_code_id')
-            ->get();
+            ->get()
+            ->map(function ($p) {
+                return (object)[
+                    'vendor'        => $p->vendor,
+                    'atc'           => optional($p->taxCode)->bir_atc ?? optional($p->vendor)->withholding_tax_type ?? '',
+                    'income_payment'=> (float)$p->total_income,
+                    'tax_withheld'  => (float)$p->total_tax,
+                ];
+            });
 
-        $summary = $summaryQuery->map(function ($p) { return (object) [
-            'vendor' => $p->vendor,
-            'atc' => optional($p->taxCode)->bir_atc ?? optional($p->vendor)->withholding_tax_type ?? '',
-            'income_payment' => (float) $p->total_income,
-            'tax_withheld' => (float) $p->total_tax,
-        ]; });
+        $disbSummary = DisbursementPayment::with('disbursement.vendor', 'taxCode')
+            ->select('tax_code_id',
+                DB::raw('SUM(gross_amount) as total_income'),
+                DB::raw('SUM(withholding_tax) as total_tax'),
+                DB::raw('(SELECT payee_id FROM disbursement_requests WHERE id = disbursement_payments.disbursement_id LIMIT 1) as vendor_id'))
+            ->where('status', 'completed')
+            ->where('withholding_tax', '>', 0)
+            ->whereYear('payment_date', $year)
+            ->groupBy('disbursement_id', 'tax_code_id')
+            ->get()
+            ->filter(function ($p) { return $p->disbursement && $p->disbursement->vendor; })
+            ->map(function ($p) {
+                return (object)[
+                    'vendor'        => $p->disbursement->vendor,
+                    'atc'           => optional($p->taxCode)->bir_atc ?? optional($p->disbursement->vendor)->withholding_tax_type ?? '',
+                    'income_payment'=> (float)$p->total_income,
+                    'tax_withheld'  => (float)$p->total_tax,
+                ];
+            });
+
+        $summary = $apSummary->merge($disbSummary)
+            ->groupBy(function ($item) { return optional($item->vendor)->id ?? 0; })
+            ->map(function ($group) {
+                return (object)[
+                    'vendor'        => $group->first()->vendor,
+                    'atc'           => $group->first()->atc,
+                    'income_payment'=> $group->sum('income_payment'),
+                    'tax_withheld'  => $group->sum('tax_withheld'),
+                ];
+            })
+            ->filter(function ($item) { return $item->vendor !== null; })
+            ->sortBy(function ($item) { return optional($item->vendor)->name; })
+            ->values();
 
         $totalWithheld = $summary->sum('tax_withheld');
 
@@ -321,17 +392,36 @@ class TaxController extends Controller
             ->whereMonth('payment_date', '<=', $endMonth)
             ->get();
 
-        $qapEntries = $payments->groupBy('vendor_id')->map(function ($group) {
+        $allMonthNames = [
+            1 => 'January', 2 => 'February', 3 => 'March',
+            4 => 'April',   5 => 'May',       6 => 'June',
+            7 => 'July',    8 => 'August',    9 => 'September',
+            10 => 'October', 11 => 'November', 12 => 'December',
+        ];
+        $monthNames = [
+            $allMonthNames[$startMonth],
+            $allMonthNames[$startMonth + 1],
+            $allMonthNames[$endMonth],
+        ];
+
+        $sm = $startMonth;
+        $qapEntries = $payments->groupBy('vendor_id')->map(function ($group) use ($sm) {
             $vendor = $group->first()->vendor;
             $atc = optional($group->first()->taxCode)->bir_atc
                 ?? optional($vendor)->withholding_tax_type
                 ?? 'WE';
-            return (object) [
-                'tin' => $vendor->tin ?? '',
-                'registered_name' => $vendor->name ?? '',
-                'atc' => $atc,
-                'income_payment' => $group->sum('gross_amount'),
-                'tax_withheld' => $group->sum('withholding_tax'),
+            $m1 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === $sm; })->sum('gross_amount');
+            $m2 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm + 1); })->sum('gross_amount');
+            $m3 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm + 2); })->sum('gross_amount');
+            return (object)[
+                'tin'            => $vendor->tin ?? '',
+                'registered_name'=> $vendor->name ?? '',
+                'atc'            => $atc,
+                'm1_income'      => (float)$m1,
+                'm2_income'      => (float)$m2,
+                'm3_income'      => (float)$m3,
+                'income_payment' => (float)$group->sum('gross_amount'),
+                'tax_withheld'   => (float)$group->sum('withholding_tax'),
             ];
         })->sortBy('registered_name')->values();
 
@@ -342,15 +432,15 @@ class TaxController extends Controller
         $totalTax = $qapEntries->sum('tax_withheld');
 
         if ($request->filled('export')) {
-            return $this->exportCsv("Alphalist-{$quarter}-{$year}.csv",
-                ['TIN', 'Registered Name', 'ATC', 'Income Payment', 'Tax Withheld'],
-                $qapEntries->map(function ($e) { return [$e->tin, $e->registered_name, $e->atc, $e->income_payment, $e->tax_withheld]; })
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\AlphalistQuarterlyExport($qapEntries, $monthNames, $quarter, $year, 'registered_name'),
+                "Alphalist-QAP-{$quarter}-{$year}.xlsx"
             );
         }
 
         return view('pages.tax.alphalist', compact(
             'quarter', 'year', 'qapEntries', 'sawtEntries',
-            'totalPayees', 'totalIncome', 'totalTax'
+            'totalPayees', 'totalIncome', 'totalTax', 'monthNames'
         ));
     }
 
@@ -650,11 +740,18 @@ class TaxController extends Controller
 
     public function alphalistQuarterly(Request $request)
     {
-        $quarter = $request->input('quarter', ceil(now()->month / 3));
+        $quarter = (int) $request->input('quarter', ceil(now()->month / 3));
         $year = $request->input('year', now()->year);
 
         $startMonth = ($quarter - 1) * 3 + 1;
         $endMonth = $quarter * 3;
+
+        $allMonthNames = [
+            1=>'January',2=>'February',3=>'March',4=>'April',
+            5=>'May',6=>'June',7=>'July',8=>'August',
+            9=>'September',10=>'October',11=>'November',12=>'December',
+        ];
+        $monthNames = [$allMonthNames[$startMonth], $allMonthNames[$startMonth+1], $allMonthNames[$endMonth]];
 
         $payments = DisbursementPayment::with('disbursement.vendor', 'taxCode')
             ->where('status', 'completed')
@@ -665,22 +762,36 @@ class TaxController extends Controller
             ->orderBy('payment_date')
             ->get();
 
+        $sm = $startMonth;
         $alphalist = $payments->groupBy(function ($p) { return $p->disbursement->payee_name ?? 'Unknown'; })
-            ->map(function ($group, $payeeName) {
+            ->map(function ($group, $payeeName) use ($sm) {
                 $first = $group->first();
                 $atc = optional($first->taxCode)->bir_atc
                     ?? optional($first->disbursement->vendor)->withholding_tax_type
                     ?? '';
-                return (object) [
-                    'payee_name' => $payeeName,
-                    'tin' => optional($first->disbursement->vendor)->tin ?? '',
-                    'atc' => $atc,
-                    'income_payment' => $group->sum('gross_amount'),
-                    'tax_withheld' => $group->sum('withholding_tax'),
+                $m1 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === $sm; })->sum('gross_amount');
+                $m2 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm+1); })->sum('gross_amount');
+                $m3 = $group->filter(function ($p) use ($sm) { return (int)$p->payment_date->format('m') === ($sm+2); })->sum('gross_amount');
+                return (object)[
+                    'payee_name'     => $payeeName,
+                    'tin'            => optional($first->disbursement->vendor)->tin ?? '',
+                    'atc'            => $atc,
+                    'm1_income'      => (float)$m1,
+                    'm2_income'      => (float)$m2,
+                    'm3_income'      => (float)$m3,
+                    'income_payment' => (float)$group->sum('gross_amount'),
+                    'tax_withheld'   => (float)$group->sum('withholding_tax'),
                 ];
             })->sortBy('payee_name')->values();
 
-        return view('pages.tax.alphalist-quarterly', compact('alphalist', 'quarter', 'year'));
+        if ($request->input('export') === 'excel') {
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\AlphalistQuarterlyExport($alphalist, $monthNames, $quarter, $year),
+                "Alphalist-Q{$quarter}-{$year}.xlsx"
+            );
+        }
+
+        return view('pages.tax.alphalist-quarterly', compact('alphalist', 'quarter', 'year', 'monthNames'));
     }
 
     public function alphalistAnnual(Request $request)
@@ -700,14 +811,32 @@ class TaxController extends Controller
                 $atc = optional($first->taxCode)->bir_atc
                     ?? optional($first->disbursement->vendor)->withholding_tax_type
                     ?? '';
-                return (object) [
-                    'payee_name' => $payeeName,
-                    'tin' => optional($first->disbursement->vendor)->tin ?? '',
-                    'atc' => $atc,
-                    'income_payment' => $group->sum('gross_amount'),
-                    'tax_withheld' => $group->sum('withholding_tax'),
+                $q = function ($qNum) use ($group) {
+                    $sm = ($qNum - 1) * 3 + 1;
+                    return $group->filter(function ($p) use ($sm) {
+                        $m = (int)$p->payment_date->format('m');
+                        return $m >= $sm && $m <= ($sm + 2);
+                    })->sum('gross_amount');
+                };
+                return (object)[
+                    'payee_name'     => $payeeName,
+                    'tin'            => optional($first->disbursement->vendor)->tin ?? '',
+                    'atc'            => $atc,
+                    'q1_income'      => (float)$q(1),
+                    'q2_income'      => (float)$q(2),
+                    'q3_income'      => (float)$q(3),
+                    'q4_income'      => (float)$q(4),
+                    'income_payment' => (float)$group->sum('gross_amount'),
+                    'tax_withheld'   => (float)$group->sum('withholding_tax'),
                 ];
             })->sortBy('payee_name')->values();
+
+        if ($request->input('export') === 'excel') {
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\AlphalistAnnualExport($alphalist, $year),
+                "Alphalist-Annual-{$year}.xlsx"
+            );
+        }
 
         return view('pages.tax.alphalist-annual', compact('alphalist', 'year'));
     }

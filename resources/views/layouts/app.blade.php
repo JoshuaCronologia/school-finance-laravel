@@ -684,6 +684,11 @@
     {{-- Turbo loading bar + Alpine compatibility --}}
     <style>
         .turbo-progress-bar { background: #4f46e5; height: 3px; position: fixed; top: 0; left: 0; z-index: 9999; transition: width 300ms ease; }
+        @media print {
+            .turbo-progress-bar, header, aside, nav, .no-print { display: none !important; }
+            #main-content { margin: 0 !important; padding: 0 !important; }
+            body { background: white !important; }
+        }
     </style>
     <script>
         // Show progress bar during Turbo navigation

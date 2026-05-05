@@ -3,33 +3,49 @@
 
 @section('content')
 @php
-    $vendors = $vendors ?? collect();
+    $vendors        = $vendors ?? collect();
     $selectedVendor = $selectedVendor ?? null;
-    $quarter = $quarter ?? request('quarter', 'Q1');
-    $year = $year ?? request('year', date('Y'));
-    $formData = $formData ?? null;
-    $summary = $summary ?? collect();
-    $schoolTin = $schoolTin ?? '000-000-000-000';
-    $schoolName = $schoolName ?? 'ORANGEAPPS EDUCATIONAL INSTITUTION';
-    $schoolAddress = $schoolAddress ?? 'Manila, Philippines';
+    $quarter        = $quarter ?? request('quarter', 'Q1');
+    $year           = $year ?? request('year', date('Y'));
+    $formData       = $formData ?? null;
+    $summary        = $summary ?? collect();
+    $schoolTin      = $schoolTin ?? '000-000-000-000';
+    $schoolName     = $schoolName ?? '';
+    $schoolAddress  = $schoolAddress ?? '';
 @endphp
 
+<style>
+.f2307 { font-family: Arial, sans-serif; font-size: 9px; color: #000; width: 100%; max-width: 780px; margin: 0 auto; border: 1px solid #000; }
+.f2307 table { border-collapse: collapse; width: 100%; }
+.f2307 td, .f2307 th { border: 1px solid #000; padding: 2px 4px; vertical-align: top; }
+.f2307 .no-border td, .f2307 .no-border th { border: none; }
+.f2307 .sh { background: #d0d0d0; font-weight: bold; font-size: 9px; text-align: center; padding: 2px 4px; }
+.f2307 .field-label { font-size: 8px; color: #333; }
+.f2307 .field-val { font-size: 10px; min-height: 14px; }
+.f2307 .tin-box { display:inline-block; width:13px; height:15px; border:1px solid #000; text-align:center; font-size:10px; line-height:15px; font-family:monospace; }
+.f2307 .tin-dash { display:inline-block; width:6px; text-align:center; font-size:10px; }
+.f2307 .part3-desc { font-size:8px; }
+.f2307 .amount-cell { text-align:right; font-family:monospace; font-size:9px; white-space:nowrap; }
+.f2307 .total-row td { background:#e8e8e8; font-weight:bold; }
+.f2307 .decl { font-size:7.5px; line-height:1.4; padding:4px; }
+@media print {
+    .no-print { display: none !important; }
+    .f2307 { max-width: 100%; border: 1px solid #000; }
+    body { background: white; }
+}
+</style>
+
+{{-- Controls --}}
+<div class="no-print">
 <x-page-header title="BIR Form 2307" subtitle="Certificate of Creditable Tax Withheld at Source">
     <x-slot name="actions">
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-            Export Excel
-        </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn-secondary text-sm">Export Excel</a>
         @if($selectedVendor)
-        <button onclick="window.print()" class="btn-primary text-sm">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18.75 12H5.25" /></svg>
-            Print 2307
-        </button>
+        <button onclick="window.print()" class="btn-primary text-sm">Print 2307</button>
         @endif
     </x-slot>
 </x-page-header>
 
-{{-- Filters --}}
 <div class="card mb-6">
     <form class="card-body">
         <div class="flex flex-wrap items-end gap-4">
@@ -38,9 +54,7 @@
                 <select name="vendor_id" class="form-input w-64">
                     <option value="">Select Vendor</option>
                     @foreach($vendors as $vendor)
-                        <option value="{{ $vendor->id }}" {{ request('vendor_id') == $vendor->id ? 'selected' : '' }}>
-                            {{ $vendor->name }}
-                        </option>
+                        <option value="{{ $vendor->id }}" {{ request('vendor_id') == $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -56,137 +70,307 @@
                 <label class="form-label">Year</label>
                 <input type="number" name="year" value="{{ $year }}" class="form-input w-28" min="2020" max="2030">
             </div>
-            <button type="submit" class="btn-primary">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
-                Generate
-            </button>
+            <button type="submit" class="btn-primary">Generate</button>
             <a href="{{ request()->url() }}" class="btn-secondary">Clear</a>
         </div>
     </form>
 </div>
+</div>
 
-{{-- BIR 2307 Form --}}
 @if($selectedVendor)
-<div class="card mb-6 print:shadow-none" id="bir-2307-form">
-    <div class="card-body p-8">
-        {{-- Header --}}
-        <div class="text-center border-b-2 border-black pb-4 mb-6">
-            <p class="text-xs text-secondary-600">Republic of the Philippines</p>
-            <p class="text-xs text-secondary-600">Department of Finance</p>
-            <p class="text-sm font-bold">BUREAU OF INTERNAL REVENUE</p>
-            <p class="text-lg font-bold mt-2">BIR FORM 2307</p>
-            <p class="text-sm font-semibold">Certificate of Creditable Tax Withheld at Source</p>
-        </div>
+@php
+    $q          = (int) str_replace('Q', '', $quarter);
+    $startMonth = ($q - 1) * 3 + 1;
+    $periodFrom = \Carbon\Carbon::create($year, $startMonth, 1)->format('m/d/Y');
+    $periodTo   = \Carbon\Carbon::create($year, $startMonth + 2, 1)->endOfMonth()->format('m/d/Y');
+    $mn = [
+        1 => ['January','February','March'],
+        2 => ['April','May','June'],
+        3 => ['July','August','September'],
+        4 => ['October','November','December'],
+    ][$q] ?? ['Month 1','Month 2','Month 3'];
+    $atcEntries = $formData->atcEntries ?? collect();
+    $ewtPad     = max(0, 10 - $atcEntries->count());
 
-        {{-- PART I: Payee Information --}}
-        <div class="mb-6">
-            <h4 class="text-sm font-bold bg-gray-100 px-3 py-2 mb-3">PART I &mdash; PAYEE INFORMATION</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-3">
-                <div>
-                    <label class="text-xs font-semibold text-secondary-600">TIN</label>
-                    <p class="text-sm font-mono border-b border-gray-300 py-1">{{ $selectedVendor->tin ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-secondary-600">Registered Name</label>
-                    <p class="text-sm border-b border-gray-300 py-1">{{ $selectedVendor->name }}</p>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="text-xs font-semibold text-secondary-600">Registered Address</label>
-                    <p class="text-sm border-b border-gray-300 py-1">{{ $selectedVendor->address ?? 'N/A' }}</p>
-                </div>
-            </div>
-        </div>
+    // TIN digit boxes helper
+    $tinHtml = function($tin) {
+        $tin = trim($tin ?? '');
+        if (!$tin) {
+            // render 12 empty boxes with dashes
+            return '<span class="tin-box"></span><span class="tin-box"></span><span class="tin-box"></span>'
+                 . '<span class="tin-dash">-</span>'
+                 . '<span class="tin-box"></span><span class="tin-box"></span><span class="tin-box"></span>'
+                 . '<span class="tin-dash">-</span>'
+                 . '<span class="tin-box"></span><span class="tin-box"></span><span class="tin-box"></span>'
+                 . '<span class="tin-dash">-</span>'
+                 . '<span class="tin-box"></span><span class="tin-box"></span><span class="tin-box"></span>';
+        }
+        $parts = explode('-', $tin);
+        $out = '';
+        foreach ($parts as $pi => $part) {
+            if ($pi > 0) $out .= '<span class="tin-dash">-</span>';
+            foreach (str_split($part) as $ch) {
+                $out .= '<span class="tin-box">' . htmlspecialchars($ch) . '</span>';
+            }
+        }
+        return $out;
+    };
+@endphp
 
-        {{-- PART II: Payor Information --}}
-        <div class="mb-6">
-            <h4 class="text-sm font-bold bg-gray-100 px-3 py-2 mb-3">PART II &mdash; PAYOR INFORMATION</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-3">
-                <div>
-                    <label class="text-xs font-semibold text-secondary-600">TIN</label>
-                    <p class="text-sm font-mono border-b border-gray-300 py-1">{{ $schoolTin }}</p>
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-secondary-600">Registered Name</label>
-                    <p class="text-sm border-b border-gray-300 py-1">{{ $schoolName }}</p>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="text-xs font-semibold text-secondary-600">Registered Address</label>
-                    <p class="text-sm border-b border-gray-300 py-1">{{ $schoolAddress }}</p>
-                </div>
-            </div>
-        </div>
+<div class="f2307" id="bir-2307-form">
 
-        {{-- PART III: Details --}}
-        <div class="mb-6">
-            <h4 class="text-sm font-bold bg-gray-100 px-3 py-2 mb-3">PART III &mdash; DETAILS OF MONTHLY INCOME PAYMENTS AND TAXES WITHHELD</h4>
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse border border-gray-300 text-sm">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="border border-gray-300 px-3 py-2 text-left">Month</th>
-                            <th class="border border-gray-300 px-3 py-2 text-left">ATC</th>
-                            <th class="border border-gray-300 px-3 py-2 text-left">Nature of Income Payment</th>
-                            <th class="border border-gray-300 px-3 py-2 text-right">Amount of Income Payment</th>
-                            <th class="border border-gray-300 px-3 py-2 text-right">Tax Withheld</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $quarterMonths = [
-                                'Q1' => ['January', 'February', 'March'],
-                                'Q2' => ['April', 'May', 'June'],
-                                'Q3' => ['July', 'August', 'September'],
-                                'Q4' => ['October', 'November', 'December'],
-                            ];
-                            $monthNames = $quarterMonths[$quarter] ?? ['Month 1', 'Month 2', 'Month 3'];
-                            $monthlyDetails = $formData->monthly ?? collect([
-                                (object)['amount' => 0, 'tax' => 0, 'atc' => '', 'nature' => ''],
-                                (object)['amount' => 0, 'tax' => 0, 'atc' => '', 'nature' => ''],
-                                (object)['amount' => 0, 'tax' => 0, 'atc' => '', 'nature' => ''],
-                            ]);
-                            $totalAmount = 0;
-                            $totalTax = 0;
-                        @endphp
-                        @foreach($monthlyDetails as $i => $detail)
-                            @php
-                                $totalAmount += $detail->amount ?? 0;
-                                $totalTax += $detail->tax ?? 0;
-                            @endphp
-                            <tr>
-                                <td class="border border-gray-300 px-3 py-2">{{ $monthNames[$i] ?? '' }}</td>
-                                <td class="border border-gray-300 px-3 py-2 font-mono">{{ $detail->atc ?? '' }}</td>
-                                <td class="border border-gray-300 px-3 py-2">{{ $detail->nature ?? '' }}</td>
-                                <td class="border border-gray-300 px-3 py-2 text-right font-mono">₱{{ number_format($detail->amount ?? 0, 2) }}</td>
-                                <td class="border border-gray-300 px-3 py-2 text-right font-mono">₱{{ number_format($detail->tax ?? 0, 2) }}</td>
-                            </tr>
-                        @endforeach
-                        <tr class="bg-gray-50 font-semibold">
-                            <td colspan="3" class="border border-gray-300 px-3 py-2 text-right">TOTAL</td>
-                            <td class="border border-gray-300 px-3 py-2 text-right font-mono">₱{{ number_format($totalAmount, 2) }}</td>
-                            <td class="border border-gray-300 px-3 py-2 text-right font-mono">₱{{ number_format($totalTax, 2) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    {{-- ===== TOP HEADER ===== --}}
+    <table>
+        <tr>
+            <td style="width:15%;border-right:1px solid #000;vertical-align:top;padding:3px;">
+                <div style="font-size:7px;">For BIR<br>Use Only</div>
+                <div style="font-size:7px;margin-top:4px;">BCS/<br>Item:</div>
+            </td>
+            <td style="width:12%;border-right:1px solid #000;padding:3px;">
+                <div style="font-size:10px;font-weight:bold;">BIR Form No.</div>
+                <div style="font-size:22px;font-weight:bold;line-height:1;">2307</div>
+                <div style="font-size:8px;">January 2018 (ENCS)</div>
+            </td>
+            <td style="text-align:center;padding:4px;">
+                <div style="font-size:8px;">Republic of the Philippines</div>
+                <div style="font-size:8px;">Department of Finance</div>
+                <div style="font-size:9px;font-weight:bold;">BUREAU OF INTERNAL REVENUE</div>
+                <div style="font-size:16px;font-weight:bold;margin:2px 0;">Certificate of Creditable Tax</div>
+                <div style="font-size:16px;font-weight:bold;">Withheld at Source</div>
+            </td>
+            <td style="width:14%;border-left:1px solid #000;padding:3px;text-align:right;font-size:8px;vertical-align:bottom;">
+                2307 01/18ENCS
+            </td>
+        </tr>
+    </table>
 
-        {{-- Signatures --}}
-        <div class="grid grid-cols-2 gap-8 mt-8 pt-4">
-            <div class="text-center">
-                <div class="border-b border-gray-400 mb-1 h-12"></div>
-                <p class="text-xs text-secondary-600">Signature of Payor / Authorized Representative</p>
-            </div>
-            <div class="text-center">
-                <div class="border-b border-gray-400 mb-1 h-12"></div>
-                <p class="text-xs text-secondary-600">Signature of Payee / Authorized Representative</p>
-            </div>
-        </div>
+    {{-- Instruction --}}
+    <div style="border-top:1px solid #000;padding:2px 4px;font-size:8px;">
+        Fill in all applicable spaces. Mark all appropriate boxes with an "X".
     </div>
+
+    {{-- Line 1: For the Period --}}
+    <table>
+        <tr>
+            <td style="width:20%;border:none;padding:2px 4px;">
+                <span class="field-label">1 &nbsp;For the Period</span>
+            </td>
+            <td style="border:none;padding:2px 4px;">
+                <span class="field-label">From</span>
+                <span style="display:inline-block;border-bottom:1px solid #000;min-width:80px;font-size:9px;padding:0 4px;">{{ $periodFrom }}</span>
+                &nbsp;&nbsp;
+                <span class="field-label">To</span>
+                <span style="display:inline-block;border-bottom:1px solid #000;min-width:80px;font-size:9px;padding:0 4px;">{{ $periodTo }}</span>
+                &nbsp;&nbsp;<span class="field-label">(MM/DD/YYYY)</span>
+            </td>
+        </tr>
+    </table>
+
+    {{-- ===== PART I: PAYEE ===== --}}
+    <div class="sh">Part I &ndash; Payee Information</div>
+    <table>
+        <tr>
+            <td style="width:30%;">
+                <div class="field-label">2 &nbsp;Taxpayer Identification Number <em>(TIN)</em></div>
+                <div style="padding:2px 0;">{!! $tinHtml($selectedVendor->tin ?? '') !!}</div>
+            </td>
+            <td>
+                <div class="field-label">3 &nbsp;Payee's Name <em>(Last Name, First Name, Middle Name for Individual OR Registered Name for Non-Individual)</em></div>
+                <div class="field-val">{{ $selectedVendor->name }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding:0;">
+                <table style="width:100%;">
+                    <tr>
+                        <td style="width:85%;border:none;border-right:1px solid #000;padding:2px 4px;">
+                            <div class="field-label">4 &nbsp;Registered Address</div>
+                            <div class="field-val">{{ $selectedVendor->address ?? '' }}</div>
+                        </td>
+                        <td style="border:none;padding:2px 4px;">
+                            <div class="field-label">4A &nbsp;ZIP Code</div>
+                            <div class="field-val">{{ $selectedVendor->zip_code ?? '' }}</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <div class="field-label">5 &nbsp;Foreign Address, <em>if applicable</em></div>
+                <div class="field-val">&nbsp;</div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- ===== PART II: PAYOR ===== --}}
+    <div class="sh">Part II &ndash; Payor Information</div>
+    <table>
+        <tr>
+            <td style="width:30%;">
+                <div class="field-label">6 &nbsp;Taxpayer Identification Number <em>(TIN)</em></div>
+                <div style="padding:2px 0;">{!! $tinHtml($schoolTin) !!}</div>
+            </td>
+            <td>
+                <div class="field-label">7 &nbsp;Payor's Name <em>(Last Name, First Name, Middle Name for Individual OR Registered Name for Non-Individual)</em></div>
+                <div class="field-val">{{ $schoolName }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="padding:0;">
+                <table style="width:100%;">
+                    <tr>
+                        <td style="width:85%;border:none;border-right:1px solid #000;padding:2px 4px;">
+                            <div class="field-label">8 &nbsp;Registered Address</div>
+                            <div class="field-val">{{ $schoolAddress }}</div>
+                        </td>
+                        <td style="border:none;padding:2px 4px;">
+                            <div class="field-label">8A &nbsp;ZIP Code</div>
+                            <div class="field-val">&nbsp;</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{-- ===== PART III ===== --}}
+    <div class="sh">Part III &ndash; Details of Monthly Income Payments and Taxes Withheld</div>
+    <table>
+        <thead>
+            <tr style="background:#e8e8e8;">
+                <th rowspan="2" style="width:28%;text-align:left;" class="part3-desc">Income Payments Subject to Expanded<br>Withholding Tax</th>
+                <th rowspan="2" style="width:8%;text-align:center;font-size:8px;">ATC</th>
+                <th colspan="4" style="text-align:center;font-size:8px;">AMOUNT OF INCOME PAYMENTS</th>
+                <th rowspan="2" style="width:14%;text-align:center;font-size:8px;">Tax Withheld for the<br>Quarter</th>
+            </tr>
+            <tr style="background:#f0f0f0;">
+                <th style="width:13%;text-align:center;font-size:8px;">1st Month of the<br>Quarter</th>
+                <th style="width:13%;text-align:center;font-size:8px;">2nd Month of the<br>Quarter</th>
+                <th style="width:13%;text-align:center;font-size:8px;">3rd Month of the<br>Quarter</th>
+                <th style="width:11%;text-align:center;font-size:8px;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{-- EWT data rows --}}
+            @foreach($atcEntries as $entry)
+            <tr>
+                <td class="part3-desc">Income payments subject to EWT</td>
+                <td style="text-align:center;font-weight:bold;font-family:monospace;">{{ $entry->atc }}</td>
+                <td class="amount-cell">{{ $entry->m1 > 0 ? number_format($entry->m1, 2) : '' }}</td>
+                <td class="amount-cell">{{ $entry->m2 > 0 ? number_format($entry->m2, 2) : '' }}</td>
+                <td class="amount-cell">{{ $entry->m3 > 0 ? number_format($entry->m3, 2) : '' }}</td>
+                <td class="amount-cell">{{ number_format($entry->total, 2) }}</td>
+                <td class="amount-cell">{{ number_format($entry->tax, 2) }}</td>
+            </tr>
+            @endforeach
+            {{-- Blank padding rows --}}
+            @for($i = 0; $i < $ewtPad; $i++)
+            <tr><td style="height:14px;"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            @endfor
+            {{-- EWT Total --}}
+            <tr class="total-row">
+                <td colspan="5" style="text-align:right;font-size:8px;font-weight:bold;">Total</td>
+                <td class="amount-cell">{{ number_format($formData->total_income ?? 0, 2) }}</td>
+                <td class="amount-cell">{{ number_format($formData->total_tax ?? 0, 2) }}</td>
+            </tr>
+            {{-- Business Tax section --}}
+            <tr>
+                <td colspan="7" style="font-size:8px;font-weight:bold;background:#f0f0f0;">
+                    Money Payments Subject to Withholding of Business Tax (Government &amp; Private)
+                </td>
+            </tr>
+            @for($i = 0; $i < 8; $i++)
+            <tr><td style="height:14px;"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            @endfor
+            <tr class="total-row">
+                <td colspan="5" style="text-align:right;font-size:8px;font-weight:bold;">Total</td>
+                <td class="amount-cell"></td>
+                <td class="amount-cell"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    {{-- Declaration --}}
+    <div class="decl">
+        We declare under the penalties of perjury that this certificate has been made in good faith, verified by us, and to the best of our knowledge and belief, is true and correct, pursuant to the provisions of the National Internal Revenue Code, as amended, and the regulations issued under authority thereof. Further, we give our consent to the processing of our information as contemplated under the *Data Privacy Act of 2012 (R.A. No. 10173) for legitimate and lawful purposes.
+    </div>
+
+    {{-- Payor Signature --}}
+    <table>
+        <tr>
+            <td style="width:50%;padding:4px;text-align:center;border-right:1px solid #000;">
+                <div style="height:40px;"></div>
+                <div style="border-top:1px solid #000;font-size:8px;padding-top:2px;">
+                    Signature over Printed Name of Payor/Payor's Authorized Representative/Tax Agent<br>
+                    <em>(Indicate Title/Designation and TIN)</em>
+                </div>
+            </td>
+            <td style="padding:0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="border:none;border-bottom:1px solid #000;padding:2px 4px;font-size:8px;width:50%;">
+                            Tax Agent Accreditation No./<br>Attorney's Roll No. (if applicable)
+                        </td>
+                        <td style="border:none;border-bottom:1px solid #000;border-left:1px solid #000;padding:2px 4px;font-size:8px;">
+                            Date of Issue<br><em>(MM/DD/YYYY)</em>
+                        </td>
+                        <td style="border:none;border-bottom:1px solid #000;border-left:1px solid #000;padding:2px 4px;font-size:8px;">
+                            Date of Expiry<br><em>(MM/DD/YYYY)</em>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="border:none;padding:2px 4px;font-size:8px;height:20px;"></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{-- CONFORME --}}
+    <div style="text-align:center;font-weight:bold;font-size:9px;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px;">CONFORME:</div>
+
+    {{-- Payee Signature --}}
+    <table>
+        <tr>
+            <td style="width:50%;padding:4px;text-align:center;border-right:1px solid #000;">
+                <div style="height:40px;"></div>
+                <div style="border-top:1px solid #000;font-size:8px;padding-top:2px;">
+                    Signature over Printed Name of Payee/Payee's Authorized Representative/Tax Agent<br>
+                    <em>(Indicate Title/Designation and TIN)</em>
+                </div>
+            </td>
+            <td style="padding:0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="border:none;border-bottom:1px solid #000;padding:2px 4px;font-size:8px;width:50%;">
+                            Tax Agent Accreditation No./<br>Attorney's Roll No. (if applicable)
+                        </td>
+                        <td style="border:none;border-bottom:1px solid #000;border-left:1px solid #000;padding:2px 4px;font-size:8px;">
+                            Date of Issue<br><em>(MM/DD/YYYY)</em>
+                        </td>
+                        <td style="border:none;border-bottom:1px solid #000;border-left:1px solid #000;padding:2px 4px;font-size:8px;">
+                            Date of Expiry<br><em>(MM/DD/YYYY)</em>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="border:none;padding:2px 4px;font-size:8px;height:20px;"></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Footer --}}
+    <div style="font-size:7.5px;padding:2px 4px;border-top:1px solid #000;">
+        *NOTE: The BIR Data Privacy is in the BIR website (www.bir.gov.ph)
+    </div>
+
 </div>
 @endif
 
-{{-- Vendor Tax Withholding Summary --}}
-<div class="card">
+{{-- Vendor Summary --}}
+<div class="card mt-6 no-print">
     <div class="card-header">
         <h3 class="text-sm font-semibold text-secondary-900">Vendor Tax Withholding Summary</h3>
     </div>
@@ -196,6 +380,7 @@
                 <tr>
                     <th>Vendor</th>
                     <th>TIN</th>
+                    <th>ATC</th>
                     <th class="text-right">Total Income</th>
                     <th class="text-right">Total Tax Withheld</th>
                     <th>Action</th>
@@ -203,19 +388,18 @@
             </thead>
             <tbody>
                 @forelse($summary as $item)
-                    <tr>
-                        <td class="font-medium">{{ $item->vendor_name ?? '' }}</td>
-                        <td class="font-mono text-sm">{{ $item->tin ?? 'N/A' }}</td>
-                        <td class="text-right font-mono">₱{{ number_format($item->total_income ?? 0, 2) }}</td>
-                        <td class="text-right font-mono">₱{{ number_format($item->total_tax ?? 0, 2) }}</td>
-                        <td>
-                            <a href="?vendor_id={{ $item->vendor_id ?? '' }}&quarter={{ $quarter }}&year={{ $year }}" class="text-primary-600 hover:text-primary-800 text-sm font-medium">
-                                View 2307
-                            </a>
-                        </td>
-                    </tr>
+                <tr>
+                    <td class="font-medium">{{ $item->vendor->name ?? '' }}</td>
+                    <td class="font-mono text-sm">{{ $item->vendor->tin ?? 'N/A' }}</td>
+                    <td class="font-mono text-sm">{{ $item->atc ?? '' }}</td>
+                    <td class="text-right font-mono">₱{{ number_format($item->income_payment ?? 0, 2) }}</td>
+                    <td class="text-right font-mono">₱{{ number_format($item->tax_withheld ?? 0, 2) }}</td>
+                    <td>
+                        <a href="?vendor_id={{ $item->vendor->id ?? '' }}&quarter={{ $quarter }}&year={{ $year }}" class="text-primary-600 hover:text-primary-800 text-sm font-medium">View 2307</a>
+                    </td>
+                </tr>
                 @empty
-                    <tr><td colspan="5" class="text-center py-8 text-secondary-400">No withholding tax data found for the selected period.</td></tr>
+                <tr><td colspan="6" class="text-center py-8 text-secondary-400">No withholding tax data found.</td></tr>
                 @endforelse
             </tbody>
         </table>

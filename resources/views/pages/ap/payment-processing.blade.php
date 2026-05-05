@@ -144,7 +144,7 @@
                     <label class="form-label">Bank Account <span class="text-danger-500">*</span></label>
                     <select name="bank_account" class="form-input text-sm" required>
                         <option value="">Select Bank...</option>
-                        @foreach(\App\Models\BankAccount::where('is_active', true)->orderBy('bank_name')->get() as $ba)
+                        @foreach($bankAccounts as $ba)
                             <option value="{{ $ba->account_label }}" {{ ($lastCheckUsed->bank_account ?? '') === $ba->account_label ? 'selected' : '' }}>
                                 {{ $ba->account_label }}
                             </option>
@@ -156,14 +156,19 @@
                     <input type="text" name="starting_check_number" class="form-input text-sm" placeholder="{{ $nextCheckNumber ?? 'Auto-generate' }}">
                 </div>
                 <div>
-                    <label class="form-label">WHT Rate</label>
-                    <select name="wht_rate" class="form-input text-sm">
-                        <option value="0">0% — No WHT</option>
-                        <option value="1">1% — EWT 1%</option>
-                        <option value="2">2% — EWT 2%</option>
-                        <option value="5">5% — EWT 5%</option>
-                        <option value="10">10% — EWT 10%</option>
-                        <option value="15">15% — EWT 15%</option>
+                    <label class="form-label">WHT / ATC Code</label>
+                    <select name="tax_code_id" class="form-input text-sm" style="min-width:280px">
+                        <option value="">— None / No WHT —</option>
+                        <optgroup label="── Expanded Withholding Tax (EWT) ──">
+                        @foreach($taxCodes->where('type', 'ewt') as $tc)
+                            <option value="{{ $tc->id }}">{{ $tc->bir_atc ?: $tc->code }} — {{ $tc->name }} ({{ $tc->rate }}%)</option>
+                        @endforeach
+                        </optgroup>
+                        <optgroup label="── Final Withholding Tax (FWT) ──">
+                        @foreach($taxCodes->where('type', 'final') as $tc)
+                            <option value="{{ $tc->id }}">{{ $tc->bir_atc ?: $tc->code }} — {{ $tc->name }} ({{ $tc->rate }}%)</option>
+                        @endforeach
+                        </optgroup>
                     </select>
                 </div>
                 <div>

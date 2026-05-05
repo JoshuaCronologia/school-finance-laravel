@@ -133,16 +133,24 @@
                                 <select :name="'lines[' + index + '][tax_code_id]'" class="form-input text-sm" x-model="line.tax_code" @change="recalcTotals()">
                                     <option value="">None</option>
                                     @foreach($taxCodes->where('type', 'vat') as $tc)
-                                        <option value="{{ $tc->id }}">{{ $tc->code }} - {{ $tc->rate }}%</option>
+                                        <option value="{{ $tc->id }}">{{ $tc->bir_atc ?: $tc->code }} — {{ $tc->name }} ({{ $tc->rate }}%)</option>
                                     @endforeach
                                 </select>
                             </td>
                             <td>
                                 <select :name="'lines[' + index + '][wht_code_id]'" class="form-input text-sm" x-model="line.wht_code" @change="recalcTotals()">
                                     <option value="">None</option>
-                                    @foreach($taxCodes->whereIn('type', ['ewt', 'final']) as $tc)
-                                        <option value="{{ $tc->id }}">{{ $tc->code }} - {{ $tc->rate }}%</option>
+                                    @php $ewtCodes = $taxCodes->whereIn('type', ['ewt', 'final']); @endphp
+                                    <optgroup label="── Expanded Withholding Tax (EWT) ──">
+                                    @foreach($ewtCodes->where('type', 'ewt') as $tc)
+                                        <option value="{{ $tc->id }}">{{ $tc->bir_atc ?: $tc->code }} — {{ $tc->name }} ({{ $tc->rate }}%)</option>
                                     @endforeach
+                                    </optgroup>
+                                    <optgroup label="── Final Withholding Tax (FWT) ──">
+                                    @foreach($ewtCodes->where('type', 'final') as $tc)
+                                        <option value="{{ $tc->id }}">{{ $tc->bir_atc ?: $tc->code }} — {{ $tc->name }} ({{ $tc->rate }}%)</option>
+                                    @endforeach
+                                    </optgroup>
                                 </select>
                             </td>
                             <td>
