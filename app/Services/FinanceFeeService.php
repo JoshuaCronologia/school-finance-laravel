@@ -29,11 +29,20 @@ class FinanceFeeService
             return static::$available = false;
         }
 
+        // Cache across requests so a down/slow finance DB doesn't block every page load.
+        // On unavailable: retry after 30s. On available: re-verify after 2 min.
+        $cached = Cache::get('finance:db_available');
+        if ($cached !== null) {
+            return static::$available = (bool) $cached;
+        }
+
         try {
             DB::connection(static::$connection)->getPdo();
+            Cache::put('finance:db_available', 1, 120);
             return static::$available = true;
         } catch (\Throwable $e) {
             Log::warning('Finance DB unavailable: ' . $e->getMessage());
+            Cache::put('finance:db_available', 0, 30);
             return static::$available = false;
         }
     }
@@ -624,6 +633,42 @@ class FinanceFeeService
         }
 
         return $query->orderBy('b.date_paid')->orderBy('b.receipt_number')->paginate($perPage);
+    }
+
+    public static function cashReceiptBooksFinanceAll($dateFrom, $dateTo, $search = null)
+    {
+        if (!static::isAvailable()) {
+            return collect();
+        }
+
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo])
+            ->select(
+                'b.receipt_number', 'b.date_paid', 'b.total as batch_total', 'b.customer_type',
+                DB::raw("COALESCE(b.transaction_remarks, b.oa_remarks, '') as remarks"),
+                's.student_name', 'e.employee_name',
+                DB::raw("TRIM(CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))) as walkin_name"),
+                'c.name as account',
+                'fd.amount'
+            );
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('b.receipt_number', 'like', "%{$search}%")
+                  ->orWhere('s.student_name', 'like', "%{$search}%")
+                  ->orWhere('e.employee_name', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->orderBy('b.date_paid')->orderBy('b.receipt_number')->get();
     }
 
     /**

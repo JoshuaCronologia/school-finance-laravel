@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\CashReceiptsExport;
+use App\Exports\GeneralJournalExport;
+use App\Exports\GeneralLedgerExport;
+use App\Exports\TrialBalanceExport;
 use App\Http\Controllers\Controller;
 use App\Models\Budget;
 use App\Models\ChartOfAccount;
@@ -11,7 +15,9 @@ use App\Models\JournalEntryLine;
 use App\Models\Setting;
 use App\Services\FinanceFeeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -58,6 +64,23 @@ class ReportController extends Controller
             'total_credit' => $totalCredit,
             'difference' => $totalDebit - $totalCredit,
         ];
+
+        $export = $request->input('export');
+
+        if ($export === 'excel') {
+            return Excel::download(
+                new TrialBalanceExport($asOfDate),
+                'trial-balance-' . $asOfDate . '.xlsx'
+            );
+        }
+
+        if ($export === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.reports.pdf.trial-balance', compact(
+                'accounts', 'totals', 'isBalanced', 'asOfDate'
+            ))->setPaper('a4', 'portrait');
+
+            return $pdf->download('trial-balance-' . $asOfDate . '.pdf');
+        }
 
         return view('pages.reports.trial-balance', compact(
             'accounts', 'totals', 'totalDebit', 'totalCredit', 'isBalanced', 'asOfDate'
@@ -396,6 +419,86 @@ class ReportController extends Controller
     }
 
     /**
+     * Statement of Changes in Owner's Equity.
+     */
+    public function ownersEquity(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfYear()->toDateString());
+        $dateTo   = $request->input('date_to',   now()->toDateString());
+
+        // Opening equity balances — all equity accounts as of the day before the period
+        $openingDate = \Carbon\Carbon::parse($dateFrom)->subDay()->toDateString();
+        $openingBalances = $this->getAccountBalances($openingDate)
+            ->where('account_type', 'equity');
+        $openingEquity = $openingBalances->sum(function ($a) { return abs($a->balance); });
+
+        // Net income for the period (revenue − expenses)
+        $periodRevenue = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo)
+            ->sum(function ($a) { return abs($a->balance); });
+        $periodExpenses = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo)
+            ->sum('balance');
+
+        // Add finance fee revenue if available
+        try {
+            $feeRevenue = FinanceFeeService::mappedRevenue($dateFrom, $dateTo);
+            $periodRevenue += $feeRevenue->sum('total_amount');
+        } catch (\Exception $e) {}
+
+        $netIncome = $periodRevenue - $periodExpenses;
+
+        // Equity account movements in the period
+        $equityMovements = DB::select("
+            SELECT
+                coa.account_code,
+                coa.account_name,
+                COALESCE(SUM(jel.credit), 0) as credits,
+                COALESCE(SUM(jel.debit),  0) as debits
+            FROM chart_of_accounts coa
+            LEFT JOIN journal_entry_lines jel ON jel.account_id = coa.id
+            LEFT JOIN journal_entries je
+                ON je.id = jel.journal_entry_id
+                AND je.status = 'posted'
+                AND je.posting_date >= ?
+                AND je.posting_date <= ?
+            WHERE coa.account_type = 'equity'
+            GROUP BY coa.id, coa.account_code, coa.account_name
+            HAVING COALESCE(SUM(jel.credit), 0) + COALESCE(SUM(jel.debit), 0) > 0
+            ORDER BY coa.account_code
+        ", [$dateFrom, $dateTo]);
+
+        // Split into contributions (credit to equity) vs withdrawals (debit to equity)
+        $contributions = collect($equityMovements)->filter(function ($r) {
+            return $r->credits > $r->debits;
+        })->map(function ($r) {
+            $r->amount = $r->credits - $r->debits;
+            return $r;
+        });
+
+        $withdrawals = collect($equityMovements)->filter(function ($r) {
+            return $r->debits >= $r->credits;
+        })->map(function ($r) {
+            $r->amount = $r->debits - $r->credits;
+            return $r;
+        });
+
+        $totalContributions = $contributions->sum('amount');
+        $totalWithdrawals   = $withdrawals->sum('amount');
+        $closingEquity      = $openingEquity + $totalContributions + $netIncome - $totalWithdrawals;
+
+        // Equity accounts for the detail table
+        $equityAccounts = $openingBalances->values();
+
+        return view('pages.reports.owners-equity', compact(
+            'dateFrom', 'dateTo',
+            'openingEquity', 'openingBalances', 'equityAccounts',
+            'netIncome', 'periodRevenue', 'periodExpenses',
+            'contributions', 'totalContributions',
+            'withdrawals', 'totalWithdrawals',
+            'closingEquity'
+        ));
+    }
+
+    /**
      * General Ledger - Full detail of all posted entries.
      */
     public function generalLedger(Request $request)
@@ -500,6 +603,23 @@ class ReportController extends Controller
 
         $accounts = $accounts->sortBy('account_code')->values();
 
+        $export = $request->input('export');
+
+        if ($export === 'excel') {
+            return Excel::download(
+                new GeneralLedgerExport($accounts, $dateFrom, $dateTo),
+                'general-ledger-' . $dateFrom . '-to-' . $dateTo . '.xlsx'
+            );
+        }
+
+        if ($export === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.reports.pdf.general-ledger', compact(
+                'accounts', 'dateFrom', 'dateTo'
+            ))->setPaper('a4', 'landscape');
+
+            return $pdf->download('general-ledger-' . $dateFrom . '-to-' . $dateTo . '.pdf');
+        }
+
         return view('pages.reports.general-ledger', compact(
             'accounts', 'allAccounts', 'dateFrom', 'dateTo', 'accountId'
         ));
@@ -562,6 +682,23 @@ class ReportController extends Controller
         $totalDebit = $entries->sum(function ($e) { return $e->lines->sum('debit'); });
         $totalCredit = $entries->sum(function ($e) { return $e->lines->sum('credit'); });
 
+        $export = $request->input('export');
+
+        if ($export === 'excel') {
+            return Excel::download(
+                new GeneralJournalExport($entries),
+                'general-journal-' . $dateFrom . '-to-' . $dateTo . '.xlsx'
+            );
+        }
+
+        if ($export === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.reports.pdf.general-journal', compact(
+                'entries', 'dateFrom', 'dateTo', 'totalDebit', 'totalCredit'
+            ))->setPaper('a4', 'portrait');
+
+            return $pdf->download('general-journal-' . $dateFrom . '-to-' . $dateTo . '.pdf');
+        }
+
         return view('pages.reports.general-journal', compact('entries', 'dateFrom', 'dateTo', 'totalDebit', 'totalCredit'));
     }
 
@@ -600,7 +737,50 @@ class ReportController extends Controller
 
             $totalAmount = $entries->sum('debit');
         } else {
-            $finRecords = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+            try {
+                $finRecords = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+            } catch (\Exception $e) {
+                $finRecords = collect();
+            }
+        }
+
+        $export = $request->input('export');
+
+        // For cashier export, fetch all records (not paginated page 1)
+        $exportData = $entries;
+        if ($tab === 'cashier') {
+            if ($export) {
+                try {
+                    $exportData = FinanceFeeService::cashReceiptBooksFinanceAll($dateFrom, $dateTo, $search);
+                } catch (\Exception $e) {
+                    $exportData = collect();
+                }
+            } else {
+                $exportData = $finRecords;
+            }
+        }
+
+        if ($export === 'excel') {
+            return Excel::download(
+                new CashReceiptsExport($exportData, $tab),
+                'cash-receipts-' . $tab . '-' . $dateFrom . '-to-' . $dateTo . '.xlsx'
+            );
+        }
+
+        if ($export === 'pdf') {
+            $pdfFinRecords = $exportData instanceof \Illuminate\Contracts\Pagination\Paginator
+                ? $exportData->getCollection()
+                : collect($exportData);
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pages.reports.pdf.cash-receipts-book', [
+                'entries'     => $entries,
+                'finRecords'  => $pdfFinRecords,
+                'dateFrom'    => $dateFrom,
+                'dateTo'      => $dateTo,
+                'totalAmount' => $totalAmount,
+                'tab'         => $tab,
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download('cash-receipts-' . $tab . '-' . $dateFrom . '-to-' . $dateTo . '.pdf');
         }
 
         return view('pages.reports.cash-receipts-book', compact(
@@ -1284,72 +1464,85 @@ class ReportController extends Controller
         $dateFrom = $request->input('date_from') ?: now()->startOfYear()->toDateString();
         $dateTo = $request->input('date_to') ?: now()->toDateString();
 
-        // === REVENUE (from finance fees + JE) ===
-        $revenueAccounts = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo);
+        $cacheKey = "report:budget_performance:{$dateFrom}:{$dateTo}";
+        $data = Cache::remember($cacheKey, 300, function () use ($dateFrom, $dateTo) {
+            // === REVENUE (from JE) ===
+            $revenueAccounts = $this->getAccountBalancesForPeriod('revenue', $dateFrom, $dateTo);
 
-        // Merge finance fee revenue
-        try {
-            $feeRevenue = FinanceFeeService::mappedRevenue($dateFrom, $dateTo);
-            foreach ($feeRevenue as $fee) {
-                $existing = $revenueAccounts->firstWhere('id', $fee->account_id);
-                if ($existing) {
-                    $existing->balance = abs($existing->balance) + $fee->total_amount;
-                } else {
-                    $coaAccount = ChartOfAccount::find($fee->account_id);
-                    $revenueAccounts->push((object) [
-                        'id' => $fee->account_id,
-                        'account_code' => $fee->account_code,
-                        'account_name' => $fee->account_name,
-                        'account_type' => 'revenue',
-                        'normal_balance' => 'credit',
-                        'parent_id' => $coaAccount ? $coaAccount->parent_id : null,
-                        'balance' => $fee->total_amount,
-                    ]);
+            // Merge finance fee revenue — batch-load COA for missing accounts
+            try {
+                $feeRevenue = FinanceFeeService::mappedRevenue($dateFrom, $dateTo);
+                if ($feeRevenue->isNotEmpty()) {
+                    $missingIds = $feeRevenue
+                        ->filter(function ($fee) use ($revenueAccounts) {
+                            return !$revenueAccounts->firstWhere('id', $fee->account_id);
+                        })
+                        ->pluck('account_id')->unique()->all();
+
+                    $coaMap = count($missingIds)
+                        ? ChartOfAccount::whereIn('id', $missingIds)->get()->keyBy('id')
+                        : collect();
+
+                    foreach ($feeRevenue as $fee) {
+                        $existing = $revenueAccounts->firstWhere('id', $fee->account_id);
+                        if ($existing) {
+                            $existing->balance = abs($existing->balance) + $fee->total_amount;
+                        } else {
+                            $coa = $coaMap->get($fee->account_id);
+                            $revenueAccounts->push((object) [
+                                'id'             => $fee->account_id,
+                                'account_code'   => $fee->account_code,
+                                'account_name'   => $fee->account_name,
+                                'account_type'   => 'revenue',
+                                'normal_balance' => 'credit',
+                                'parent_id'      => $coa ? $coa->parent_id : null,
+                                'balance'        => $fee->total_amount,
+                            ]);
+                        }
+                    }
                 }
-            }
-        } catch (\Exception $e) {}
+            } catch (\Exception $e) {}
 
-        $revenueAccounts = $revenueAccounts->sortBy('account_code')->values();
-        $totalRevenue = $revenueAccounts->sum(function ($a) { return abs($a->balance); });
+            $revenueAccounts = $revenueAccounts->sortBy('account_code')->values();
+            $totalRevenue = $revenueAccounts->sum(function ($a) { return abs($a->balance); });
+            $revenueGroups = $this->groupByParent($revenueAccounts, 'revenue');
 
-        // Group revenue by parent
-        $revenueGroups = $this->groupByParent($revenueAccounts, 'revenue');
+            // === EXPENSES ===
+            $expenseAccounts = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo);
+            $totalExpenses = $expenseAccounts->sum('balance');
 
-        // === EXPENSES (from JE + budget data) ===
-        $expenseAccounts = $this->getAccountBalancesForPeriod('expense', $dateFrom, $dateTo);
-        $totalExpenses = $expenseAccounts->sum('balance');
+            // === BUDGETS ===
+            $budgets = \App\Models\Budget::with('category', 'department')
+                ->whereIn('status', ['active', 'approved'])
+                ->get();
 
-        // Get budget data grouped by category
-        $budgets = \App\Models\Budget::with('category', 'department')
-            ->whereIn('status', ['active', 'approved'])
-            ->get();
+            $totalBudget    = (float) $budgets->sum('annual_budget');
+            $totalCommitted = (float) $budgets->sum('committed');
+            $totalActual    = (float) $budgets->sum('actual');
 
-        $totalBudget = (float) $budgets->sum('annual_budget');
-        $totalCommitted = (float) $budgets->sum('committed');
-        $totalActual = (float) $budgets->sum('actual');
+            $budgetByCategory = $budgets->groupBy(function ($b) {
+                return $b->category->name ?? 'Uncategorized';
+            })->map(function ($items, $category) {
+                return (object) [
+                    'category'  => $category,
+                    'budget'    => (float) $items->sum('annual_budget'),
+                    'committed' => (float) $items->sum('committed'),
+                    'actual'    => (float) $items->sum('actual'),
+                    'items'     => $items,
+                ];
+            })->sortByDesc('budget')->values();
 
-        // Budget by category
-        $budgetByCategory = $budgets->groupBy(function ($b) {
-            return $b->category->name ?? 'Uncategorized';
-        })->map(function ($items, $category) {
-            return (object) [
-                'category' => $category,
-                'budget' => (float) $items->sum('annual_budget'),
-                'committed' => (float) $items->sum('committed'),
-                'actual' => (float) $items->sum('actual'),
-                'items' => $items,
-            ];
-        })->sortByDesc('budget')->values();
+            $netIncome = $totalRevenue - $totalExpenses;
 
-        $netIncome = $totalRevenue - $totalExpenses;
+            return compact(
+                'revenueGroups', 'totalRevenue',
+                'expenseAccounts', 'totalExpenses',
+                'totalBudget', 'totalCommitted', 'totalActual',
+                'budgetByCategory', 'netIncome'
+            );
+        });
 
-        return view('pages.reports.budget-performance', compact(
-            'revenueGroups', 'totalRevenue',
-            'expenseAccounts', 'totalExpenses',
-            'totalBudget', 'totalCommitted', 'totalActual',
-            'budgetByCategory', 'netIncome',
-            'dateFrom', 'dateTo'
-        ));
+        return view('pages.reports.budget-performance', array_merge($data, compact('dateFrom', 'dateTo')));
     }
 
     /**
@@ -1363,6 +1556,9 @@ class ReportController extends Controller
             ->unique()
             ->all();
 
+        // Pre-load all parent accounts in one query to avoid N+1
+        $parentMap = ChartOfAccount::whereIn('id', $parentIds)->get()->keyBy('id');
+
         $groups = [];
         $standalone = [];
 
@@ -1372,13 +1568,13 @@ class ReportController extends Controller
 
             if ($parentId && in_array($parentId, $parentIds)) {
                 if (!isset($groups[$parentId])) {
-                    $parent = ChartOfAccount::find($parentId);
+                    $parent = $parentMap->get($parentId);
                     $groups[$parentId] = (object) [
-                        'id' => $parentId,
-                        'account_code' => $parent->account_code ?? '',
-                        'account_name' => $parent->account_name ?? 'Other',
-                        'total' => 0,
-                        'children' => [],
+                        'id'           => $parentId,
+                        'account_code' => $parent ? $parent->account_code : '',
+                        'account_name' => $parent ? $parent->account_name : 'Other',
+                        'total'        => 0,
+                        'children'     => [],
                     ];
                 }
                 $groups[$parentId]->total += abs($account->balance);
@@ -1386,11 +1582,11 @@ class ReportController extends Controller
             } elseif (in_array($acctId, $parentIds)) {
                 if (!isset($groups[$acctId])) {
                     $groups[$acctId] = (object) [
-                        'id' => $acctId,
+                        'id'           => $acctId,
                         'account_code' => $account->account_code,
                         'account_name' => $account->account_name,
-                        'total' => abs($account->balance),
-                        'children' => [],
+                        'total'        => abs($account->balance),
+                        'children'     => [],
                     ];
                 } else {
                     $groups[$acctId]->total += abs($account->balance);

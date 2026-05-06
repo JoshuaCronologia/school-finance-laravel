@@ -189,6 +189,7 @@ Route::middleware(['check_auth'])->group(function () {
         Route::get('/balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet');
         Route::get('/income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement');
         Route::get('/cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
+        Route::get('/owners-equity', [ReportController::class, 'ownersEquity'])->name('owners-equity');
         Route::get('/general-ledger', [ReportController::class, 'generalLedger'])->name('general-ledger');
         Route::get('/budget-vs-actual', [ReportController::class, 'budgetVsActual'])->name('budget-vs-actual');
         Route::get('/monthly-variance', [ReportController::class, 'monthlyVariance'])->name('monthly-variance');

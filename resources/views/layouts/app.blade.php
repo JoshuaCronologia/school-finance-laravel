@@ -242,7 +242,7 @@
             <p class="sidebar-section-title mt-4">Reports</p>
 
             {{-- Financial Reports (collapsible) --}}
-            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/trial-balance') || str_starts_with($currentRoute, '/reports/balance-sheet') || str_starts_with($currentRoute, '/reports/income-statement') || str_starts_with($currentRoute, '/reports/cash-flow') || str_starts_with($currentRoute, '/reports/general-ledger') || str_starts_with($currentRoute, '/reports/expense-schedule') || str_starts_with($currentRoute, '/reports/fin/') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ str_starts_with($currentRoute, '/reports/trial-balance') || str_starts_with($currentRoute, '/reports/balance-sheet') || str_starts_with($currentRoute, '/reports/income-statement') || str_starts_with($currentRoute, '/reports/cash-flow') || str_starts_with($currentRoute, '/reports/owners-equity') || str_starts_with($currentRoute, '/reports/general-ledger') || str_starts_with($currentRoute, '/reports/expense-schedule') || str_starts_with($currentRoute, '/reports/fin/') ? 'true' : 'false' }} }">
                 <button @click="open = !open" class="sidebar-link w-full justify-between">
                     <span class="flex items-center gap-3">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
@@ -256,6 +256,7 @@
                     <a href="{{ url('/reports/balance-sheet') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/balance-sheet' ? 'sidebar-link--active' : '' }}">Balance Sheet</a>
                     <a href="{{ url('/reports/income-statement') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/income-statement' ? 'sidebar-link--active' : '' }}">Income Statement</a>
                     <a href="{{ url('/reports/cash-flow') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/cash-flow' ? 'sidebar-link--active' : '' }}">Cash Flow</a>
+                    <a href="{{ url('/reports/owners-equity') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/owners-equity' ? 'sidebar-link--active' : '' }}">Owner's Equity</a>
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Books of Accounts</p>
                     <a href="{{ url('/reports/general-ledger') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/general-ledger' ? 'sidebar-link--active' : '' }}">General Ledger</a>
                     <a href="{{ url('/reports/general-journal') }}" class="sidebar-link text-xs {{ $currentRoute === '/reports/general-journal' ? 'sidebar-link--active' : '' }}">General Journal</a>
@@ -571,6 +572,7 @@
                 { type: 'Page', icon: 'page', title: 'Balance Sheet', subtitle: 'Reports', url: '/reports/balance-sheet' },
                 { type: 'Page', icon: 'page', title: 'Income Statement', subtitle: 'Reports', url: '/reports/income-statement' },
                 { type: 'Page', icon: 'page', title: 'Cash Flow Statement', subtitle: 'Reports', url: '/reports/cash-flow' },
+                { type: 'Page', icon: 'page', title: "Statement of Changes in Owner's Equity", subtitle: 'Reports', url: '/reports/owners-equity' },
                 { type: 'Page', icon: 'page', title: 'General Ledger Report', subtitle: 'Reports', url: '/reports/general-ledger' },
                 { type: 'Page', icon: 'page', title: 'Budget vs Actual', subtitle: 'Reports', url: '/reports/budget-vs-actual' },
                 { type: 'Page', icon: 'page', title: 'Monthly Variance', subtitle: 'Reports', url: '/reports/monthly-variance' },

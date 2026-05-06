@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChartOfAccount;
 use App\Models\JournalEntryLine;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class GLController extends Controller
@@ -15,7 +16,9 @@ class GLController extends Controller
      */
     public function ledgerInquiry(Request $request)
     {
-        $accounts = ChartOfAccount::active()->orderBy('account_code')->get();
+        $accounts = Cache::remember('coa:active:all', 600, function () {
+            return ChartOfAccount::active()->orderBy('account_code')->get();
+        });
         $selectedAccount = null;
         $ledgerEntries = collect();
         $openingBalance = 0;
