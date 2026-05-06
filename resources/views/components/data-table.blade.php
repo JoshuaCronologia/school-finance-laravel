@@ -1,6 +1,6 @@
 @props([
     'searchPlaceholder' => 'Search...',
-    'searchable' => true,
+    'searchable' => false,
 ])
 
 <div class="card" data-searchable-table>

@@ -744,6 +744,14 @@ class ReportController extends Controller
             }
         }
 
+        $grandTotal = null;
+        if ($tab === 'cashier' && $finRecords instanceof \Illuminate\Pagination\LengthAwarePaginator
+            && $finRecords->isNotEmpty() && $finRecords->currentPage() === $finRecords->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::cashReceiptBooksFinanceGrandTotal($dateFrom, $dateTo, $search);
+            } catch (\Exception $e) {}
+        }
+
         $export = $request->input('export');
 
         // For cashier export, fetch all records (not paginated page 1)
@@ -784,7 +792,7 @@ class ReportController extends Controller
         }
 
         return view('pages.reports.cash-receipts-book', compact(
-            'entries', 'dateFrom', 'dateTo', 'totalAmount', 'tab', 'search', 'finRecords'
+            'entries', 'dateFrom', 'dateTo', 'totalAmount', 'tab', 'search', 'finRecords', 'grandTotal'
         ));
     }
 

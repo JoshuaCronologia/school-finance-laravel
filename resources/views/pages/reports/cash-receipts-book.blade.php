@@ -130,7 +130,7 @@
                 </tr>
             </thead>
             <tbody>
-                @php $currentOr = null; @endphp
+                @php $currentOr = null; $grandTotal = $grandTotal ?? null; @endphp
                 @forelse($finRecords as $r)
                 @php
                     $typeMap = [1 => $r->student_name ?? '—', 2 => $r->employee_name ?? '—', 3 => trim($r->walkin_name) ?: '—'];
@@ -154,10 +154,17 @@
             @if($finRecords->isNotEmpty())
             <tfoot>
                 <tr class="bg-gray-50 font-semibold text-sm border-t-2 border-gray-300">
-                    <td colspan="5" class="px-4 py-2 text-right text-secondary-600">Total Receipts:</td>
+                    <td colspan="5" class="px-4 py-2 text-right text-secondary-600">Page Total:</td>
                     <td class="px-4 py-2 text-right font-bold">{{ number_format($finRecords->sum('amount'), 2) }}</td>
                     <td></td>
                 </tr>
+                @if($grandTotal !== null)
+                <tr class="bg-secondary-100 font-semibold text-sm border-t-4 border-double border-gray-400">
+                    <td colspan="5" class="px-4 py-2 text-right text-secondary-700 uppercase tracking-wide text-xs">Grand Total:</td>
+                    <td class="px-4 py-2 text-right font-bold">{{ number_format($grandTotal, 2) }}</td>
+                    <td></td>
+                </tr>
+                @endif
             </tfoot>
             @endif
         </table>
