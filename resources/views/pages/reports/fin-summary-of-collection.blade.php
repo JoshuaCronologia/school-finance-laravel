@@ -10,19 +10,8 @@
 
 <x-filter-bar action="{{ route('reports.fin.summary-of-collection') }}">
     <div>
-        <label class="form-label">Date Range</label>
-        <div class="flex items-center gap-2">
-            <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input" onchange="this.form.submit()">
-            <span class="text-secondary-400">—</span>
-            <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input" onchange="this.form.submit()">
-        </div>
-    </div>
-    <div>
         <label class="form-label">Search</label>
         <input type="text" name="search" value="{{ $search }}" placeholder="OR No., cashier..." class="form-input w-48">
-    </div>
-    <div class="flex items-end">
-        <button type="submit" class="btn-primary text-sm">Filter</button>
     </div>
 </x-filter-bar>
 
@@ -85,6 +74,18 @@
                 <td class="px-4 py-2 text-right font-bold border-r border-gray-200">{{ number_format($records->sum('total'), 2) }}</td>
                 <td></td>
             </tr>
+            @if($grandTotal !== null)
+            <tr class="bg-secondary-100 font-semibold text-sm border-t-4 border-double border-gray-400">
+                <td colspan="4" class="px-4 py-2 text-right text-secondary-700 uppercase tracking-wide text-xs border-r border-gray-200">Grand Total:</td>
+                <td class="px-4 py-2 text-right">{{ number_format($grandTotal->cash_amt, 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($grandTotal->cheque_amt, 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($grandTotal->cc_amt, 2) }}</td>
+                <td class="px-4 py-2 text-right">{{ number_format($grandTotal->dd_amt, 2) }}</td>
+                <td class="px-4 py-2 text-right border-r border-gray-200">{{ number_format($grandTotal->pdc_amt, 2) }}</td>
+                <td class="px-4 py-2 text-right font-bold border-r border-gray-200">{{ number_format($grandTotal->total, 2) }}</td>
+                <td></td>
+            </tr>
+            @endif
         </tfoot>
         @endif
     </table>

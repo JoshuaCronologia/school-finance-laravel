@@ -136,8 +136,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('tax')->group(function () {
         Route::get('/bir-2307', [TaxController::class, 'bir2307']);
         Route::post('/bir-2307/generate', [TaxController::class, 'generateBir2307']);
-        Route::get('/bir-1601e', [TaxController::class, 'bir1601e']);
-        Route::post('/bir-1601e/generate', [TaxController::class, 'generateBir1601e']);
         Route::get('/vat-2550m', [TaxController::class, 'vat2550m']);
         Route::post('/vat-2550m/generate', [TaxController::class, 'generateVat2550m']);
         Route::get('/alphalist', [TaxController::class, 'alphalist']);

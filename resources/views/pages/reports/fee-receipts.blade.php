@@ -110,6 +110,15 @@
                 <tr><td colspan="8" class="text-center text-secondary-400 py-8">No receipts found.</td></tr>
                 @endforelse
             </tbody>
+            @if($grandTotal !== null)
+            <tfoot>
+                <tr class="bg-secondary-100 font-semibold text-sm border-t-4 border-double border-gray-400">
+                    <td colspan="6" class="px-4 py-2 text-right text-secondary-700 uppercase tracking-wide text-xs">Grand Total:</td>
+                    <td class="px-4 py-2 text-right font-bold text-green-700">₱{{ number_format($grandTotal, 2) }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+            @endif
         </table>
     </div>
     @if($receipts->hasPages())

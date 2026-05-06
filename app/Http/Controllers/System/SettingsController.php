@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Services\Users\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -16,7 +17,7 @@ class SettingsController extends Controller
 {
     public function index()
     {
-        $settings = Setting::orderBy('category')->orderBy('key')->get()->groupBy('category');
+        $settings = Setting::orderBy('key')->get()->pluck('value', 'key')->toArray();
         $periods = AccountingPeriod::orderBy('start_date', 'desc')->get();
         $users = User::with('roles')->orderBy('name')->get();
         $roles = Role::orderBy('name')->get();
@@ -26,31 +27,40 @@ class SettingsController extends Controller
 
     public function update(Request $request)
     {
-        $validated = $request->validate([
-            'settings' => 'required|array',
-            'settings.*.key' => 'required|string',
-            'settings.*.value' => 'nullable|string',
-        ]);
+        $section = $request->input('section');
 
-        DB::transaction(function () use ($validated) {
-            foreach ($validated['settings'] as $setting) {
-                $existing = Setting::where('key', $setting['key'])->first();
+        $sectionKeys = [
+            'general'  => ['school_name', 'tin', 'address', 'phone', 'email'],
+            'approval' => ['approval_level_1', 'approval_level_2', 'approval_level_3'],
+            'budget'   => ['budget_policy', 'overspend_tolerance'],
+            'tax'      => ['default_vat_rate', 'wht_professional', 'wht_rental', 'wht_services', 'wht_supplies', 'authorized_rep_name', 'authorized_rep_tin'],
+            'numbering'=> ['prefix_dr', 'prefix_pv', 'prefix_or', 'prefix_je', 'prefix_bill', 'prefix_inv'],
+        ];
+
+        $keys = $sectionKeys[$section] ?? [];
+
+        DB::transaction(function () use ($request, $keys) {
+            foreach ($keys as $key) {
+                $value = $request->input($key, '');
+                $existing = Setting::where('key', $key)->first();
                 $oldValue = optional($existing)->value;
 
-                Setting::set($setting['key'], $setting['value'] ?? '');
+                Setting::set($key, $value);
 
-                if ($oldValue !== ($setting['value'] ?? '')) {
+                if ($oldValue !== $value) {
                     app(AuditService::class)->log(
                         'update', 'settings',
-                        Setting::where('key', $setting['key'])->first(),
+                        Setting::where('key', $key)->first(),
                         ['value' => $oldValue],
-                        "Setting '{$setting['key']}' changed"
+                        "Setting '{$key}' changed"
                     );
                 }
             }
         });
 
-        return redirect()->route('settings')->with('success', 'Settings updated successfully.');
+        Cache::forget('school_info');
+
+        return redirect()->route('settings', ['tab' => $section])->with('success', 'Settings updated successfully.');
     }
 
     public function fiscalYear()

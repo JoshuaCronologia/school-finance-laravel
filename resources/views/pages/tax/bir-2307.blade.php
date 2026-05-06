@@ -12,6 +12,8 @@
     $schoolTin      = $schoolTin ?? '000-000-000-000';
     $schoolName     = $schoolName ?? '';
     $schoolAddress  = $schoolAddress ?? '';
+    $authRepName    = $authRepName ?? '';
+    $authRepTin     = $authRepTin ?? '';
 @endphp
 
 <style>
@@ -32,6 +34,35 @@
     .no-print { display: none !important; }
     .f2307 { max-width: 100%; border: 1px solid #000; }
     body { background: white; }
+}
+.sig-input {
+    border: none;
+    border-bottom: 1px dashed #aaa;
+    outline: none;
+    font-size: 9px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    width: 100%;
+    background: transparent;
+    padding: 1px 2px;
+}
+.sig-input-tin {
+    border: none;
+    border-bottom: 1px dashed #aaa;
+    outline: none;
+    font-size: 8px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    width: 60%;
+    background: transparent;
+    padding: 1px 2px;
+}
+@media print {
+    .sig-input, .sig-input-tin {
+        border: none;
+        border-bottom: 1px solid #000;
+    }
 }
 </style>
 
@@ -300,7 +331,13 @@
     <table>
         <tr>
             <td style="width:50%;padding:4px;text-align:center;border-right:1px solid #000;">
-                <div style="height:40px;"></div>
+                <div style="height:20px;"></div>
+                <div style="margin-bottom:2px;">
+                    <input type="text" class="sig-input" value="{{ $authRepName ?? '' }}" placeholder="Authorized Representative Name / Title">
+                </div>
+                <div style="margin-bottom:4px;">
+                    <input type="text" class="sig-input-tin" value="{{ $authRepTin ?? '' }}" placeholder="TIN">
+                </div>
                 <div style="border-top:1px solid #000;font-size:8px;padding-top:2px;">
                     Signature over Printed Name of Payor/Payor's Authorized Representative/Tax Agent<br>
                     <em>(Indicate Title/Designation and TIN)</em>
@@ -334,7 +371,13 @@
     <table>
         <tr>
             <td style="width:50%;padding:4px;text-align:center;border-right:1px solid #000;">
-                <div style="height:40px;"></div>
+                <div style="height:20px;"></div>
+                <div style="margin-bottom:2px;">
+                    <input type="text" class="sig-input" value="" placeholder="Payee / Authorized Representative Name / Title">
+                </div>
+                <div style="margin-bottom:4px;">
+                    <input type="text" class="sig-input-tin" value="" placeholder="TIN">
+                </div>
                 <div style="border-top:1px solid #000;font-size:8px;padding-top:2px;">
                     Signature over Printed Name of Payee/Payee's Authorized Representative/Tax Agent<br>
                     <em>(Indicate Title/Designation and TIN)</em>

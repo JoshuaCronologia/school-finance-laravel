@@ -73,6 +73,13 @@
                     <td class="px-4 py-2 text-right font-bold">{{ number_format($records->sum('amount'), 2) }}</td>
                     <td></td>
                 </tr>
+                @if($grandTotal !== null)
+                <tr class="bg-secondary-100 font-semibold text-sm border-t-4 border-double border-gray-400">
+                    <td colspan="5" class="px-4 py-2 text-right text-secondary-700 uppercase tracking-wide text-xs">Grand Total (fee lines):</td>
+                    <td class="px-4 py-2 text-right font-bold">{{ number_format($grandTotal, 2) }}</td>
+                    <td></td>
+                </tr>
+                @endif
             </tfoot>
             @endif
         </table>

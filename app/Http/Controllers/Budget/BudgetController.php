@@ -116,12 +116,37 @@ class BudgetController extends Controller
     /**
      * Budget planning list.
      */
-    public function planning()
+    public function planning(Request $request)
     {
-        $budgets = Budget::with('department', 'category', 'costCenter', 'fundSource')
-            ->orderBy('school_year', 'desc')
+        $query = Budget::with('department', 'category', 'costCenter', 'fundSource');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('budget_name', 'like', "%{$search}%")
+                  ->orWhere('project', 'like', "%{$search}%")
+                  ->orWhere('campus', 'like', "%{$search}%")
+                  ->orWhereHas('department', function ($d) use ($search) {
+                      $d->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('category', function ($c) use ($search) {
+                      $c->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->department_id);
+        }
+
+        if ($request->filled('school_year')) {
+            $query->where('school_year', $request->school_year);
+        }
+
+        $budgets = $query->orderBy('school_year', 'desc')
             ->orderBy('department_id')
-            ->paginate(25);
+            ->paginate(25)
+            ->withQueryString();
 
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $categories = ExpenseCategory::where('is_active', true)->orderBy('name')->get();

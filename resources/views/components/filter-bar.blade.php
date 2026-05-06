@@ -1,6 +1,7 @@
 @props([
     'action' => null,
     'method' => 'GET',
+    'showDates' => true,
 ])
 
 <div {{ $attributes->merge(['class' => 'card mb-6']) }}>
@@ -10,6 +11,7 @@
         @endif
         <div class="flex flex-wrap items-end gap-4">
             {{-- Date range --}}
+            @if($showDates)
             <div class="flex items-center gap-2">
                 <div>
                     <label class="form-label">From</label>
@@ -21,6 +23,7 @@
                     <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input w-40">
                 </div>
             </div>
+            @endif
 
             {{-- Additional filter slots --}}
             {{ $slot }}

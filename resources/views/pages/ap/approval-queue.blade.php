@@ -3,7 +3,9 @@
 
 @section('content')
 @php
-    $pendingCount = count($pendingRequests ?? []);
+    $pendingCount = ($pendingRequests instanceof \Illuminate\Pagination\LengthAwarePaginator)
+        ? $pendingRequests->total()
+        : count($pendingRequests ?? []);
 @endphp
 
 <x-page-header title="Approval Queue" :subtitle="$pendingCount . ' pending requests awaiting your approval'">
@@ -57,7 +59,7 @@
                 @endif
 
                 {{-- Budget Check --}}
-                @php $budget = $request->budgetInfo ?? null; @endphp
+                @php $budget = $request->budget_info ?? null; @endphp
                 @if($budget)
                 <div class="mt-3 p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center gap-4 text-xs">

@@ -111,9 +111,12 @@ class InvoiceController extends Controller
                 $grossAmount = collect($validated['lines'])->sum('amount');
                 $taxAmount = 0;
 
+                $taxCodeIds = collect($validated['lines'])->pluck('tax_code_id')->filter()->unique();
+                $taxCodes = TaxCode::whereIn('id', $taxCodeIds)->get()->keyBy('id');
+
                 foreach ($validated['lines'] as $line) {
                     if (!empty($line['tax_code_id'])) {
-                        $tax = TaxCode::find($line['tax_code_id']);
+                        $tax = $taxCodes->get($line['tax_code_id']);
                         if ($tax) {
                             $taxAmount += $line['amount'] * ($tax->rate / 100);
                         }

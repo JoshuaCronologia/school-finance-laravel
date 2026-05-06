@@ -671,6 +671,154 @@ class FinanceFeeService
         return $query->orderBy('b.date_paid')->orderBy('b.receipt_number')->get();
     }
 
+    // ── Grand Total helpers ──────────────────────────────────────────────────
+
+    public static function receiptsGrandTotal($yearFrom, $search, $feeName, $dateFrom, $dateTo): float
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_batch as b')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->leftJoin('walkin_db as w', 'b.walkin_id', '=', 'w.id')
+            ->leftJoin('acad_sy_school_year as sy', 'b.acad_sy_school_year_id', '=', 'sy.id')
+            ->whereNull('b.voided_by')->whereNull('b.deleted_at')->where('b.total', '>', 0);
+
+        if ($yearFrom) $query->where('sy.year_fr', $yearFrom);
+        if ($dateFrom) $query->where('b.date_paid', '>=', $dateFrom);
+        if ($dateTo)   $query->where('b.date_paid', '<=', $dateTo);
+
+        if ($feeName) {
+            $feeId = DB::connection(static::$connection)->table('chart_of_accounts')->where('name', $feeName)->value('id');
+            if (!$feeId) return 0.0;
+            $query->whereExists(function ($s) use ($feeId) {
+                $s->from('transaction_fees_distribution as fd')
+                  ->whereRaw('fd.transaction_batch_id = b.id')
+                  ->where('fd.fee_id', $feeId);
+            });
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('b.receipt_number', 'like', "%{$search}%")
+                  ->orWhere('s.student_name', 'like', "%{$search}%")
+                  ->orWhere('e.employee_name', 'like', "%{$search}%")
+                  ->orWhere(DB::raw("CONCAT(COALESCE(w.first_name,''),' ',COALESCE(w.last_name,''))"), 'like', "%{$search}%");
+            });
+        }
+
+        return (float) $query->sum('b.total');
+    }
+
+    public static function summaryOfCollectionGrandTotal($dateFrom, $dateTo, $search = null): object
+    {
+        // Split into two queries to avoid the SUM(DISTINCT) trap — joining payments
+        // creates one row per payment per batch, so SUM(b.total) inflates the total.
+        $batchBase = DB::connection(static::$connection)
+            ->table('transaction_batch as b')
+            ->leftJoin('employee_db as emp', 'emp.id', '=', 'b.transacted_by')
+            ->whereNull('b.voided_by')->whereNull('b.deleted_at')->where('b.total', '>', 0)
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo]);
+
+        if ($search) {
+            $batchBase->where(function ($q) use ($search) {
+                $q->where('b.receipt_number', 'like', "%{$search}%")
+                  ->orWhere('emp.employee_name', 'like', "%{$search}%");
+            });
+        }
+
+        // Query 1: sum b.total directly (no payments join, no row inflation)
+        $total = (float) (clone $batchBase)->sum('b.total');
+
+        // Query 2: sum payment mode amounts via subquery on transaction_batch IDs
+        $s = $search;
+        $payRow = DB::connection(static::$connection)
+            ->table('transaction_payments as tp')
+            ->whereIn('tp.transaction_batch_id', function ($sub) use ($dateFrom, $dateTo, $s) {
+                $sub->select('b.id')->from('transaction_batch as b')
+                    ->leftJoin('employee_db as emp', 'emp.id', '=', 'b.transacted_by')
+                    ->whereNull('b.voided_by')->whereNull('b.deleted_at')->where('b.total', '>', 0)
+                    ->whereBetween('b.date_paid', [$dateFrom, $dateTo]);
+                if ($s) {
+                    $sub->where(function ($q) use ($s) {
+                        $q->where('b.receipt_number', 'like', "%{$s}%")
+                          ->orWhere('emp.employee_name', 'like', "%{$s}%");
+                    });
+                }
+            })
+            ->selectRaw("
+                SUM(CASE WHEN mode_of_payment_id = 1 THEN amount ELSE 0 END) as cash_amt,
+                SUM(CASE WHEN mode_of_payment_id = 2 THEN amount ELSE 0 END) as cheque_amt,
+                SUM(CASE WHEN mode_of_payment_id = 3 THEN amount ELSE 0 END) as cc_amt,
+                SUM(CASE WHEN mode_of_payment_id = 5 THEN amount ELSE 0 END) as dd_amt,
+                SUM(CASE WHEN mode_of_payment_id = 6 THEN amount ELSE 0 END) as pdc_amt,
+                SUM(CASE WHEN mode_of_payment_id = 7 THEN amount ELSE 0 END) as online_amt,
+                SUM(CASE WHEN mode_of_payment_id = 8 THEN amount ELSE 0 END) as online_bank_amt
+            ")->first();
+
+        return (object) [
+            'cash_amt'        => (float) ($payRow->cash_amt ?? 0),
+            'cheque_amt'      => (float) ($payRow->cheque_amt ?? 0),
+            'cc_amt'          => (float) ($payRow->cc_amt ?? 0),
+            'dd_amt'          => (float) ($payRow->dd_amt ?? 0),
+            'pdc_amt'         => (float) ($payRow->pdc_amt ?? 0),
+            'online_amt'      => (float) ($payRow->online_amt ?? 0),
+            'online_bank_amt' => (float) ($payRow->online_bank_amt ?? 0),
+            'total'           => $total,
+        ];
+    }
+
+    public static function summaryOfCollectionPerFeeGrandTotal($dateFrom, $dateTo, $feeName = null): float
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->whereNull('b.voided_by')->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo]);
+
+        if ($feeName) $query->where('c.name', $feeName);
+
+        return (float) $query->sum('fd.amount');
+    }
+
+    public static function feeListReportGrandTotal($dateFrom, $dateTo, $feeName = null): float
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->join('chart_of_accounts as c', 'fd.fee_id', '=', 'c.id')
+            ->whereNull('b.voided_by')->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo]);
+
+        if ($feeName) $query->where('c.name', $feeName);
+
+        return (float) $query->sum('fd.amount');
+    }
+
+    public static function cashReceiptBooksFinanceGrandTotal($dateFrom, $dateTo, $search = null): float
+    {
+        $query = DB::connection(static::$connection)
+            ->table('transaction_fees_distribution as fd')
+            ->join('transaction_batch as b', 'fd.transaction_batch_id', '=', 'b.id')
+            ->leftJoin('student_db as s', 'b.student_id', '=', 's.id')
+            ->leftJoin('employee_db as e', 'b.employee_id', '=', 'e.id')
+            ->whereNull('b.voided_by')
+            ->whereNull('b.deleted_at')
+            ->whereBetween('b.date_paid', [$dateFrom, $dateTo]);
+
+        if ($search) {
+            $like = '%' . $search . '%';
+            $query->whereRaw(
+                '(b.receipt_number LIKE ? OR s.student_name LIKE ? OR e.employee_name LIKE ?)',
+                [$like, $like, $like]
+            );
+        }
+
+        return (float) $query->sum('fd.amount');
+    }
+
+    // ── End grand total helpers ──────────────────────────────────────────────
+
     /**
      * Get distinct fee names for filter dropdown. Cached 5 minutes.
      */

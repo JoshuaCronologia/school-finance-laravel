@@ -291,7 +291,6 @@
                     <a href="{{ url('/tax/vat-2550m') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/vat-2550m' ? 'sidebar-link--active' : '' }}">VAT 2550M</a>
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Quarterly</p>
                     <a href="{{ url('/tax/bir-1601eq') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601eq' ? 'sidebar-link--active' : '' }}">1601-EQ (Expanded)</a>
-                    <a href="{{ url('/tax/bir-1601e') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1601e' ? 'sidebar-link--active' : '' }}">1601-E Return</a>
                     <a href="{{ url('/tax/alphalist-quarterly') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/alphalist-quarterly' ? 'sidebar-link--active' : '' }}">Alphalist (QAP)</a>
                     <p class="text-xs text-white/40 font-semibold uppercase mt-2 mb-1 pl-1">Annual</p>
                     <a href="{{ url('/tax/bir-1604e') }}" class="sidebar-link text-xs {{ $currentRoute === '/tax/bir-1604e' ? 'sidebar-link--active' : '' }}">1604-E (Expanded)</a>
@@ -577,7 +576,6 @@
                 { type: 'Page', icon: 'page', title: 'Budget vs Actual', subtitle: 'Reports', url: '/reports/budget-vs-actual' },
                 { type: 'Page', icon: 'page', title: 'Monthly Variance', subtitle: 'Reports', url: '/reports/monthly-variance' },
                 { type: 'Page', icon: 'page', title: 'BIR 2307', subtitle: 'Tax & Compliance', url: '/tax/bir-2307' },
-                { type: 'Page', icon: 'page', title: 'BIR 1601-E', subtitle: 'Tax & Compliance', url: '/tax/bir-1601e' },
                 { type: 'Page', icon: 'page', title: 'VAT 2550M', subtitle: 'Tax & Compliance', url: '/tax/vat-2550m' },
                 { type: 'Page', icon: 'page', title: 'Alphalist', subtitle: 'Tax & Compliance', url: '/tax/alphalist' },
                 { type: 'Page', icon: 'page', title: 'Special Journals', subtitle: 'Tax & Compliance', url: '/tax/special-journals' },

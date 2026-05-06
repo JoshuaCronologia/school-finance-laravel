@@ -16,21 +16,21 @@ class ApprovalController extends Controller
 {
     public function index()
     {
-        $pendingApprovals = DisbursementRequest::with(['department', 'category', 'items', 'budget'])
+        $pendingRequests = DisbursementRequest::with(['department', 'category', 'items', 'budget'])
             ->where('status', 'pending_approval')
             ->latest('request_date')
             ->paginate(20);
 
         // Attach budget utilization info (budget already eager-loaded, no extra queries)
-        $pendingApprovals->getCollection()->transform(function ($dr) {
+        $pendingRequests->getCollection()->transform(function ($dr) {
             if ($dr->budget) {
                 $budget = $dr->budget;
-                $dr->budget_info = [
-                    'name' => $budget->budget_name,
-                    'annual' => $budget->annual_budget,
-                    'committed' => $budget->committed,
-                    'actual' => $budget->actual,
-                    'remaining' => $budget->annual_budget - $budget->committed - $budget->actual,
+                $dr->budget_info = (object) [
+                    'name'        => $budget->budget_name,
+                    'annual'      => $budget->annual_budget,
+                    'committed'   => $budget->committed,
+                    'actual'      => $budget->actual,
+                    'remaining'   => $budget->annual_budget - $budget->committed - $budget->actual,
                     'utilization' => $budget->annual_budget > 0
                         ? round((($budget->committed + $budget->actual) / $budget->annual_budget) * 100, 1)
                         : 0,
@@ -41,7 +41,7 @@ class ApprovalController extends Controller
 
         $totalPendingAmount = DisbursementRequest::where('status', 'pending_approval')->sum('amount');
 
-        return view('pages.ap.approval-queue', compact('pendingApprovals', 'totalPendingAmount'));
+        return view('pages.ap.approval-queue', compact('pendingRequests', 'totalPendingAmount'));
     }
 
     public function approve(Request $request, DisbursementRequest $disbursement)

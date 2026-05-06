@@ -18,6 +18,10 @@
 {{-- Filters --}}
 <x-filter-bar action="{{ route('gl.recurring') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Entry #, reference, description…" class="form-input w-56">
+    </div>
+    <div>
         <label class="form-label">Journal Type</label>
         <select name="journal_type" class="form-input w-44">
             <option value="">All Types</option>

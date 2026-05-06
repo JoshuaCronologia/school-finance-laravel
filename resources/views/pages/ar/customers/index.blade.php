@@ -25,6 +25,10 @@
 {{-- Filters --}}
 <x-filter-bar action="{{ route('ar.customers.index') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Name, code, email…" class="form-input w-56">
+    </div>
+    <div>
         <label class="form-label">Type</label>
         <select name="type" class="form-input w-44">
             <option value="">All Types</option>

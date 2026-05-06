@@ -10,14 +10,6 @@
 
 <x-filter-bar action="{{ route('reports.fin.fee-list') }}">
     <div>
-        <label class="form-label">Date Range</label>
-        <div class="flex items-center gap-2">
-            <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input" onchange="this.form.submit()">
-            <span class="text-secondary-400">—</span>
-            <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input" onchange="this.form.submit()">
-        </div>
-    </div>
-    <div>
         <label class="form-label">Fees</label>
         <select name="fee_name" class="form-input w-64" onchange="this.form.submit()">
             <option value="">All Fees</option>
@@ -25,9 +17,6 @@
                 <option value="{{ $fn }}" {{ $feeName == $fn ? 'selected' : '' }}>{{ $fn }}</option>
             @endforeach
         </select>
-    </div>
-    <div class="flex items-end">
-        <button type="submit" class="btn-primary text-sm">Filter</button>
     </div>
 </x-filter-bar>
 
@@ -90,6 +79,12 @@
                     <td colspan="8" class="px-4 py-2 text-right text-secondary-600">Page Total:</td>
                     <td class="px-4 py-2 text-right font-bold">{{ number_format($records->sum('amount'), 2) }}</td>
                 </tr>
+                @if($grandTotal !== null)
+                <tr class="bg-secondary-100 font-semibold text-sm border-t-4 border-double border-gray-400">
+                    <td colspan="8" class="px-4 py-2 text-right text-secondary-700 uppercase tracking-wide text-xs">Grand Total:</td>
+                    <td class="px-4 py-2 text-right font-bold">{{ number_format($grandTotal, 2) }}</td>
+                </tr>
+                @endif
             </tfoot>
             @endif
         </table>

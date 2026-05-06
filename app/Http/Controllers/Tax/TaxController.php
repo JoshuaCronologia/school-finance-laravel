@@ -15,6 +15,7 @@ use App\Models\Vendor;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class TaxController extends Controller
@@ -24,11 +25,18 @@ class TaxController extends Controller
      */
     private function schoolInfo(): array
     {
-        return [
-            'schoolTin' => Setting::where('key', 'school_tin')->value('value') ?? '000-000-000-000',
-            'schoolName' => Setting::where('key', 'school_name')->value('value') ?? config('app.name'),
-            'schoolAddress' => Setting::where('key', 'school_address')->value('value') ?? 'Manila, Philippines',
-        ];
+        return Cache::remember('school_info', 600, function () {
+            $keys = ['school_tin', 'school_name', 'school_address', 'authorized_rep_name', 'authorized_rep_tin'];
+            $rows = Setting::whereIn('key', $keys)->pluck('value', 'key');
+
+            return [
+                'schoolTin'   => $rows->get('school_tin', '000-000-000-000'),
+                'schoolName'  => $rows->get('school_name', config('app.name')),
+                'schoolAddress' => $rows->get('school_address', 'Manila, Philippines'),
+                'authRepName' => $rows->get('authorized_rep_name', ''),
+                'authRepTin'  => $rows->get('authorized_rep_tin', ''),
+            ];
+        });
     }
 
     // =================================================================

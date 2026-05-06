@@ -225,8 +225,6 @@ Route::middleware(['check_auth'])->group(function () {
     Route::prefix('tax')->name('tax.')->group(function () {
         Route::get('/bir-2307', [TaxController::class, 'bir2307'])->name('bir-2307');
         Route::get('/bir-2307/generate', [TaxController::class, 'generateBir2307'])->name('bir-2307.generate');
-        Route::get('/bir-1601e', [TaxController::class, 'bir1601e'])->name('bir-1601e');
-        Route::get('/bir-1601e/generate', [TaxController::class, 'generateBir1601e'])->name('bir-1601e.generate');
         Route::get('/vat-2550m', [TaxController::class, 'vat2550m'])->name('vat-2550m');
         Route::get('/vat-2550m/generate', [TaxController::class, 'generateVat2550m'])->name('vat-2550m.generate');
         Route::get('/alphalist', [TaxController::class, 'alphalist'])->name('alphalist');
@@ -272,7 +270,7 @@ Route::middleware(['check_auth'])->group(function () {
     Route::delete('/user-access/branch/{branchUser}', [\App\Http\Controllers\System\UserAccessController::class, 'deleteBranchUser'])->name('user-access.branch.delete');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
-    Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::match(['post', 'put'], '/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::get('/settings/fiscal-year', [SettingsController::class, 'fiscalYear'])->name('settings.fiscal-year');
     Route::put('/settings/fiscal-year', [SettingsController::class, 'updateFiscalYear'])->name('settings.fiscal-year.update');
     Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');

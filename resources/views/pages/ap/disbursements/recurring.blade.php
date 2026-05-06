@@ -20,6 +20,10 @@
 
 <x-filter-bar action="{{ route('ap.disbursements.recurring') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Request #, payee, description…" class="form-input w-56">
+    </div>
+    <div>
         <label class="form-label">Status</label>
         <select name="status" class="form-input w-44">
             <option value="">All (Approved + Paid)</option>

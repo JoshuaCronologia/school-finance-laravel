@@ -41,6 +41,33 @@
     </div>
 </div>
 
+{{-- Filters --}}
+<form method="GET" action="{{ route('budget.planning') }}" class="card mb-4 p-4">
+    <div class="flex flex-wrap items-end gap-4">
+        <div>
+            <label class="form-label">Search</label>
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Account, department, category…" class="form-input w-56">
+        </div>
+        <div>
+            <label class="form-label">Department</label>
+            <select name="department_id" class="form-input w-44">
+                <option value="">All Departments</option>
+                @foreach($departments ?? [] as $dept)
+                    <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="form-label">School Year</label>
+            <input type="text" name="school_year" value="{{ request('school_year') }}" placeholder="e.g. 2024-2025" class="form-input w-36">
+        </div>
+        <div class="flex items-center gap-2 ml-auto mt-5">
+            <button type="submit" class="btn-primary">Filter</button>
+            <a href="{{ route('budget.planning') }}" class="btn-secondary">Clear</a>
+        </div>
+    </div>
+</form>
+
 {{-- Budget Items Table --}}
 <x-data-table search-placeholder="Search budgets...">
     {{-- <x-slot name="actions">

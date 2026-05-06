@@ -1117,10 +1117,18 @@ class ReportController extends Controller
      */
     public function feeCollections(Request $request)
     {
-        $schoolYears = FinanceFeeService::schoolYears();
+        try {
+            $schoolYears = FinanceFeeService::schoolYears();
+        } catch (\Exception $e) {
+            $schoolYears = collect();
+        }
         $selectedYear = $request->input('school_year', date('Y'));
 
-        $feeSummary = FinanceFeeService::summaryByFee($selectedYear);
+        try {
+            $feeSummary = FinanceFeeService::summaryByFee($selectedYear);
+        } catch (\Exception $e) {
+            $feeSummary = collect();
+        }
         $totalCollected = $feeSummary->sum('total_amount');
         $totalTransactions = $feeSummary->sum('txn_count');
 
@@ -1134,19 +1142,35 @@ class ReportController extends Controller
      */
     public function feeReceipts(Request $request)
     {
-        $schoolYears = FinanceFeeService::schoolYears();
-        $feeNames    = FinanceFeeService::feeNames();
+        try {
+            $schoolYears = FinanceFeeService::schoolYears();
+            $feeNames    = FinanceFeeService::feeNames();
+        } catch (\Exception $e) {
+            $schoolYears = collect();
+            $feeNames    = collect();
+        }
         $selectedYear = $request->input('school_year');
         $search      = $request->input('search');
         $feeName     = $request->input('fee_name');
         $dateFrom    = $request->input('date_from');
         $dateTo      = $request->input('date_to');
 
-        $receipts = FinanceFeeService::receipts($selectedYear, $search, $feeName, $dateFrom, $dateTo);
+        try {
+            $receipts = FinanceFeeService::receipts($selectedYear, $search, $feeName, $dateFrom, $dateTo);
+        } catch (\Exception $e) {
+            $receipts = collect();
+        }
+
+        $grandTotal = null;
+        if ($receipts->isNotEmpty() && $receipts->currentPage() === $receipts->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::receiptsGrandTotal($selectedYear, $search, $feeName, $dateFrom, $dateTo);
+            } catch (\Exception $e) {}
+        }
 
         return view('pages.reports.fee-receipts', compact(
             'receipts', 'schoolYears', 'feeNames',
-            'selectedYear', 'search', 'feeName', 'dateFrom', 'dateTo'
+            'selectedYear', 'search', 'feeName', 'dateFrom', 'dateTo', 'grandTotal'
         ));
     }
 
@@ -1155,7 +1179,11 @@ class ReportController extends Controller
      */
     public function feeReceiptDetail($id)
     {
-        $receipt = FinanceFeeService::receiptDetail($id);
+        try {
+            $receipt = FinanceFeeService::receiptDetail($id);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Finance database is unavailable.');
+        }
 
         if (!$receipt) {
             return back()->with('error', 'Receipt not found.');
@@ -1166,43 +1194,72 @@ class ReportController extends Controller
 
     public function summaryOfCollection(Request $request)
     {
-        $defaultFrom = now()->startOfMonth()->toDateString();
-        $defaultTo   = now()->toDateString();
-        $dateFrom    = $request->input('date_from', $defaultFrom);
-        $dateTo      = $request->input('date_to', $defaultTo);
-        $search      = $request->input('search');
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo   = $request->input('date_to', now()->toDateString());
+        $search   = $request->input('search');
 
-        $records = FinanceFeeService::summaryOfCollection($dateFrom, $dateTo, $search);
+        try {
+            $records = FinanceFeeService::summaryOfCollection($dateFrom, $dateTo, $search);
+        } catch (\Exception $e) {
+            $records = collect();
+        }
 
-        return view('pages.reports.fin-summary-of-collection', compact('records', 'dateFrom', 'dateTo', 'search'));
+        $grandTotal = null;
+        if ($records->isNotEmpty() && $records->currentPage() === $records->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::summaryOfCollectionGrandTotal($dateFrom, $dateTo, $search);
+            } catch (\Exception $e) {}
+        }
+
+        return view('pages.reports.fin-summary-of-collection', compact('records', 'dateFrom', 'dateTo', 'search', 'grandTotal'));
     }
 
     public function summaryOfCollectionPerFee(Request $request)
     {
-        $defaultFrom = now()->startOfMonth()->toDateString();
-        $defaultTo   = now()->toDateString();
-        $dateFrom    = $request->input('date_from', $defaultFrom);
-        $dateTo      = $request->input('date_to', $defaultTo);
-        $feeName     = $request->input('fee_name');
-        $feeNames    = FinanceFeeService::feeNames();
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo   = $request->input('date_to', now()->toDateString());
+        $feeName  = $request->input('fee_name');
 
-        $records = FinanceFeeService::summaryOfCollectionPerFee($dateFrom, $dateTo, $feeName);
+        try {
+            $feeNames = FinanceFeeService::feeNames();
+            $records  = FinanceFeeService::summaryOfCollectionPerFee($dateFrom, $dateTo, $feeName);
+        } catch (\Exception $e) {
+            $feeNames = collect();
+            $records  = collect();
+        }
 
-        return view('pages.reports.fin-summary-per-fee', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames'));
+        $grandTotal = null;
+        if ($records->isNotEmpty() && $records->currentPage() === $records->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::summaryOfCollectionPerFeeGrandTotal($dateFrom, $dateTo, $feeName);
+            } catch (\Exception $e) {}
+        }
+
+        return view('pages.reports.fin-summary-per-fee', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames', 'grandTotal'));
     }
 
     public function feeListReport(Request $request)
     {
-        $defaultFrom = now()->startOfMonth()->toDateString();
-        $defaultTo   = now()->toDateString();
-        $dateFrom    = $request->input('date_from', $defaultFrom);
-        $dateTo      = $request->input('date_to', $defaultTo);
-        $feeName     = $request->input('fee_name');
-        $feeNames    = FinanceFeeService::feeNames();
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo   = $request->input('date_to', now()->toDateString());
+        $feeName  = $request->input('fee_name');
 
-        $records = FinanceFeeService::feeListReport($dateFrom, $dateTo, $feeName);
+        try {
+            $feeNames = FinanceFeeService::feeNames();
+            $records  = FinanceFeeService::feeListReport($dateFrom, $dateTo, $feeName);
+        } catch (\Exception $e) {
+            $feeNames = collect();
+            $records  = collect();
+        }
 
-        return view('pages.reports.fin-fee-list', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames'));
+        $grandTotal = null;
+        if ($records->isNotEmpty() && $records->currentPage() === $records->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::feeListReportGrandTotal($dateFrom, $dateTo, $feeName);
+            } catch (\Exception $e) {}
+        }
+
+        return view('pages.reports.fin-fee-list', compact('records', 'dateFrom', 'dateTo', 'feeName', 'feeNames', 'grandTotal'));
     }
 
     public function cashReceiptBooksFinance(Request $request)
@@ -1213,9 +1270,20 @@ class ReportController extends Controller
         $dateTo      = $request->input('date_to', $defaultTo);
         $search      = $request->input('search');
 
-        $records = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+        try {
+            $records = FinanceFeeService::cashReceiptBooksFinance($dateFrom, $dateTo, $search);
+        } catch (\Exception $e) {
+            $records = collect();
+        }
 
-        return view('pages.reports.fin-cash-receipt-books', compact('records', 'dateFrom', 'dateTo', 'search'));
+        $grandTotal = null;
+        if ($records->isNotEmpty() && $records->currentPage() === $records->lastPage()) {
+            try {
+                $grandTotal = FinanceFeeService::cashReceiptBooksFinanceGrandTotal($dateFrom, $dateTo, $search);
+            } catch (\Exception $e) {}
+        }
+
+        return view('pages.reports.fin-cash-receipt-books', compact('records', 'dateFrom', 'dateTo', 'search', 'grandTotal'));
     }
 
     /**

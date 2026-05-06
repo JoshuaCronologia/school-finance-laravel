@@ -176,6 +176,21 @@
                             <input type="number" name="wht_supplies" class="form-input" value="{{ $settings['wht_supplies'] ?? 1 }}" step="0.01" min="0">
                         </div>
                     </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                        <h4 class="text-sm font-semibold text-secondary-700 mb-3">Authorized Representative</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label">Name</label>
+                                <input type="text" name="authorized_rep_name" class="form-input" value="{{ $settings['authorized_rep_name'] ?? '' }}" placeholder="Full name, Title/Designation">
+                            </div>
+                            <div>
+                                <label class="form-label">TIN</label>
+                                <input type="text" name="authorized_rep_tin" class="form-input" value="{{ $settings['authorized_rep_tin'] ?? '' }}" placeholder="xxx-xxx-xxx-xxx">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end mt-6 pt-4 border-t border-gray-100">
                         <button type="submit" class="btn-primary">Save Tax Settings</button>
                     </div>

@@ -40,6 +40,10 @@
 {{-- Filters --}}
 <x-filter-bar action="{{ route('ar.invoices.index') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Invoice #, customer, description…" class="form-input w-56">
+    </div>
+    <div>
         <label class="form-label">Status</label>
         <select name="status" class="form-input w-44">
             <option value="">All Status</option>

@@ -26,6 +26,10 @@
 {{-- Filters --}}
 <x-filter-bar action="{{ route('ap.bills.index') }}" method="GET">
     <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Bill #, vendor, description…" class="form-input w-56">
+    </div>
+    <div>
         <label class="form-label">Status</label>
         <select name="status" class="form-input w-44">
             <option value="">All Status</option>
