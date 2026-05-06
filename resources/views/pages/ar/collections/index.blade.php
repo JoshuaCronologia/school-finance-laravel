@@ -59,7 +59,7 @@
 </div>
 
 {{-- Collections Table --}}
-<x-data-table search-placeholder="Search receipts...">
+<x-data-table>
     <thead>
         <tr>
             <th>OR #</th>

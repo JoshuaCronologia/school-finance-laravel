@@ -54,7 +54,7 @@
 </x-filter-bar>
 
 {{-- Disbursements Table --}}
-<x-data-table search-placeholder="Search requests...">
+<x-data-table>
     <thead>
         <tr>
             <th>Request #</th>

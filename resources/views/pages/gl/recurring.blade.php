@@ -33,7 +33,7 @@
 </x-filter-bar>
 
 {{-- JE Entries Table --}}
-<x-data-table search-placeholder="Search entries...">
+<x-data-table>
     <thead>
         <tr>
             <th>Entry #</th>

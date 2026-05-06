@@ -48,7 +48,7 @@
 </x-filter-bar>
 
 {{-- Customers Table --}}
-<x-data-table search-placeholder="Search customers...">
+<x-data-table>
     <thead>
         <tr>
             <th>Customer Code</th>

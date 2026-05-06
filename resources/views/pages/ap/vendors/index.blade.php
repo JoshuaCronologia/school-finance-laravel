@@ -48,7 +48,7 @@
 </x-filter-bar>
 
 {{-- Vendors Table --}}
-<x-data-table search-placeholder="Search vendors...">
+<x-data-table>
     <thead>
         <tr>
             <th>Vendor Code</th>

@@ -64,7 +64,7 @@
 </x-filter-bar>
 
 {{-- Invoices Table --}}
-<x-data-table search-placeholder="Search invoices...">
+<x-data-table>
     <thead>
         <tr>
             <th>Invoice #</th>

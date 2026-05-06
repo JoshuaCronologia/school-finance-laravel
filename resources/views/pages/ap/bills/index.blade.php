@@ -50,7 +50,7 @@
 </x-filter-bar>
 
 {{-- Bills Table --}}
-<x-data-table search-placeholder="Search bills...">
+<x-data-table>
     <thead>
         <tr>
             <th>Bill #</th>
