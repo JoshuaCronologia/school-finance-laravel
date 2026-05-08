@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Department;
 
 class ChartOfAccount extends Model
 {
@@ -22,6 +23,8 @@ class ChartOfAccount extends Model
         'is_active',
         'is_postable',
         'campus_id',
+        'department_id',
+        'account_classification',
         'notes',
     ];
 
@@ -38,6 +41,11 @@ class ChartOfAccount extends Model
     public function children(): HasMany
     {
         return $this->hasMany(ChartOfAccount::class, 'parent_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function journalLines(): HasMany

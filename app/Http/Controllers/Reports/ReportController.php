@@ -150,29 +150,7 @@ class ReportController extends Controller
 
         $totalEquityWithNI = $totalEquity + $netIncome;
 
-        // Group accounts by code prefix for collapsible sections
-        $bsGroups = [
-            'asset' => [
-                '10' => 'Cash & Cash Equivalents',
-                '11' => 'Receivables',
-                '12' => 'Prepaid Expenses',
-                '13' => 'Inventories',
-                '15' => 'Property & Equipment',
-                '16' => 'Accumulated Depreciation',
-                '22' => 'Other Current Assets',
-            ],
-            'liability' => [
-                '20' => 'Accounts Payable',
-                '21' => 'Tax Payables',
-                '22' => 'VAT',
-                '23' => 'Government Contributions',
-                '24' => 'Accrued Liabilities',
-                '25' => 'Deferred Revenue',
-                '26' => 'Current Loans',
-                '27' => 'Long-Term Debt',
-            ],
-        ];
-
+        // Reusable grouping closure — groups accounts by 2-char code prefix
         $groupAccounts = function ($accounts, $groupDefs) {
             $groups = [];
             $used = [];
@@ -183,27 +161,92 @@ class ReportController extends Controller
                 });
                 if ($items->isNotEmpty()) {
                     $groups[] = (object) [
-                        'label' => $label,
-                        'total' => $items->sum(function ($a) { return abs($a->balance); }),
+                        'label'    => $label,
+                        'total'    => $items->sum(function ($a) { return abs($a->balance); }),
                         'accounts' => $items->values(),
                     ];
                     foreach ($items as $item) $used[] = $item->id;
                 }
             }
-            // Catch ungrouped
             $remaining = $accounts->whereNotIn('id', $used);
             if ($remaining->isNotEmpty()) {
                 $groups[] = (object) [
-                    'label' => 'Other',
-                    'total' => $remaining->sum(function ($a) { return abs($a->balance); }),
+                    'label'    => 'Other',
+                    'total'    => $remaining->sum(function ($a) { return abs($a->balance); }),
                     'accounts' => $remaining->values(),
                 ];
             }
             return $groups;
         };
 
-        $assetGroups = $groupAccounts($assets, $bsGroups['asset']);
-        $liabilityGroups = $groupAccounts($liabilities, $bsGroups['liability']);
+        // Cash & Cash Equivalents — sub-grouped by fs_group (COH / CIB / PCF)
+        $cashAccounts = $assets->filter(function ($a) {
+            return substr($a->account_code, 0, 2) === '10';
+        });
+
+        // Resolve COH/CIB/PCF bucket for each cash account.
+        // Priority: explicit fs_group → name-based detection → CIB if "bank", COH otherwise.
+        $cashBucketOf = function ($a) {
+            $fg = strtoupper($a->fs_group ?? '');
+            if ($fg === 'COH' || $fg === 'CIB' || $fg === 'PCF') return $fg;
+            $name = strtolower($a->account_name ?? '');
+            if (strpos($name, 'petty') !== false)     return 'PCF';
+            if (strpos($name, 'bank') !== false)      return 'CIB';
+            return 'COH'; // default: Cash on Hand
+        };
+
+        $cashBuckets = ['COH' => [], 'CIB' => [], 'PCF' => []];
+        foreach ($cashAccounts as $a) {
+            $cashBuckets[$cashBucketOf($a)][] = $a;
+        }
+
+        $cashSubGroupDefs = ['COH' => 'Cash on Hand', 'CIB' => 'Cash in Bank', 'PCF' => 'Petty Cash Fund'];
+        $cashSubGroups = [];
+        foreach ($cashSubGroupDefs as $fg => $label) {
+            $items = collect($cashBuckets[$fg]);
+            if ($items->isNotEmpty()) {
+                $cashSubGroups[] = (object) [
+                    'label'    => $label,
+                    'total'    => $items->sum(function ($a) { return abs($a->balance); }),
+                    'accounts' => $items->values(),
+                ];
+            }
+        }
+
+        $cashGroup = (object) [
+            'label'     => 'Cash & Cash Equivalents',
+            'total'     => $cashAccounts->sum(function ($a) { return abs($a->balance); }),
+            'accounts'  => collect(),
+            'subgroups' => $cashSubGroups,
+        ];
+
+        // Non-cash asset groups
+        $nonCashAssets = $assets->filter(function ($a) {
+            return substr($a->account_code, 0, 2) !== '10';
+        });
+
+        $nonCashGroupDefs = [
+            '11' => 'Receivables',
+            '12' => 'Prepaid Expenses',
+            '13' => 'Inventories',
+            '15' => 'Property & Equipment',
+            '16' => 'Accumulated Depreciation',
+            '22' => 'Other Current Assets',
+        ];
+
+        $assetGroups = $groupAccounts($nonCashAssets, $nonCashGroupDefs);
+        array_unshift($assetGroups, $cashGroup);
+
+        $liabilityGroups = $groupAccounts($liabilities, [
+            '20' => 'Accounts Payable',
+            '21' => 'Tax Payables',
+            '22' => 'VAT',
+            '23' => 'Government Contributions',
+            '24' => 'Accrued Liabilities',
+            '25' => 'Deferred Revenue',
+            '26' => 'Current Loans',
+            '27' => 'Long-Term Debt',
+        ]);
 
         return view('pages.reports.balance-sheet', compact(
             'assetGroups', 'liabilityGroups', 'equity',

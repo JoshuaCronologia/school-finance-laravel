@@ -152,6 +152,9 @@ Route::middleware(['check_auth'])->group(function () {
     Route::prefix('gl')->name('gl.')->group(function () {
         Route::resource('accounts', ChartOfAccountsController::class);
         Route::get('accounts/{id}/children', [ChartOfAccountsController::class, 'children'])->name('accounts.children');
+        Route::post('account-types', [ChartOfAccountsController::class, 'storeType'])->name('account-types.store');
+        Route::put('account-types/{coaType}', [ChartOfAccountsController::class, 'updateType'])->name('account-types.update');
+        Route::delete('account-types/{coaType}', [ChartOfAccountsController::class, 'destroyType'])->name('account-types.destroy');
         Route::resource('journal-entries', JournalEntryController::class);
         Route::get('/journal-entries-approval', [JournalEntryController::class, 'approvalQueue'])->name('journal-entries.approval');
         Route::post('/journal-entries/{journal_entry}/submit-approval', [JournalEntryController::class, 'submitForApproval'])->name('journal-entries.submit-approval');

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\GL;
 use App\Http\Controllers\Controller;
 use App\Models\Campus;
 use App\Models\ChartOfAccount;
+use App\Models\CoaType;
+use App\Models\Department;
 use App\Models\JournalEntryLine;
 use App\Services\AuditService;
 use App\Services\FinanceFeeService;
@@ -101,14 +103,15 @@ class ChartOfAccountsController extends Controller
             return $account;
         });
 
-        // Parent accounts for modal dropdown — top-level only
+        // Parent accounts for modal dropdown — top-level only (include type for JS auto-fill)
         $parentAccounts = ChartOfAccount::whereNull('parent_id')
             ->orderBy('account_code')
-            ->get(['id', 'account_code', 'account_name']);
+            ->get(['id', 'account_code', 'account_name', 'account_type', 'normal_balance']);
 
-        $accountTypes = ['asset', 'liability', 'equity', 'revenue', 'expense'];
+        $coaTypes = CoaType::orderBy('sort_order')->orderBy('label')->get();
+        $departments = Department::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
-        return view('pages.gl.accounts.index', compact('accounts', 'parentAccounts', 'accountTypes'));
+        return view('pages.gl.accounts.index', compact('accounts', 'parentAccounts', 'coaTypes', 'departments'));
     }
 
     /**
@@ -168,6 +171,8 @@ class ChartOfAccountsController extends Controller
             'is_active' => 'boolean',
             'is_postable' => 'boolean',
             'campus_id' => 'nullable|exists:campuses,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'account_classification' => 'nullable|in:current,non-current',
             'notes' => 'nullable|string',
         ]);
 
@@ -248,6 +253,45 @@ class ChartOfAccountsController extends Controller
         ));
     }
 
+    public function updateType(Request $request, CoaType $coaType)
+    {
+        $validated = $request->validate([
+            'label'          => "required|string|max:100|unique:coa_types,label,{$coaType->id}",
+            'base_type'      => 'required|in:asset,liability,equity,revenue,expense',
+            'classification' => 'nullable|in:current,non-current',
+            'normal_balance' => 'required|in:debit,credit',
+        ]);
+
+        $coaType->update($validated);
+
+        return redirect()->route('gl.accounts.index')->with('success', "Account type \"{$coaType->label}\" updated.");
+    }
+
+    public function storeType(Request $request)
+    {
+        $validated = $request->validate([
+            'label'          => 'required|string|max:100|unique:coa_types,label',
+            'base_type'      => 'required|in:asset,liability,equity,revenue,expense',
+            'classification' => 'nullable|in:current,non-current',
+            'normal_balance' => 'required|in:debit,credit',
+        ]);
+
+        CoaType::create($validated + ['is_system' => false, 'sort_order' => 99]);
+
+        return redirect()->route('gl.accounts.index')->with('success', "Account type \"{$validated['label']}\" created.");
+    }
+
+    public function destroyType(CoaType $coaType)
+    {
+        if ($coaType->is_system) {
+            return back()->with('error', 'System account types cannot be deleted.');
+        }
+
+        $coaType->delete();
+
+        return redirect()->route('gl.accounts.index')->with('success', 'Account type deleted.');
+    }
+
     public function update(Request $request, ChartOfAccount $account)
     {
         $validated = $request->validate([
@@ -259,6 +303,8 @@ class ChartOfAccountsController extends Controller
             'fs_group' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'is_postable' => 'boolean',
+            'department_id' => 'nullable|exists:departments,id',
+            'account_classification' => 'nullable|in:current,non-current',
             'notes' => 'nullable|string',
         ]);
 

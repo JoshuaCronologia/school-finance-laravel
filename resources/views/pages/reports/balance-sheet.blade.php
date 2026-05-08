@@ -49,7 +49,7 @@
     <div class="card-body max-w-3xl mx-auto">
         {{-- ASSETS --}}
         <div class="mb-6">
-            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="document.querySelectorAll('.bs-assets-body').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('bs-arrow-assets');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="bsToggle('bs-assets-body')">
                 <span class="inline-flex items-center gap-1">
                     <svg id="bs-arrow-assets" class="w-4 h-4 text-secondary-400 transition-transform" style="transform:rotate(90deg)" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                     Assets
@@ -58,8 +58,37 @@
             <table class="w-full text-sm bs-assets-body">
                 <tbody>
                     @foreach($assetGroups as $gi => $group)
-                    @if($group->accounts->count() > 1)
-                    <tr class="font-semibold cursor-pointer hover:bg-gray-50" onclick="document.querySelectorAll('.bs-asset-{{ $gi }}').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('bs-arrow-a{{ $gi }}');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+                    @if(isset($group->subgroups))
+                    {{-- Cash & Cash Equivalents with COH / CIB / PCF sub-groups --}}
+                    <tr class="font-semibold cursor-pointer hover:bg-gray-50" onclick="bsToggle('bs-cce')">
+                        <td class="py-2 pl-2">
+                            <span class="inline-flex items-center gap-1">
+                                <svg id="bs-arrow-cce" class="w-3.5 h-3.5 text-secondary-400 transition-transform" style="transform:rotate(90deg)" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                                {{ $group->label }}
+                            </span>
+                        </td>
+                        <td class="py-2 text-right font-mono w-40">₱{{ number_format($group->total, 2) }}</td>
+                    </tr>
+                    @foreach($group->subgroups as $sgi => $subgroup)
+                    <tr class="bs-cce font-medium cursor-pointer hover:bg-gray-50 bg-gray-50/50" onclick="event.stopPropagation(); bsToggle('bs-cce-sg{{ $sgi }}')">
+                        <td class="py-1.5 pl-8">
+                            <span class="inline-flex items-center gap-1">
+                                <svg id="bs-arrow-sg{{ $gi }}-{{ $sgi }}" class="w-3 h-3 text-secondary-300 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                                {{ $subgroup->label }}
+                                <span class="text-xs text-secondary-400 font-normal">({{ $subgroup->accounts->count() }})</span>
+                            </span>
+                        </td>
+                        <td class="py-1.5 text-right font-mono w-40 text-secondary-700">₱{{ number_format($subgroup->total, 2) }}</td>
+                    </tr>
+                    @foreach($subgroup->accounts as $account)
+                    <tr class="bs-cce bs-cce-sg{{ $sgi }} hover:bg-blue-50/50 cursor-pointer" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $account->id) }}'">
+                        <td class="py-1 pl-14 text-secondary-600">{{ $account->account_name }}</td>
+                        <td class="py-1 text-right font-mono w-40 text-secondary-600">₱{{ number_format(abs($account->balance), 2) }}</td>
+                    </tr>
+                    @endforeach
+                    @endforeach
+                    @elseif($group->accounts->count() > 1)
+                    <tr class="font-semibold cursor-pointer hover:bg-gray-50" onclick="bsToggle('bs-asset{{ $gi }}')">
                         <td class="py-2 pl-2">
                             <span class="inline-flex items-center gap-1">
                                 <svg id="bs-arrow-a{{ $gi }}" class="w-3.5 h-3.5 text-secondary-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
@@ -70,7 +99,7 @@
                         <td class="py-2 text-right font-mono w-40">₱{{ number_format($group->total, 2) }}</td>
                     </tr>
                     @foreach($group->accounts as $account)
-                    <tr class="bs-asset-{{ $gi }} hover:bg-blue-50/50 cursor-pointer" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $account->id) }}'">
+                    <tr class="bs-asset{{ $gi }} hover:bg-blue-50/50 cursor-pointer" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $account->id) }}'">
                         <td class="py-1 pl-10 text-secondary-600">{{ $account->account_name }}</td>
                         <td class="py-1 text-right font-mono w-40 text-secondary-600">₱{{ number_format(abs($account->balance), 2) }}</td>
                     </tr>
@@ -82,7 +111,6 @@
                     </tr>
                     @endif
                     @endforeach
-                </tbody>
                 </tbody>
             </table>
             <table class="w-full text-sm">
@@ -95,7 +123,7 @@
 
         {{-- LIABILITIES --}}
         <div class="mb-6">
-            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="document.querySelectorAll('.bs-liab-body').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('bs-arrow-liab');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="bsToggle('bs-liab-body')">
                 <span class="inline-flex items-center gap-1">
                     <svg id="bs-arrow-liab" class="w-4 h-4 text-secondary-400 transition-transform" style="transform:rotate(90deg)" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                     Liabilities
@@ -105,7 +133,7 @@
                 <tbody>
                     @foreach($liabilityGroups as $gi => $group)
                     @if($group->accounts->count() > 1)
-                    <tr class="font-semibold cursor-pointer hover:bg-gray-50" onclick="document.querySelectorAll('.bs-liab-{{ $gi }}').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('bs-arrow-l{{ $gi }}');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+                    <tr class="font-semibold cursor-pointer hover:bg-gray-50" onclick="bsToggle('bs-liab{{ $gi }}')">
                         <td class="py-2 pl-2">
                             <span class="inline-flex items-center gap-1">
                                 <svg id="bs-arrow-l{{ $gi }}" class="w-3.5 h-3.5 text-secondary-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
@@ -116,7 +144,7 @@
                         <td class="py-2 text-right font-mono w-40">₱{{ number_format($group->total, 2) }}</td>
                     </tr>
                     @foreach($group->accounts as $account)
-                    <tr class="bs-liab-{{ $gi }} hover:bg-blue-50/50 cursor-pointer" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $account->id) }}'">
+                    <tr class="bs-liab{{ $gi }} hover:bg-blue-50/50 cursor-pointer" style="display:none" onclick="window.location='{{ route('gl.accounts.show', $account->id) }}'">
                         <td class="py-1 pl-10 text-secondary-600">{{ $account->account_name }}</td>
                         <td class="py-1 text-right font-mono w-40 text-secondary-600">₱{{ number_format(abs($account->balance), 2) }}</td>
                     </tr>
@@ -129,7 +157,6 @@
                     @endif
                     @endforeach
                 </tbody>
-                </tbody>
             </table>
             <table class="w-full text-sm">
                 <tr class="border-t border-gray-300 font-semibold">
@@ -141,7 +168,7 @@
 
         {{-- EQUITY --}}
         <div class="mb-6">
-            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="document.querySelectorAll('.bs-equity-body').forEach(function(el){el.style.display=el.style.display==='none'?'':'none'}); var a=document.getElementById('bs-arrow-equity');a.style.transform=a.style.transform?'':'rotate(90deg)'">
+            <h3 class="text-sm font-bold text-secondary-900 uppercase border-b-2 border-secondary-900 pb-1 mb-3 cursor-pointer" onclick="bsToggle('bs-equity-body')">
                 <span class="inline-flex items-center gap-1">
                     <svg id="bs-arrow-equity" class="w-4 h-4 text-secondary-400 transition-transform" style="transform:rotate(90deg)" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                     Equity
@@ -186,6 +213,18 @@
         <p class="text-xs text-secondary-400 text-center mt-3 no-print">Click group headers to expand/collapse. Click account names to view details.</p>
     </div>
 </div>
+
+<script>
+function bsToggle(cls) {
+    var rows = document.querySelectorAll('.' + cls);
+    if (!rows.length) return;
+    var hidden = rows[0].style.display === 'none';
+    rows.forEach(function (r) { r.style.display = hidden ? '' : 'none'; });
+    // Rotate the matching arrow if it exists
+    var arrow = document.getElementById('bs-arrow-' + cls.replace('bs-', '').replace(/-/g, ''));
+    if (arrow) arrow.style.transform = hidden ? 'rotate(90deg)' : '';
+}
+</script>
 
 {{-- Print Signature --}}
 <div class="print-only" style="display: none;">

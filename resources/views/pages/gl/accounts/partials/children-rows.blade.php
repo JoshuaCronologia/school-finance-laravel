@@ -11,7 +11,7 @@ $_map = ['asset'=>'badge-info','liability'=>'badge-warning','equity'=>'badge-suc
         {{ $child->balance != 0 ? '₱' . number_format(abs($child->balance), 2) : '-' }}
     </td>
     <td onclick="event.stopPropagation()">
-        <button onclick="openEditModal({{ json_encode(['id'=>$child->id,'account_code'=>$child->account_code,'account_name'=>$child->account_name,'account_type'=>$child->account_type,'normal_balance'=>$child->normal_balance,'parent_id'=>$child->parent_id,'notes'=>$child->notes ?? '']) }})"
+        <button onclick="openEditModal({{ json_encode(['id'=>$child->id,'account_code'=>$child->account_code,'account_name'=>$child->account_name,'account_type'=>$child->account_type,'normal_balance'=>$child->normal_balance,'parent_id'=>$child->parent_id,'fs_group'=>$child->fs_group ?? '','account_classification'=>$child->account_classification ?? '','department_id'=>$child->department_id,'notes'=>$child->notes ?? '']) }})"
             class="text-primary-600 hover:text-primary-700 text-sm font-medium">Edit</button>
     </td>
 </tr>
