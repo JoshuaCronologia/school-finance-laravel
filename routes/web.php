@@ -152,6 +152,7 @@ Route::middleware(['check_auth'])->group(function () {
     Route::prefix('gl')->name('gl.')->group(function () {
         Route::resource('accounts', ChartOfAccountsController::class);
         Route::get('accounts/{id}/children', [ChartOfAccountsController::class, 'children'])->name('accounts.children');
+        Route::get('accounts/{id}/next-child-code', [ChartOfAccountsController::class, 'nextChildCode'])->name('accounts.next-child-code');
         Route::post('account-types', [ChartOfAccountsController::class, 'storeType'])->name('account-types.store');
         Route::put('account-types/{coaType}', [ChartOfAccountsController::class, 'updateType'])->name('account-types.update');
         Route::delete('account-types/{coaType}', [ChartOfAccountsController::class, 'destroyType'])->name('account-types.destroy');

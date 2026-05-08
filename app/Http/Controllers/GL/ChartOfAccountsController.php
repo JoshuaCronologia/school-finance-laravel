@@ -115,6 +115,30 @@ class ChartOfAccountsController extends Controller
     }
 
     /**
+     * AJAX: return the next sequential child code for a parent account.
+     */
+    public function nextChildCode($id)
+    {
+        $parent = ChartOfAccount::findOrFail($id);
+        $prefix = $parent->account_code . '-';
+
+        $children = ChartOfAccount::where('parent_id', $id)->pluck('account_code');
+
+        $maxSeq = 0;
+        foreach ($children as $code) {
+            if (strpos($code, $prefix) === 0) {
+                $suffix = substr($code, strlen($prefix));
+                if (is_numeric($suffix)) {
+                    $num = (int) $suffix;
+                    if ($num > $maxSeq) $maxSeq = $num;
+                }
+            }
+        }
+
+        return response()->json(['code' => $prefix . str_pad($maxSeq + 1, 3, '0', STR_PAD_LEFT)]);
+    }
+
+    /**
      * AJAX: return children rows for a parent account.
      */
     public function children($id)
@@ -166,7 +190,6 @@ class ChartOfAccountsController extends Controller
             'account_name' => 'required|string|max:255',
             'account_type' => 'required|in:asset,liability,equity,revenue,expense',
             'parent_id' => 'nullable|exists:chart_of_accounts,id',
-            'normal_balance' => 'required|in:debit,credit',
             'fs_group' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'is_postable' => 'boolean',
@@ -176,6 +199,7 @@ class ChartOfAccountsController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $validated['normal_balance'] = in_array($validated['account_type'], ['asset', 'expense']) ? 'debit' : 'credit';
         $validated['is_active'] = $validated['is_active'] ?? true;
         $validated['is_postable'] = $validated['is_postable'] ?? true;
 
@@ -299,7 +323,6 @@ class ChartOfAccountsController extends Controller
             'account_name' => 'required|string|max:255',
             'account_type' => 'required|in:asset,liability,equity,revenue,expense',
             'parent_id' => 'nullable|exists:chart_of_accounts,id',
-            'normal_balance' => 'required|in:debit,credit',
             'fs_group' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'is_postable' => 'boolean',
@@ -307,6 +330,8 @@ class ChartOfAccountsController extends Controller
             'account_classification' => 'nullable|in:current,non-current',
             'notes' => 'nullable|string',
         ]);
+
+        $validated['normal_balance'] = in_array($validated['account_type'], ['asset', 'expense']) ? 'debit' : 'credit';
 
         $oldValues = $account->toArray();
         $account->update($validated);

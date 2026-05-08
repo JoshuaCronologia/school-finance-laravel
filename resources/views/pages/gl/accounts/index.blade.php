@@ -270,7 +270,6 @@ function setCombinedType(prefix, val) {
     var cls   = parts[1] || '';
     document.getElementById(prefix + '-account_type').value           = type;
     document.getElementById(prefix + '-account_classification').value = cls;
-    document.getElementById(prefix + '-normal_balance').value         = _normalBalanceDefaults[type] || '';
 
     var deptRow = document.getElementById(prefix + '-dept-row');
     if (deptRow) deptRow.style.display = (type === 'revenue' || type === 'expense') ? '' : 'none';
@@ -281,11 +280,11 @@ function combinedTypeValue(type, cls) {
     return (type || '') + '|';
 }
 
-// Add modal — parent change auto-fills type and suggests code
+// Add modal — parent change auto-fills type and fetches next sequential child code
 document.getElementById('add-parent_id').addEventListener('change', function () {
-    var opt  = this.options[this.selectedIndex];
-    var type = opt.getAttribute('data-type');
-    var code = opt.getAttribute('data-code');
+    var opt      = this.options[this.selectedIndex];
+    var type     = opt.getAttribute('data-type');
+    var parentId = this.value;
 
     if (type) {
         var combo = document.getElementById('add-combined_type');
@@ -297,10 +296,17 @@ document.getElementById('add-parent_id').addEventListener('change', function () 
     }
 
     var codeInput = document.getElementById('add-account_code');
-    if (code && !codeInput.value) {
-        codeInput.value = code + '-';
-        codeInput.focus();
-        codeInput.setSelectionRange(codeInput.value.length, codeInput.value.length);
+    if (parentId) {
+        fetch('{{ url('gl/accounts') }}/' + parentId + '/next-child-code')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                codeInput.value = data.code || '';
+                codeInput.focus();
+                codeInput.setSelectionRange(codeInput.value.length, codeInput.value.length);
+            })
+            .catch(function (e) { console.error('next-child-code fetch failed', e); });
+    } else {
+        codeInput.value = '';
     }
 });
 
